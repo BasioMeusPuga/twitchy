@@ -12,4 +12,6 @@ What you get with the script:
 * Flippable switches in the first few lines of the script
 * The ability to display alternate names for games / streamers. If your happiness is somehow contingent upon displaying "Hearthstone: Heroes of Warcraft" as "Wizard Poker", well, you've come to the right place.
 
-Usage: twitchy -h
+Usage: 
+
+    twitchy -h
