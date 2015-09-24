@@ -6,6 +6,7 @@ database="$HOME/.twitchy.db"
 video_player=mpv
 quality=medium
 truncate_status_at=108
+show_offline=yes
 memes_everywhere=yes
 	if [[ ! -f /usr/bin/toilet ]]; then
 		memes_everywhere=no
@@ -13,7 +14,8 @@ memes_everywhere=yes
 
 if [[ ! -f "$database" ]]; then
 	echo " First run. Creating db and exiting."
-	sqlite3 $database "create table channels (id INTEGER PRIMARY KEY,Name TEXT,TimeWatched INTEGER);"
+	sqlite3 $database "create table channels (id INTEGER PRIMARY KEY,Name TEXT,TimeWatched INTEGER, AltName TEXT);"
+	sqlite3 $database "create table games (id INTEGER PRIMARY KEY,Name TEXT,AltName TEXT);"
 	exit
 fi
 
@@ -56,6 +58,7 @@ case ${1} in
 echo -ne " Usage: twitchy [OPTION]
  [ARGUMENTS]\tLaunch channel in $video_player
  -a\t\tAdd channel
+ -an\t\tAlternate names
  -d\t\tDelete channel
  -f\t\tList favorites
  -h\t\tThis helpful text
@@ -111,6 +114,56 @@ if [[ $memes_everywhere = "yes" ]]; then
 "
 	fi
 	fi
+;;
+
+ "-an")
+ 
+read -p " Replace (s)treamer or (g)ame name: " replace_category
+if [[ $replace_category = "s" ]]; then
+	replace_streamer=1
+	sqlite3 $database "select Name,AltName from channels;" | sort > /tmp/twitchy
+	else
+if [[ $replace_category = "g" ]]; then
+	replace_game=1
+	sqlite3 $database "select Name,AltName from games;" | sort > /tmp/twitchy
+fi
+fi
+
+i=0
+while read line
+do
+	real_name[i]=$(echo $line | cut -d "|" -f1)
+	alternate_name[i]=$(echo $line | cut -d "|" -f2)
+		if [[ ${alternate_name[$i]} = "" ]]; then
+		alternate_name[i]="UNSET"
+		fi
+	a_var=$[ $i +1 ]
+
+	echo -ne " "'\E[93m'$a_var'\E[0m'
+	if [[ $replace_streamer = 1 ]]; then
+	spacex="               "
+	if [[ $a_var -lt 10 ]]; then
+		printf " ""%s %s ${alternate_name[$i]} \n" " "${real_name[$i]}"${spacex:${#real_name[$i]}}"
+	else
+		printf " ""%s %s ${alternate_name[$i]} \n" ${real_name[$i]}"${spacex:${#real_name[$i]}}"
+	fi
+	else
+	echo -e " "${real_name[$i]}"\t"${alternate_name[$i]}
+	fi
+i=$[ $i + 1 ]
+done < /tmp/twitchy
+
+	read -p " Select number: " select_number
+	select_number=$[ $select_number -1 ]
+	final_selection=${real_name[$select_number]}
+	read -p " Replace $final_selection with: " final_name
+
+if [[ $replace_streamer = 1 ]]; then
+	sqlite3 $database "update channels set AltName = '$final_name' where Name = '$final_selection';"
+else
+	sqlite3 $database "update games set AltName = '$final_name' where Name = '$final_selection';"
+fi
+
 ;;
 
 "-w")
@@ -279,13 +332,26 @@ i=0
 while read line
 	do
 	stream_name=$(echo $line | cut -d ";" -f1)
+		real_name_stream=$stream_name
+		alt_name_stream=$(sqlite3 $database "select AltName from channels where Name = '$stream_name';") 2> /dev/null
+		if [[ $alt_name_stream != "" ]]; then
+			stream_name=$alt_name_stream
+		fi
+
 	game_name=$(echo $line | cut -d ";" -f2)
 		if [[ $game_name != "offline" ]] && [[ $game_name != "" ]]; then
-			channel_name[i]=$stream_name
+
+			channel_name[i]=$real_name_stream
+			game_played[i]=$game_name
+			alt_name_game=$(sqlite3 $database "select AltName from games where Name = '$game_name';")
+			if [[ $alt_name_game != "" ]]; then
+				game_name=$alt_name_game
+			fi
+
 			stream_status=$(echo $line | cut -d ";" -f3)
-				if [[ $(echo $stream_status | wc -m) -gt $truncate_status_at ]]; then
-					stream_status=$(echo $stream_status | cut -c 1-$truncate_status_at)"..."
-				fi
+			if [[ $(echo $stream_status | wc -m) -gt $truncate_status_at ]]; then
+				stream_status=$(echo $stream_status | cut -c 1-$truncate_status_at)"..."
+			fi
 			a_var=$[ $i +1 ]
 			spacex="               "
 			spacex2="                                        "
@@ -293,7 +359,9 @@ while read line
 			printf " "'\E[92m'"%s %s $game_name${spacex2:${#game_name}}$stream_status \E[0m\n" $stream_name"${spacex:${#stream_name}}"
 			i=$[ $i + 1 ]
 		else
-			echo -e '\E[91m'" x "$stream_name'\E[0m'
+			if [[ $show_offline = "yes" ]]; then
+				echo -e '\E[91m'" x "$stream_name'\E[0m'
+			fi
 		fi
 	done < /tmp/twitchyfinal
 
@@ -353,8 +421,14 @@ game_number=$[ $game_number -1 ]
 final_selection=${channel_name[$game_number]}
 
 start_time=$(date +%s)
-echo " Now watching "$final_selection
+played_before=$(sqlite3 $database "select Name from games where Name = '${game_played[$game_number]}';")
+	if [[ $played_before = "" ]]; then
+		sqlite3 $database "insert into games (Name) values ('${game_played[$game_number]}');"
+	fi
+
+echo " Now watching "$final_selection 
 echo " Video Quality: "$quality "| Video Player: "$video_player
+#Modift below line for browsers other than Chromium, proper display scaling and a general sense of unease
 chromium --high-dpi-support=1 --force-device-scale-factor=1 --app=http://www.twitch.tv/$final_selection/chat?popout= &> /dev/null &
 livestreamer twitch.tv/$final_selection $quality --player $video_player &> /dev/null
 ;;
