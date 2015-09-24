@@ -428,7 +428,7 @@ played_before=$(sqlite3 $database "select Name from games where Name = '${game_p
 
 echo " Now watching "$final_selection 
 echo " Video Quality: "$quality "| Video Player: "$video_player
-#Modift below line for browsers other than Chromium, proper display scaling and a general sense of unease
+#Modify following line for browsers other than Chromium, proper display scaling and a general sense of unease
 chromium --high-dpi-support=1 --force-device-scale-factor=1 --app=http://www.twitch.tv/$final_selection/chat?popout= &> /dev/null &
 livestreamer twitch.tv/$final_selection $quality --player $video_player &> /dev/null
 ;;
