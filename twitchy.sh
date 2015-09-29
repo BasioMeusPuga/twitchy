@@ -235,8 +235,16 @@ if [[ $1 = "-f" ]]; then
 	fav_mode=1
  	sqlite3 $database "select TimeWatched,Name from channels where TimeWatched > 0;" | sort -gr | head -n5 | cut -d "|" -f2 > /tmp/twitchy
 else
+if [[ $1 = "-fr" ]]; then
+	read -p " Reset time watched? (y/n) " confirm_reset
+	if [[ $confirm_reset = "y" ]]; then
+		sqlite3 $database "update channels set TimeWatched = 0;"
+	fi
+	exit
+else
 	channel_arg=$1
 	sqlite3 $database "select Name from channels where Name like '%$channel_arg%';" > /tmp/twitchy
+fi
 fi
 
 totalstreams=$(cat /tmp/twitchy | wc -l)
