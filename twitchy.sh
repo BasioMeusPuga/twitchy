@@ -40,15 +40,18 @@ start_time=0
 trap ctrl_c INT
 trap ctrl_c EXIT
 function ctrl_c() {
+	if [[ $run_once != "yes" ]]; then
 	end_time=$(date +%s)
 	time_watched=$[ $end_time - $start_time ]
-    if [[ $final_selection != "" ]]; then
+    if [[ $final_selection != "" ]] && [[ $start_time != 0 ]]; then
 		time_old=$(sqlite3 $database "select TimeWatched from channels where Name = '$final_selection';")
 		time_new=$[ $time_old + $time_watched ]
 		sqlite3 $database "update channels set TimeWatched = '$time_new' where Name = '$final_selection';"
 		exit
 		else
 		exit
+	fi
+	run_once="yes"
 	fi
 }
 
