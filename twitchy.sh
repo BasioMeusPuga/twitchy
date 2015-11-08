@@ -6,7 +6,7 @@ database="$HOME/.twitchy.db"
 video_player=mpv
 quality=medium
 truncate_status_at=108
-show_offline=yes
+show_offline=no
 memes_everywhere=yes
 	if [[ ! -f /usr/bin/toilet ]]; then
 		memes_everywhere=no
@@ -28,8 +28,9 @@ do
 	status=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep '"stream":null')
 		if [[ $status = "" ]]; then
 			game_name=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep game | cut -d ":" -f2- | tr -d "\"" | sed -n 1p)
-			channel_status=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep status | cut -d ":" -f2- | tr -d "\"")
-			echo $line";"$game_name";"$channel_status >> /tmp/twitchyfinal
+			channel_status=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep status | cut -d ":" -f2- | tr -d "\"" | tr -d "%")
+			partner=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep partner | cut -d ":" -f2- | tr -d "\"")
+			echo $line";"$game_name";"$channel_status";"$partner >> /tmp/twitchyfinal
 		else
  			echo $line";offline"  >> /tmp/twitchyfinal
 		fi
@@ -197,6 +198,10 @@ grep -q 404 /tmp/twitchy
 	fi
 else
 
+partner=$(cat /tmp/twitchy | sed 's/,/\n/g' | grep partner | cut -d ":" -f2- | tr -d "\"")
+	if [[ $partner = "false" ]]; then
+		quality=source
+	fi
 echo " Now watching "$channel_name
 echo " Video Quality: "$quality "| Video Player: "$video_player
 chromium --high-dpi-support=1 --force-device-scale-factor=1 --app=http://www.twitch.tv/$channel_name/chat?popout= &> /dev/null &
@@ -359,21 +364,27 @@ while read line
 				game_name=$alt_name_game
 			fi
 
-			stream_status=$(echo $line | cut -d ";" -f3)
-			if [[ $(echo $stream_status | wc -m) -gt $truncate_status_at ]]; then
-				stream_status=$(echo $stream_status | cut -c 1-$truncate_status_at)"..."
-			fi
-			a_var=$[ $i +1 ]
-			spacex="               "
-			spacex2="                                        "
-			echo -ne " "'\E[93m'$a_var'\E[0m'
-			printf " "'\E[92m'"%s %s $game_name${spacex2:${#game_name}}$stream_status \E[0m\n" $stream_name"${spacex:${#stream_name}}"
-			i=$[ $i + 1 ]
-		else
-			if [[ $show_offline = "yes" ]]; then
-				echo -e '\E[91m'" x "$stream_name'\E[0m'
-			fi
+	partnership_status=$(echo $line | cut -d ";" -f4 | sed 's/'\''//g')
+		if [[ $partnership_status = "false" ]]; then
+			partner[i]=false
 		fi
+		
+	stream_status=$(echo $line | cut -d ";" -f3)
+		if [[ $(echo $stream_status | wc -m) -gt $truncate_status_at ]]; then
+			stream_status=$(echo $stream_status | cut -c 1-$truncate_status_at)"..."
+		fi
+		
+		a_var=$[ $i +1 ]
+		spacex="               "
+		spacex2="                                        "
+		echo -ne " "'\E[93m'$a_var'\E[0m'
+		printf " "'\E[92m'"%s %s $game_name${spacex2:${#game_name}}$stream_status \E[0m\n" $stream_name"${spacex:${#stream_name}}"
+		i=$[ $i + 1 ]
+	else
+		if [[ $show_offline = "yes" ]]; then
+			echo -e '\E[91m'" x "$stream_name'\E[0m'
+		fi
+	fi
 	done < /tmp/twitchyfinal
 
 if [[ $i = 0 ]]; then
@@ -430,6 +441,10 @@ fi
 
 game_number=$[ $game_number -1 ]
 final_selection=${channel_name[$game_number]}
+partnership_final=${partner[$game_number]}
+	if [[ $partnership_final = "false" ]]; then
+		quality=source
+	fi
 
 start_time=$(date +%s)
 played_before=$(sqlite3 $database "select Name from games where Name = '${game_played[$game_number]}';")
