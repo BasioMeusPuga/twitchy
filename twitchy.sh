@@ -60,13 +60,14 @@ case ${1} in
 
 "-h"|"--help")
 echo -ne " Usage: twitchy [OPTION]
- [ARGUMENTS]\tLaunch channel in $video_player
- -a\t\tAdd channel
- -an\t\tAlternate names
- -d\t\tDelete channel
- -f\t\tList favorites
- -h\t\tThis helpful text
- -w\t\tWatch specified channel\n"
+ [ARGUMENTS]\t\t\tLaunch channel in $video_player
+ -a <channel name>\t\tAdd channel
+ -an\t\t\t\tSet/unset alternate names
+ -d\t\t\t\tDelete channel
+ -f\t\t\t\tList favorites
+ -h\t\t\t\tThis helpful text
+ -s <username>\t\t\tSync followed channels from specified account
+ -w <channel name> \t\tWatch specified channel\n"
 exit
 ;;
 
@@ -120,7 +121,8 @@ if [[ $memes_everywhere = "yes" ]]; then
 	fi
 ;;
 
- "-an")
+
+"-an")
  
 read -p " Replace (s)treamer or (g)ame name: " replace_category
 if [[ $replace_category = "s" ]]; then
@@ -167,8 +169,55 @@ if [[ $replace_streamer = 1 ]]; then
 else
 	sqlite3 $database "update games set AltName = '$final_name' where Name = '$final_selection';"
 fi
-
 ;;
+
+
+"-s")
+
+user_id=$2
+if [[ $user_id != "" ]]; then
+	curl -s https://api.twitch.tv/kraken/users/$user_id/follows/channels > /tmp/twitchy
+	grep -q 404 /tmp/twitchy
+	if [[ $? = 0 ]]; then
+		echo " $user_id doesn't exist"
+		exit
+	fi
+fi
+
+cat /tmp/twitchy | sed 's/,/\n/g' | grep -v "display" | grep name | cut -d ":" -f2- | tr -d "\"" | sort > /tmp/twitchynew
+sqlite3 $database "select Name from channels;" | sort > /tmp/twitchyalreadyfollowed
+comm -1 -3 /tmp/twitchyalreadyfollowed /tmp/twitchynew > /tmp/twitchyadd
+	new_additions=$(cat /tmp/twitchyadd | wc -l)
+		if [[ $new_additions = 0 ]]; then
+			echo " All streams already in local database. dansgame."
+			exit
+		fi
+
+	echo " Added to local database:"
+	while read line
+	do
+	sqlite3 $database "insert into channels (Name,TimeWatched) values ('$line',0);"
+	echo " "$line
+	done < /tmp/twitchyadd
+	if [[ $memes_everywhere = "yes" ]]; then
+ echo -n " ░░░░░▄██████████▄▄░░░
+ ░░░░▄██████████████▐░░
+ ░░▄█████████▀▀▓▀███░░░
+ ░▄███████▓▒▒▒▒▒▒▓▓█▐░░
+ ░▌████████▒▒▒▄▒▒▒▒▄▐░░
+ ░░███████▒▒▒▀░▀▒▒▀▌░░░
+ ░░▌▓▀▀██▒▒▒▒▒▄▄▒▒▄▌░░░
+ ░░▌▒▓▓▌█▒▒▒▒▒▒▀░▒▀▌░░░
+ ░░░▄▒░▌█▒▒▒▒▒▒▒▐░▒▌░░░
+ ░░░▀█▓▓▓▒▒▒▒▒▒▒▀▀▒▐░░░
+ ░░░░▌▓▓▓▒▒▒▒░░░░▒▐░░░░
+ ░░░░░▀▄▓▓▒▒▒▒▌██▐░░░░░
+ ░░░░░░▀▄▓▒▒▒▒▒▀▀░░░░░░
+ ░░░░░░░░▀▄▄▒▒▓▄▐░░░░░░
+"
+	fi
+;;
+
 
 "-w")
 
@@ -209,6 +258,7 @@ livestreamer twitch.tv/$channel_name $quality --player $video_player &> /dev/nul
 
 	fi
 ;;
+
 
 "-d")
 
