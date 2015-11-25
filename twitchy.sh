@@ -460,11 +460,18 @@ fi
 	exit
 fi
 
-echo -n " Channel number: "
-read game_number
+echo -n " Channel number (Multiple allowed): "
+read -a game_number
 
-if [[ $game_number -gt $a_var ]]; then
-	if [[ $memes_everywhere = "yes" ]]; then
+number_of_channels=${#game_number[@]}
+if [[ $number_of_channels -gt 1 ]]; then
+	multi_twitch=yes
+fi
+
+for check_channels in $(seq 0 $[ $number_of_channels -1 ])
+	do
+	if [[ ${game_number[$check_channels]} -gt $a_var ]]; then
+		if [[ $memes_everywhere = "yes" ]]; then
 	echo -n " Gay Faec (no space)
  ░░░░░░░░░░░░░░░░░░░░
  ░░░░▄▀▀▀▀▀█▀▄▄▄▄░░░░
@@ -486,26 +493,46 @@ if [[ $game_number -gt $a_var ]]; then
 	else
 	echo " Invalid selection."
 	exit
+		fi
 	fi
+done
+
+if [[ $multi_twitch = "yes" ]]; then
+	for check_channels in $(seq 0 $[ $number_of_channels -1 ])
+		do
+		game_number[$check_channels]=$[ ${game_number[$check_channels]} -1 ]
+		final_selection[$check_channels]=${channel_name[${game_number[$check_channels]}]}
+		now_watching=$(echo $now_watching $(echo ${final_selection[$check_channels]}))
+	done
+
+ 	echo " Video Quality: "$quality "| Video Player: "$video_player
+	echo " Now watching multiple streams: "$now_watching
+	for check_channels in $(seq 0 $[ $number_of_channels -2 ])
+		do
+		livestreamer twitch.tv/${final_selection[$check_channels]} $quality --player $video_player &> /dev/null &
+		done
+		final_channel=$[ $number_of_channels -1 ]
+		livestreamer twitch.tv/${final_selection[$final_channel]} $quality --player $video_player &> /dev/null
+
+	else
+	game_number=$[ $game_number -1 ]
+	final_selection=${channel_name[$game_number]}
+	partnership_final=${partner[$game_number]}
+		if [[ $partnership_final = "false" ]]; then
+			quality=source
+		fi
+
+	start_time=$(date +%s)
+	played_before=$(sqlite3 $database "select Name from games where Name = '${game_played[$game_number]}';")
+		if [[ $played_before = "" ]]; then
+			sqlite3 $database "insert into games (Name) values ('${game_played[$game_number]}');"
+		fi
+
+	echo " Now watching "$final_selection 
+	echo " Video Quality: "$quality "| Video Player: "$video_player
+	chromium --high-dpi-support=1 --force-device-scale-factor=1 --app=http://www.twitch.tv/$final_selection/chat?popout= &> /dev/null &
+	livestreamer twitch.tv/$final_selection $quality --player $video_player &> /dev/null
 fi
-
-game_number=$[ $game_number -1 ]
-final_selection=${channel_name[$game_number]}
-partnership_final=${partner[$game_number]}
-	if [[ $partnership_final = "false" ]]; then
-		quality=source
-	fi
-
-start_time=$(date +%s)
-played_before=$(sqlite3 $database "select Name from games where Name = '${game_played[$game_number]}';")
-	if [[ $played_before = "" ]]; then
-		sqlite3 $database "insert into games (Name) values ('${game_played[$game_number]}');"
-	fi
-
-echo " Now watching "$final_selection 
-echo " Video Quality: "$quality "| Video Player: "$video_player
-chromium --high-dpi-support=1 --force-device-scale-factor=1 --app=http://www.twitch.tv/$final_selection/chat?popout= &> /dev/null &
-livestreamer twitch.tv/$final_selection $quality --player $video_player &> /dev/null
 ;;
 
 esac
