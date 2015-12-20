@@ -6,9 +6,24 @@ database="$HOME/.twitchy.db"
 video_player=mpv
 quality=medium
 truncate_status_at=108
-show_offline=no
-memes_everywhere=yes
-	if [[ ! -f /usr/bin/toilet ]]; then
+show_offline=yes
+memes_everywhere=no
+meme="RAISE YOUR DONGERS
+ E S P O R T S
+ DIGITAL ATHLETICS
+ CYBERNETIC CALISTHENICS
+ IT'S RAINING SALT
+ A M E N O
+ YOU CAME TO THE WRONG DONGERHOOD
+ DUDUDUDUDU
+ RELEASE THE KRAKEN
+ F E E L S G O O D M A N
+ xD xD xD xD xD xD
+ I’VE GOT THE STREAM IN MY SIGHTS
+ D O N G S Q U A D 4 2 0"
+
+#Sanity checks
+ if [[ ! -f /usr/bin/toilet ]]; then
 		memes_everywhere=no
 	fi
 
@@ -21,9 +36,8 @@ fi
 
 rm /tmp/twitchy* 2> /dev/null
 
+#Check status of each stream that meets criteria
 function get_status {
-while read line
-do
 	stream[$1]=$(curl -s https://api.twitch.tv/kraken/streams/$line)
 	status=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep '"stream":null')
 		if [[ $status = "" ]]; then
@@ -34,9 +48,9 @@ do
 		else
  			echo $line";offline"  >> /tmp/twitchyfinal
 		fi
-done < /tmp/twitchylinks$1
 } &> /dev/null
 
+#Time watched tracking
 start_time=0
 trap ctrl_c INT
 trap ctrl_c EXIT
@@ -71,7 +85,7 @@ echo -ne " Usage: twitchy [OPTION]
 exit
 ;;
 
-
+#Add channel
 "-a")
 
 channel_name=$2
@@ -121,7 +135,7 @@ if [[ $memes_everywhere = "yes" ]]; then
 	fi
 ;;
 
-
+#Alternate naming
 "-an")
  
 read -p " Replace (s)treamer or (g)ame name: " replace_category
@@ -171,7 +185,7 @@ else
 fi
 ;;
 
-
+#Sync followed channels from specified account
 "-s")
 
 user_id=$2
@@ -218,7 +232,7 @@ comm -1 -3 /tmp/twitchyalreadyfollowed /tmp/twitchynew > /tmp/twitchyadd
 	fi
 ;;
 
-
+#Watch specified channel - No time tracking
 "-w")
 
 channel_name=$2
@@ -259,7 +273,7 @@ livestreamer twitch.tv/$channel_name $quality --player $video_player &> /dev/nul
 	fi
 ;;
 
-
+#Delete streamer from database - Does not affect time tracking
 "-d")
 
 sqlite3 $database "select Name from channels;" | sort > /tmp/twitchy
@@ -281,12 +295,13 @@ final_selection=${channel_name[$game_number]}
 sqlite3 $database "delete from channels where Name = '$final_selection';"
 
 if [[ $memes_everywhere = "yes" ]]; then
-		echo " R E K T "$final_selection | toilet -f smblock --gay
+		echo " "$final_selection" R E K T" | toilet -f smblock --gay
 	else
 		echo " "$final_selection "deleted from db"
 	fi
 ;;
 
+#Script argument is matched to database
 *)
 
 if [[ $1 = "-f" ]]; then
@@ -333,24 +348,10 @@ totalstreams=$(cat /tmp/twitchy | wc -l)
 	fi
 
 if [[ $memes_everywhere = "yes" ]]; then
-meme="RAISE YOUR DONGERS
- E S P O R T S
- DIGITAL ATHLETICS
- CYBERNETIC CALISTHENICS
- IT'S RAINING SALT
- A M E N O
- YOU CAME TO THE WRONG DONGERHOOD
- DUDUDUDUDU
- RELEASE THE KRAKEN
- F E E L S G O O D M A N
- xD xD xD xD xD xD
- I’VE GOT THE STREAM IN MY SIGHTS
- D O N G S Q U A D 4 2 0"
-
-meme_quantity=$(echo "$meme" | wc -l)
-meme_number=$(echo $RANDOM % $meme_quantity + 1 | bc)
-display_meme=$(sed -n ${meme_number}p <<< "$meme")
-echo " "$display_meme | toilet -f smblock --gay -w 120
+	meme_quantity=$(echo "$meme" | wc -l)
+	meme_number=$(echo $RANDOM % $meme_quantity + 1 | bc)
+	display_meme=$(sed -n ${meme_number}p <<< "$meme")
+	echo " "$display_meme | toilet -f smblock --gay -w 120
 fi
 
 if [[ $fav_mode = 1 ]]; then
@@ -359,40 +360,17 @@ if [[ $fav_mode = 1 ]]; then
 	echo " Checking channels..."
 fi
 
-if [[ $fav_mode != 1 ]]; then
-thread_total=5
-thread_total_remainder=$[ $thread_total +1 ]
-thread_total_calc=$[ $thread_total -1 ]
-thread_difference=$(echo $totalstreams / $thread_total | bc)
-
-for i in $(seq 1 $thread_difference)
+while read line
 	do
-	for thread_number in $(seq 0 $thread_total_calc)
-	do
-		var_number=$[ $thread_number + 1 ]
-		var[$var_number]=$[ $i + ($thread_difference * $thread_number) ]
-		sed -n "${var[$var_number]}"p /tmp/twitchy >> /tmp/twitchylinks$var_number
-	done
-	done
-cat /tmp/twitchylinks* > /tmp/twitchycoveredlinks 2> /dev/null
-comm -1 -3 /tmp/twitchycoveredlinks /tmp/twitchy > /tmp/twitchylinks$thread_total_remainder 2> /dev/null
-
-for status_check_number in $(seq 1 $thread_total_calc)
-	do
-	get_status $status_check_number &
-	done
-	get_status $thread_total_remainder &
-	get_status $thread_total
+	get_status $line &
+	done < /tmp/twitchy
 
 while [[ $(cat /tmp/twitchyfinal | wc -l) != $totalstreams ]]
 	do
 	sleep .1
 	done 2> /dev/null
-	sort /tmp/twitchyfinal -o /tmp/twitchyfinal
-	else
-	cp /tmp/twitchy /tmp/twitchylinks1
-	get_status 1
-fi
+
+sort /tmp/twitchyfinal -o /tmp/twitchyfinal
 
 i=0
 while read line
