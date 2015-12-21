@@ -15,7 +15,7 @@ What you get with the script:
 * Multi Twitch support so rudimentary you'll curse your loincloth wearing ancestors for not thinking of it first.
 * The ability to display alternate names for games / streamers. If your happiness is somehow contingent upon displaying "Hearthstone: Heroes of Warcraft" as "Wizard Poker", well, you've come to the right place.
 
-Usage: 
+**Usage**
 
     twitchy [OPTION]
     [ARGUMENTS]                    Launch channel in mpv
@@ -28,26 +28,31 @@ Usage:
     -s <username>                  Sync followed channels from specified account
     -w <channel name>              Watch specified channel(s)
     
-    Examples:
+**Examples**
     
-    (Add "bobross" to local database)
+Add "bobross" to local database:
+
     $ twitchy -a bobross
     
-    (Displays all strings matching *obr*)
+Display all strings matching *obr*:
+
     $ twitchy obr
-    1 bobross                   Creative                                The Joy of Painting Monday Season 7 Marathon #painting #oilpaint
+    1 bobross                   Creative                                The Joy of Painting Monday Season 7 Marathon #painting...
     2 mariobro                  Sonic: Generations                      #WhereMuhPrincessAt?
     x yobringmeabetterexample                               
     3 flatulentcobra            Wizard Poker                            Playing secret Paladin. Killing a puppy later.
     Channel number (Multiple allowed): 1-h 2-s 3-l
-    
+
     Custom quality settings: Specify with hyphen next to channel number.
     E.g. <1-h 2-s 3-l> will simultaneously play channel 1 in high quality, 2 in source quality, and 3 in low quality.
     
-    (Watch specified channel(s) - Do not have to be in from local database)
+Watch specified channel(s) - Do not have to be in local database:
+
     $ twitchy -w northernlion cobaltstreak
     x cobaltstreak
     1 northernlion              The Binding of Isaac: Afterbirth        Egg
     Channel number (Multiple allowed): 1
+
+Using no argument while launching the script will check the status of every channel in the local database:
 
 ![alt tag](https://imgur.com/JbP14Xo.png)
