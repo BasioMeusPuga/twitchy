@@ -17,4 +17,15 @@ What you get with the script:
 
 Usage: 
 
-    twitchy -h
+    twitchy [OPTION]
+    [ARGUMENTS]                    Launch channel in mpv
+    -a <channel name>              Add channel
+    -an                            Set/unset alternate names
+    -d                             Delete channel
+    -f                             List favorites
+    -fr                            Reset time watched
+    -h                             This helpful text
+    -s <username>                  Sync followed channels from specified account
+    -w <channel name>              Watch specified channel(s)
+    Custom quality settings: Specify with hyphen next to channel number.
+    E.g. <1-l 2-m 4-s> will simultaneously play channel 1 in low quality, 2 in medium quality, and 4 in source quality.
