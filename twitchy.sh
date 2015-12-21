@@ -6,7 +6,7 @@ database="$HOME/.twitchy.db"
 video_player=mpv
 quality=medium
 truncate_status_at=108
-show_offline=yes
+show_offline=no
 memes_everywhere=no
 meme="RAISE YOUR DONGERS
  E S P O R T S
@@ -79,9 +79,13 @@ echo -ne " Usage: twitchy [OPTION]
  -an\t\t\t\tSet/unset alternate names
  -d\t\t\t\tDelete channel
  -f\t\t\t\tList favorites
+ -fr\t\t\t\tReset time watched
  -h\t\t\t\tThis helpful text
  -s <username>\t\t\tSync followed channels from specified account
- -w <channel name> \t\tWatch specified channel\n"
+ -w <channel name> \t\tWatch specified channel(s)
+ 
+ Custom quality settings: Specify with hyphen next to channel number.
+ E.g. <1-l 2-m 4-s> will simultaneously play channel 1 in low quality, 2 in medium quality, and 4 in source quality.\n"
 exit
 ;;
 
@@ -232,47 +236,6 @@ comm -1 -3 /tmp/twitchyalreadyfollowed /tmp/twitchynew > /tmp/twitchyadd
 	fi
 ;;
 
-#Watch specified channel - No time tracking
-"-w")
-
-channel_name=$2
-curl -s https://api.twitch.tv/kraken/streams/$channel_name > /tmp/twitchy
-grep -q 404 /tmp/twitchy
-	if [[ $? = 0 ]]; then
-	echo " $channel_name doesn't exist"
-	if [[ $memes_everywhere = "yes" ]]; then
- echo -n " ▒▒▒░░░░░░░░░░▄▐░░░░
- ▒░░░░░░▄▄▄░░▄██▄░░░
- ░░░░░░▐▀█▀▌░░░░▀█▄░
- ░░░░░░▐█▄█▌░░░░░░▀█▄
- ░░░░░░░▀▄▀░░░▄▄▄▄▄▀▀
- ░░░░░▄▄▄██▀▀▀▀░░░░░
- ░░░░█▀▄▄▄█░▀▀░░░░░░
- ░░░░▌░▄▄▄▐▌▀▀▀░░░░░
- ░▄░▐░░░▄▄░█░▀▀░░░░░
- ░▀█▌░░░▄░▀█▀░▀░░░░░
- ░░░░░░░░▄▄▐▌▄▄░░░░░
- ░░░░░░░░▀███▀█░▄░░░
- ░░░░░░░▐▌▀▄▀▄▀▐▄░░░
- ░░░░░░░▐▀░░░░░░▐▌░░
- ░░░░░░░█░░░░░░░░█░░
- ░░░░░░▐▌░░░░░░░░░█░ 
-"
-	fi
-else
-
-partner=$(cat /tmp/twitchy | sed 's/,/\n/g' | grep partner | cut -d ":" -f2- | tr -d "\"")
-	if [[ $partner = "false" ]]; then
-		quality=source
-	fi
-echo " Now watching "$channel_name
-echo " Video Quality: "$quality "| Video Player: "$video_player
-chromium --high-dpi-support=1 --force-device-scale-factor=1 --app=http://www.twitch.tv/$channel_name/chat?popout= &> /dev/null &
-livestreamer twitch.tv/$channel_name $quality --player $video_player &> /dev/null
-
-	fi
-;;
-
 #Delete streamer from database - Does not affect time tracking
 "-d")
 
@@ -315,8 +278,17 @@ if [[ $1 = "-fr" ]]; then
 	fi
 	exit
 else
+if [[ $1 = "-w" ]]; then
+	onlywatch_mode=1
+	for onlywatch_channel in "${@:2}"
+	do
+		show_offline=yes
+		echo $onlywatch_channel | cut -d "-" -f1 >> /tmp/twitchy
+	done
+else
 	channel_arg=$1
 	sqlite3 $database "select Name from channels where Name like '%$channel_arg%';" > /tmp/twitchy
+fi
 fi
 fi
 
@@ -393,7 +365,9 @@ while read line
 			fi
 
 	partnership_status=$(echo $line | cut -d ";" -f4 | sed 's/'\''//g')
-		if [[ $partnership_status = "false" ]]; then
+	if [[ $partnership_status = "true" ]]; then
+			partner[i]=true
+			else
 			partner[i]=false
 		fi
 		
@@ -416,7 +390,11 @@ while read line
 	done < /tmp/twitchyfinal
 
 if [[ $i = 0 ]]; then
-	echo " All channels offline"
+	if [[ $onlywatch_mode = 1 ]]; then
+		echo " Specified channels offline / Invalid"
+	else
+		echo " All channels offline"
+	fi
 	if [[ $memes_everywhere = "yes" ]]; then
 echo -n " ░░░░░░░░░░░░░░░░░░░
  ░░▄█████████████▄ ░
@@ -441,6 +419,7 @@ fi
 echo -n " Channel number (Multiple allowed): "
 read -a game_number
 
+for_quality=("${game_number[@]}")
 number_of_channels=${#game_number[@]}
 if [[ $number_of_channels -gt 1 ]]; then
 	multi_twitch=yes
@@ -475,42 +454,64 @@ for check_channels in $(seq 0 $[ $number_of_channels -1 ])
 	fi
 done
 
-if [[ $multi_twitch = "yes" ]]; then
-	for check_channels in $(seq 0 $[ $number_of_channels -1 ])
-		do
-		game_number[$check_channels]=$[ ${game_number[$check_channels]} -1 ]
-		final_selection[$check_channels]=${channel_name[${game_number[$check_channels]}]}
-		now_watching=$(echo $now_watching $(echo ${final_selection[$check_channels]}))
+for check_channels in $(seq 0 $[ $number_of_channels -1 ])
+	do
+	game_number[$check_channels]=$[ ${game_number[$check_channels]} -1 ]
+	final_selection[$check_channels]=${channel_name[${game_number[$check_channels]}]}
+	quality_check[$check_channels]=$(echo ${for_quality[$check_channels]} | cut -d "-" -f2)
+	case ${quality_check[$check_channels]} in
+	"l")
+		custom_quality=1
+		final_quality[$check_channels]=low
+	;;
+	"m")
+		custom_quality=1
+		final_quality[$check_channels]=medium
+	;;
+	"h")
+		custom_quality=1
+		final_quality[$check_channels]=high
+	;;
+	"s")
+		custom_quality=1
+		final_quality[$check_channels]=source
+	;;
+	*)
+		final_quality[$check_channels]=$quality
+	;;
+	esac
+	
+	if [[ $custom_quality = 1 ]]; then
+	now_watching=$(echo $now_watching $(echo ${final_selection[$check_channels]}) "-" ${final_quality[$check_channels]} "|" )
+	else
+	now_watching=$(echo $now_watching $(echo ${final_selection[$check_channels]}) "|" )
+	fi
+done
+
+if [[ $custom_quality = 1 ]]; then
+echo " Video Quality: Custom | Video Player: "$video_player
+else
+echo " Video Quality: "$quality "| Video Player: "$video_player
+fi
+echo " Now watching: "${now_watching::-1}
+
+for check_channels in $(seq 0 $[ $number_of_channels -2 ])
+	do
+	livestreamer twitch.tv/${final_selection[$check_channels]} ${final_quality[$check_channels]} --player $video_player &> /dev/null &
 	done
 
- 	echo " Video Quality: "$quality "| Video Player: "$video_player
-	echo " Now watching multiple streams: "$now_watching
-	for check_channels in $(seq 0 $[ $number_of_channels -2 ])
-		do
-		livestreamer twitch.tv/${final_selection[$check_channels]} $quality --player $video_player &> /dev/null &
-		done
-		final_channel=$[ $number_of_channels -1 ]
-		livestreamer twitch.tv/${final_selection[$final_channel]} $quality --player $video_player &> /dev/null
-
-	else
-	game_number=$[ $game_number -1 ]
-	final_selection=${channel_name[$game_number]}
-	partnership_final=${partner[$game_number]}
-		if [[ $partnership_final = "false" ]]; then
-			quality=source
-		fi
-
-	start_time=$(date +%s)
-	played_before=$(sqlite3 $database "select Name from games where Name = '${game_played[$game_number]}';")
+if [[ $multi_twitch != "yes" ]]; then
+	if [[ $onlywatch_mode != 1 ]]; then
+		start_time=$(date +%s)
+		played_before=$(sqlite3 $database "select Name from games where Name = '${game_played[$game_number]}';")
 		if [[ $played_before = "" ]]; then
 			sqlite3 $database "insert into games (Name) values ('${game_played[$game_number]}');"
 		fi
-
-	echo " Now watching "$final_selection 
-	echo " Video Quality: "$quality "| Video Player: "$video_player
-	chromium --high-dpi-support=1 --force-device-scale-factor=1 --app=http://www.twitch.tv/$final_selection/chat?popout= &> /dev/null &
-	livestreamer twitch.tv/$final_selection $quality --player $video_player &> /dev/null
+	fi
+	chromium --high-dpi-support=1 --force-device-scale-factor=1 --app=http://www.twitch.tv/${final_selection[$final_channel]}/chat?popout= &> /dev/null &
 fi
+	final_channel=$[ $number_of_channels -1 ]
+	livestreamer twitch.tv/${final_selection[$final_channel]} ${final_quality[$final_channel]} --player $video_player &> /dev/null
 ;;
 
 esac
