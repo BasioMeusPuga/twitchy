@@ -42,9 +42,9 @@ function get_status {
 	status=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep '"stream":null')
 		if [[ $status = "" ]]; then
 			game_name=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep game | cut -d ":" -f2- | tr -d "\"" | sed -n 1p)
+			channel_viewers=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep viewers | cut -d ":" -f2- | tr -d "\"" | tr -d "%")
 			channel_status=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep status | cut -d ":" -f2- | tr -d "\"" | tr -d "%")
-			partner=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep partner | cut -d ":" -f2- | tr -d "\"")
-			echo $line";"$game_name";"$channel_status";"$partner >> /tmp/twitchyfinal
+			echo $line";"$game_name";"$channel_status";"$channel_viewers >> /tmp/twitchyfinal
 		else
  			echo $line";offline"  >> /tmp/twitchyfinal
 		fi
@@ -280,9 +280,9 @@ if [[ $1 = "-fr" ]]; then
 else
 if [[ $1 = "-w" ]]; then
 	onlywatch_mode=1
+	show_offline=yes
 	for onlywatch_channel in "${@:2}"
 	do
-		show_offline=yes
 		echo $onlywatch_channel | cut -d "-" -f1 >> /tmp/twitchy
 	done
 else
@@ -355,6 +355,7 @@ while read line
 		fi
 
 	game_name=$(echo $line | cut -d ";" -f2 | sed 's/'\''//g')
+	stream_viewers=$(echo $line | cut -d ";" -f4 | sed 's/'\''//g')
 		if [[ $game_name != "offline" ]] && [[ $game_name != "" ]]; then
 
 			channel_name[i]=$real_name_stream
@@ -363,13 +364,7 @@ while read line
 			if [[ $alt_name_game != "" ]]; then
 				game_name=$alt_name_game
 			fi
-
-	partnership_status=$(echo $line | cut -d ";" -f4 | sed 's/'\''//g')
-	if [[ $partnership_status = "true" ]]; then
-			partner[i]=true
-			else
-			partner[i]=false
-		fi
+		game_name=$(echo $game_name "("$stream_viewers")")
 		
 	stream_status=$(echo $line | cut -d ";" -f3)
 		if [[ $(echo $stream_status | wc -m) -gt $truncate_status_at ]]; then
