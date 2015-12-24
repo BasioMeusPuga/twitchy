@@ -29,6 +29,10 @@ What you get with the script:
     -w <channel name>              Watch specified channel(s)
     
 **Examples**
+
+Using no argument while launching the script will check the status of every channel in the local database:
+
+![alt tag](https://imgur.com/JbP14Xo.png)
     
 Add "bobross" to local database:
 
@@ -52,7 +56,5 @@ Watch specified channel(s) - Do not have to be in local database:
     x cobaltstreak
     1 northernlion              The Binding of Isaac: Afterbirth        Egg
     Channel number (Multiple allowed): 1
-
-Using no argument while launching the script will check the status of every channel in the local database:
-
-![alt tag](https://imgur.com/JbP14Xo.png)
+    
+*Caveat Emptor: Chat is launched in a chromium window. If you prefer firefox / another browser / the inevitability of being claimed by the void, line 506 is where you need to be. Just substitute for firefox / comment it out.*
