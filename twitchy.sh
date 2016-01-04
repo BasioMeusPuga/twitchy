@@ -5,7 +5,7 @@
 database="$HOME/.twitchy.db"
 video_player=mpv
 quality=medium
-truncate_status_at=108
+truncate_status_at=100
 number_of_faves=10
 show_offline=no
 show_viewers=no
@@ -35,10 +35,14 @@ if [[ ! -f /usr/bin/sqlite3 ]] && [[ $1 != "-w" ]]; then
 fi
 
 if [[ ! -f "$database" ]]; then
-	echo " First run. Creating db and exiting."
-	sqlite3 $database "create table channels (id INTEGER PRIMARY KEY,Name TEXT,TimeWatched INTEGER, AltName TEXT);"
-	sqlite3 $database "create table games (id INTEGER PRIMARY KEY,Name TEXT,AltName TEXT);"
-	exit
+	if [[ $1 != "-w" ]]; then
+		echo " First run. Creating db and exiting."
+		sqlite3 $database "create table channels (id INTEGER PRIMARY KEY,Name TEXT,TimeWatched INTEGER, AltName TEXT);"
+		sqlite3 $database "create table games (id INTEGER PRIMARY KEY,Name TEXT,AltName TEXT);"
+		exit
+	else
+		how_can_tables_be_real_if_our_databases_arent_real=1
+	fi
 fi
 
 rm /tmp/twitchy* 2> /dev/null
@@ -84,6 +88,11 @@ function ctrl_c() {
 		time_old=$(sqlite3 $database "select TimeWatched from channels where Name = '$final_selection';")
 		time_new=$[ $time_old + $time_watched ]
 		sqlite3 $database "update channels set TimeWatched = '$time_new' where Name = '$final_selection';"
+		
+		total_time_spent=$(sqlite3 $database "select TimeWatched from channels where Name = '$final_selection';")
+		time_rank=$(sqlite3 $database "select TimeWatched,Name from channels where TimeWatched > 0;" | sort -gr | cat -n | grep $final_selection | awk '{print $1}')
+		echo " Total time spent watching "$final_selection" - "$(date -d@$total_time_spent -u +%H:%M:%S)" ("$time_rank")"
+		
 		exit
 		else
 		exit
@@ -381,30 +390,34 @@ while read line
 	fi
 	
 	stream_name=$(echo $line | cut -d ";" -f1)
-		real_name_stream=$stream_name
+	real_name_stream=$stream_name
+	if [[ $how_can_tables_be_real_if_our_databases_arent_real != 1 ]]; then
 		alt_name_stream=$(sqlite3 $database "select AltName from channels where Name = '$stream_name';") 2> /dev/null
 		if [[ $alt_name_stream != "" ]]; then
 			stream_name=$alt_name_stream
 		fi
-		if [[ $fav_mode = 1 ]]; then
-			stream_name=$(echo $stream_name "("$fav_time")")
-		fi
+	fi
+	if [[ $fav_mode = 1 ]]; then
+		stream_name=$(echo $stream_name "("$fav_time")")
+	fi
 
 	game_name=$(echo $line | cut -d ";" -f2 | sed 's/'\''//g')
 	stream_viewers=$(echo $line | cut -d ";" -f4 | sed 's/'\''//g')
-		if [[ $game_name != "offline" ]] && [[ $(echo $game_name | cut -d "^" -f1) != "offline" ]] && [[ $game_name != "" ]]; then
-
-			channel_name[i]=$real_name_stream
-			game_played[i]=$game_name
+	if [[ $game_name != "offline" ]] && [[ $(echo $game_name | cut -d "^" -f1) != "offline" ]] && [[ $game_name != "" ]]; then
+		channel_name[i]=$real_name_stream
+		game_played[i]=$game_name
+		
+		if [[ $how_can_tables_be_real_if_our_databases_arent_real != 1 ]]; then
 			alt_name_game=$(sqlite3 $database "select AltName from games where Name = '$game_name';")
 			if [[ $alt_name_game != "" ]]; then
 				game_name=$alt_name_game
 			fi
-		if [[ $show_viewers = "yes" ]]; then
-			game_name=$(echo $game_name "("$stream_viewers")")
 		fi
 
-	stream_status=$(echo $line | cut -d ";" -f3)
+		stream_status=$(echo $line | cut -d ";" -f3)
+		if [[ $show_viewers = "yes" ]]; then
+			stream_status=$(echo "("$stream_viewers")" $stream_status)
+		fi
 		if [[ $(echo $stream_status | wc -m) -gt $truncate_status_at ]]; then
 			stream_status=$(echo $stream_status | cut -c 1-$truncate_status_at)"..."
 		fi
