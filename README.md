@@ -31,7 +31,9 @@ What you get with the script:
 **Examples**
 
 Using no argument while launching the script will check the status of every channel in the local database:
+![alt tag](https://imgur.com/cwdHy7L.png)
 
+Alternate view with alphabetical sorting - set $sort_by_games != yes on line 11
 ![alt tag](https://imgur.com/JbP14Xo.png)
     
 Add "bobross" to local database:
@@ -41,6 +43,7 @@ Add "bobross" to local database:
 Display all strings matching *obr*:
 
     $ twitchy obr
+    Checking channels...
     1 bobross                   Creative                                The Joy of Painting Monday Season 7 Marathon #painting...
     2 mariobro                  Sonic: Generations                      #WhereMuhPrincessAt?
     x yobringmeabetterexample                               
@@ -53,8 +56,9 @@ Display all strings matching *obr*:
 Watch specified channel(s) - Do not have to be in local database:
 
     $ twitchy -w northernlion cobaltstreak
+    Checking channels...
     x cobaltstreak
     1 northernlion              The Binding of Isaac: Afterbirth        Egg
     Channel number (Multiple allowed): 1
     
-*Caveat Emptor: Chat is launched in a chromium window. If you prefer firefox / another browser / the inevitability of being claimed by the void, line 506 is where you need to be. Just substitute for firefox / comment it out.*
+*Caveat Emptor: Chat is launched in a chromium window. If you prefer firefox / another browser / the inevitability of being claimed by the void, line 590 (or thereabouts) is where you need to be. Just substitute for firefox / comment it out.*
