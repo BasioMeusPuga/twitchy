@@ -49,31 +49,31 @@ rm /tmp/twitchy* 2> /dev/null
 
 #Check status of each stream that meets criteria
 function get_status {
-	if [[ $fav_mode = 1 ]]; then
+if [[ $fav_mode = 1 ]]; then
 	stream[$1]=$(curl -s https://api.twitch.tv/kraken/streams/$(echo $line | cut -d "|" -f2))
 	fav_time[$1]=$(echo $line | cut -d "|" -f1)
-	else
+else
 	stream[$1]=$(curl -s https://api.twitch.tv/kraken/streams/$line)
-	fi
+fi
 
-	status=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep '"stream":null')
-		if [[ $status = "" ]]; then
-			game_name=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep game | cut -d ":" -f2- | tr -d "\"" | sed -n 1p)
-			channel_viewers=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep viewers | cut -d ":" -f2- | tr -d "\"" | tr -d "%")
-			channel_status=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep status | cut -d ":" -f2- | tr -d "\"" | tr -d "%")
-			
-		if [[ $fav_mode = 1 ]]; then
-			echo ${fav_time[$line]}"^"$(echo $line | cut -d "|" -f2)";"$game_name";"$channel_status";"$channel_viewers >> /tmp/twitchyfinal
-		else
-			echo $line";"$game_name";"$channel_status";"$channel_viewers >> /tmp/twitchyfinal
-		fi
+status=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep '"stream":null')
+if [[ $status = "" ]]; then
+	game_name=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep game | cut -d ":" -f2- | tr -d "\"" | sed -n 1p)
+	channel_viewers=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep viewers | cut -d ":" -f2- | tr -d "\"" | tr -d "%")
+	channel_status=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep status | cut -d ":" -f2- | tr -d "\"" | tr -d "%")
+
+	if [[ $fav_mode = 1 ]]; then
+		echo ${fav_time[$line]}"^"$(echo $line | cut -d "|" -f2)";"$game_name";"$channel_status";"$channel_viewers >> /tmp/twitchyfinal
 	else
-		if [[ $fav_mode = 1 ]]; then
-			echo ${fav_time[$line]}"^"$(echo $line | cut -d "|" -f2)";offline"  >> /tmp/twitchyfinal
-		else
-			echo $line";offline"  >> /tmp/twitchyfinal
-		fi
-		fi
+		echo $line";"$game_name";"$channel_status";"$channel_viewers >> /tmp/twitchyfinal
+	fi
+else
+	if [[ $fav_mode = 1 ]]; then
+		echo ${fav_time[$line]}"^"$(echo $line | cut -d "|" -f2)";offline"  >> /tmp/twitchyfinal
+	else
+		echo $line";offline"  >> /tmp/twitchyfinal
+	fi
+fi
 } &> /dev/null
 
 #Time watched tracking
@@ -81,29 +81,28 @@ start_time=0
 trap ctrl_c INT
 trap ctrl_c EXIT
 function ctrl_c() {
-	if [[ $run_once != "yes" ]]; then
+if [[ $run_once != "yes" ]]; then
 	end_time=$(date +%s)
 	time_watched=$[ $end_time - $start_time ]
-    if [[ $final_selection != "" ]] && [[ $start_time != 0 ]]; then
+	if [[ $final_selection != "" ]] && [[ $start_time != 0 ]]; then
 		time_old=$(sqlite3 $database "select TimeWatched from channels where Name = '$final_selection';")
 		time_new=$[ $time_old + $time_watched ]
 		sqlite3 $database "update channels set TimeWatched = '$time_new' where Name = '$final_selection';"
-		
 		total_time_spent=$(sqlite3 $database "select TimeWatched from channels where Name = '$final_selection';")
 		time_rank=$(sqlite3 $database "select TimeWatched,Name from channels where TimeWatched > 0;" | sort -gr | cat -n | grep $final_selection | awk '{print $1}')
 		echo " Total time spent watching "$final_selection" - "$(date -d@$total_time_spent -u +%H:%M:%S)" ("$time_rank")"
-		
+		run_once="yes"
 		exit
-		else
+	else
 		exit
 	fi
-	run_once="yes"
-	fi
+fi
 }
 
 case ${1} in
 
 "-h"|"--help")
+
 echo -ne " Usage: twitchy [OPTION]
  [ARGUMENTS]\t\t\tLaunch channel in $video_player
  -a <channel name>\t\tAdd channel
@@ -177,7 +176,7 @@ read -p " Replace (s)treamer or (g)ame name: " replace_category
 if [[ $replace_category = "s" ]]; then
 	replace_streamer=1
 	sqlite3 $database "select Name,AltName from channels;" | sort > /tmp/twitchy
-	else
+else
 if [[ $replace_category = "g" ]]; then
 	replace_game=1
 	sqlite3 $database "select Name,AltName from games;" | sort > /tmp/twitchy
@@ -190,7 +189,7 @@ do
 	real_name[i]=$(echo $line | cut -d "|" -f1)
 	alternate_name[i]=$(echo $line | cut -d "|" -f2)
 		if [[ ${alternate_name[$i]} = "" ]]; then
-		alternate_name[i]="UNSET"
+			alternate_name[i]="UNSET"
 		fi
 	a_var=$[ $i +1 ]
 
@@ -203,7 +202,7 @@ do
 		printf " ""%s %s ${alternate_name[$i]} \n" ${real_name[$i]}"${spacex:${#real_name[$i]}}"
 	fi
 	else
-	echo -e " "${real_name[$i]}"\t"${alternate_name[$i]}
+		echo -e " "${real_name[$i]}"\t"${alternate_name[$i]}
 	fi
 i=$[ $i + 1 ]
 done < /tmp/twitchy
@@ -237,18 +236,19 @@ cat /tmp/twitchy | sed 's/,/\n/g' | grep -v "display" | grep name | cut -d ":" -
 sqlite3 $database "select Name from channels;" | sort > /tmp/twitchyalreadyfollowed
 comm -1 -3 /tmp/twitchyalreadyfollowed /tmp/twitchynew > /tmp/twitchyadd
 	new_additions=$(cat /tmp/twitchyadd | wc -l)
-		if [[ $new_additions = 0 ]]; then
-			echo " All streams already in local database. dansgame."
-			exit
-		fi
+	if [[ $new_additions = 0 ]]; then
+		echo " All streams already in local database. dansgame."
+		exit
+	fi
 
-	echo " Added to local database:"
-	while read line
-	do
+echo " Added to local database:"
+while read line
+do
 	sqlite3 $database "insert into channels (Name,TimeWatched) values ('$line',0);"
 	echo " "$line
-	done < /tmp/twitchyadd
-	if [[ $memes_everywhere = "yes" ]]; then
+done < /tmp/twitchyadd
+
+if [[ $memes_everywhere = "yes" ]]; then
  echo -n " ░░░░░▄██████████▄▄░░░
  ░░░░▄██████████████▐░░
  ░░▄█████████▀▀▓▀███░░░
@@ -264,7 +264,7 @@ comm -1 -3 /tmp/twitchyalreadyfollowed /tmp/twitchynew > /tmp/twitchyadd
  ░░░░░░▀▄▓▒▒▒▒▒▀▀░░░░░░
  ░░░░░░░░▀▄▄▒▒▓▄▐░░░░░░
 "
-	fi
+fi
 ;;
 
 #Delete streamer from database - Does not affect time tracking
@@ -289,10 +289,10 @@ final_selection=${channel_name[$game_number]}
 sqlite3 $database "delete from channels where Name = '$final_selection';"
 
 if [[ $memes_everywhere = "yes" ]]; then
-		echo " "$final_selection" R E K T" | toilet -f smblock --gay
-	else
-		echo " "$final_selection "deleted from db"
-	fi
+	echo " "$final_selection" R E K T" | toilet -f smblock --gay
+else
+	echo " "$final_selection "deleted from db"
+fi
 ;;
 
 #Script argument is matched to database
@@ -360,29 +360,29 @@ fi
 
 if [[ $fav_mode = 1 ]]; then
 	echo " Listing channels by most watched..."
-	else
+else
 	echo " Checking channels..."
 fi
 
 while read line
-	do
+do
 	get_status $line &
-	done < /tmp/twitchy
+done < /tmp/twitchy
 
 while [[ $(cat /tmp/twitchyfinal | wc -l) != $totalstreams ]]
-	do
+do
 	sleep .1
-	done 2> /dev/null
+done 2> /dev/null
 
 if [[ $fav_mode = 1 ]]; then
 	sort -gr /tmp/twitchyfinal -o /tmp/twitchyfinal
-	else
+else
 	sort /tmp/twitchyfinal -o /tmp/twitchyfinal
 fi
 
 i=0
 while read line
-	do
+do
 	
 	if [[ $fav_mode = 1 ]]; then
 		fav_time=$(date -d@$(echo $line | cut -d "^" -f1) -u +%H:%M)
@@ -473,7 +473,7 @@ if [[ $number_of_channels -gt 1 ]]; then
 fi
 
 for check_channels in $(seq 0 $[ $number_of_channels -1 ])
-	do
+do
 	if [[ ${game_number[$check_channels]} -gt $a_var ]]; then
 		if [[ $memes_everywhere = "yes" ]]; then
 	echo -n " Gay Faec (no space)
@@ -499,10 +499,10 @@ for check_channels in $(seq 0 $[ $number_of_channels -1 ])
 		exit
 		fi
 	fi
-	done
+done
 
 for check_channels in $(seq 0 $[ $number_of_channels -1 ])
-	do
+do
 	game_number[$check_channels]=$[ ${game_number[$check_channels]} -1 ]
 	final_selection[$check_channels]=${channel_name[${game_number[$check_channels]}]}
 	quality_check[$check_channels]=$(echo ${for_quality[$check_channels]} | cut -d "-" -f2)
@@ -543,9 +543,9 @@ fi
 echo " Now watching: "${now_watching::-1}
 
 for check_channels in $(seq 0 $[ $number_of_channels -2 ])
-	do
+do
 	livestreamer twitch.tv/${final_selection[$check_channels]} ${final_quality[$check_channels]} --player $video_player &> /dev/null &
-	done
+done
 
 if [[ $multi_twitch != "yes" ]]; then
 	if [[ $onlywatch_mode != 1 ]]; then
