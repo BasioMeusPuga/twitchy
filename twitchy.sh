@@ -7,8 +7,13 @@ video_player=mpv
 quality=medium
 truncate_status_at=100
 number_of_faves=10
-show_offline=no
+
+sort_by_games=yes
+# Following (2) settings not valid if sort_by_games is set to yes
+show_offline=yes
 show_viewers=no
+
+# Put yo' spicy memes here
 memes_everywhere=no
 meme="RAISE YOUR DONGERS
  E S P O R T S
@@ -22,6 +27,7 @@ meme="RAISE YOUR DONGERS
  F E E L S G O O D M A N
  xD xD xD xD xD xD
  I’VE GOT THE STREAM IN MY SIGHTS
+ S P I C Y M E M E S
  D O N G S Q U A D 4 2 0"
 
 #Sanity checks
@@ -377,7 +383,22 @@ done 2> /dev/null
 if [[ $fav_mode = 1 ]]; then
 	sort -gr /tmp/twitchyfinal -o /tmp/twitchyfinal
 else
+if [[ $sort_by_games = "yes" ]]; then
+	LC_ALL=C sort -t ";" -k2,2 -k4nr /tmp/twitchyfinal -o /tmp/twitchyxfinal
+	/bin/grep -v ";offline" /tmp/twitchyxfinal > /tmp/twitchyfinal
+	touch /tmp/twitchygamesshown
+else
 	sort /tmp/twitchyfinal -o /tmp/twitchyfinal
+fi
+fi
+
+if [[ $sort_by_games = "yes" ]] && [[ $fav_mode != 1 ]]; then
+	spacex="                      "
+	spacex2="                         "
+	truncate_status_at=$[ $truncate_status_at + 15 ]
+else
+	spacex="                      "
+	spacex2="                                        "
 fi
 
 i=0
@@ -403,6 +424,7 @@ do
 
 	game_name=$(echo $line | cut -d ";" -f2 | sed 's/'\''//g')
 	stream_viewers=$(echo $line | cut -d ";" -f4 | sed 's/'\''//g')
+	stream_viewers=$(printf "%'.f\n" $stream_viewers | cut -d "." -f1)
 	if [[ $game_name != "offline" ]] && [[ $(echo $game_name | cut -d "^" -f1) != "offline" ]] && [[ $game_name != "" ]]; then
 		channel_name[i]=$real_name_stream
 		game_played[i]=$game_name
@@ -422,12 +444,22 @@ do
 			stream_status=$(echo $stream_status | cut -c 1-$truncate_status_at)"..."
 		fi
 
-		a_var=$[ $i +1 ]
-		spacex="                      "
-		spacex2="                                        "
-		echo -ne " "'\E[93m'$a_var'\E[0m'
-		printf " "'\E[92m'"%s %s $game_name${spacex2:${#game_name}}$stream_status \E[0m\n" $stream_name"${spacex:${#stream_name}}"
-		i=$[ $i + 1 ]
+		if [[ $sort_by_games = "yes" ]] && [[ $fav_mode != 1 ]]; then
+			/bin/grep -q "$game_name" /tmp/twitchygamesshown
+			if [[ $? = 1 ]]; then
+				echo $game_name >> /tmp/twitchygamesshown
+				echo -e " "'\E[96m'$game_name'\E[0m'
+			fi
+			a_var=$[ $i +1 ]
+			echo -ne " "'\E[93m'$a_var'\E[0m'
+			printf " "'\E[92m'"%s %s $stream_viewers${spacex2:${#stream_viewers}}$stream_status \E[0m\n" $stream_name"${spacex:${#stream_name}}"
+			i=$[ $i + 1 ]
+		else
+			a_var=$[ $i +1 ]
+			echo -ne " "'\E[93m'$a_var'\E[0m'
+			printf " "'\E[92m'"%s %s $game_name${spacex2:${#game_name}}$stream_status \E[0m\n" $stream_name"${spacex:${#stream_name}}"
+			i=$[ $i + 1 ]
+		fi
 	else
 		
 		if [[ $show_offline = "yes" ]]; then
