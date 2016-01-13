@@ -7,10 +7,10 @@ video_player=mpv
 quality=medium
 truncate_status_at=100
 number_of_faves=10
+show_offline=no
 
 sort_by_games=yes
-# Following (2) settings not valid if sort_by_games is set to yes
-show_offline=yes
+# The following setting is not valid if sort_by_games is set to yes
 show_viewers=no
 
 # Put yo' spicy memes here
@@ -29,6 +29,85 @@ meme="RAISE YOUR DONGERS
  I’VE GOT THE STREAM IN MY SIGHTS
  S P I C Y M E M E S
  D O N G S Q U A D 4 2 0"
+ 
+function emote {
+if [[ $1 = "--pogchamp" ]]; then
+ echo -n " ░░░░░▄██████████▄▄░░░
+ ░░░░▄██████████████▐░░
+ ░░▄█████████▀▀▓▀███░░░
+ ░▄███████▓▒▒▒▒▒▒▓▓█▐░░
+ ░▌████████▒▒▒▄▒▒▒▒▄▐░░
+ ░░███████▒▒▒▀░▀▒▒▀▌░░░
+ ░░▌▓▀▀██▒▒▒▒▒▄▄▒▒▄▌░░░
+ ░░▌▒▓▓▌█▒▒▒▒▒▒▀░▒▀▌░░░
+ ░░░▄▒░▌█▒▒▒▒▒▒▒▐░▒▌░░░
+ ░░░▀█▓▓▓▒▒▒▒▒▒▒▀▀▒▐░░░
+ ░░░░▌▓▓▓▒▒▒▒░░░░▒▐░░░░
+ ░░░░░▀▄▓▓▒▒▒▒▌██▐░░░░░
+ ░░░░░░▀▄▓▒▒▒▒▒▀▀░░░░░░
+ ░░░░░░░░▀▄▄▒▒▓▄▐░░░░░░
+"
+fi
+
+if [[ $1 = "--doot" ]]; then
+ echo -n " ▒▒▒░░░░░░░░░░▄▐░░░░
+ ▒░░░░░░▄▄▄░░▄██▄░░░
+ ░░░░░░▐▀█▀▌░░░░▀█▄░
+ ░░░░░░▐█▄█▌░░░░░░▀█▄
+ ░░░░░░░▀▄▀░░░▄▄▄▄▄▀▀
+ ░░░░░▄▄▄██▀▀▀▀░░░░░
+ ░░░░█▀▄▄▄█░▀▀░░░░░░
+ ░░░░▌░▄▄▄▐▌▀▀▀░░░░░
+ ░▄░▐░░░▄▄░█░▀▀░░░░░
+ ░▀█▌░░░▄░▀█▀░▀░░░░░
+ ░░░░░░░░▄▄▐▌▄▄░░░░░
+ ░░░░░░░░▀███▀█░▄░░░
+ ░░░░░░░▐▌▀▄▀▄▀▐▄░░░
+ ░░░░░░░▐▀░░░░░░▐▌░░
+ ░░░░░░░█░░░░░░░░█░░
+ ░░░░░░▐▌░░░░░░░░░█░ 
+"
+fi
+
+if [[ $1 = "--kappa" ]]; then
+echo -n " Gray Faec (no space)
+ ░░░░░░░░░░░░░░░░░░░░
+ ░░░░▄▀▀▀▀▀█▀▄▄▄▄░░░░
+ ░░▄▀▒▓▒▓▓▒▓▒▒▓▒▓▀▄░░
+ ▄▀▒▒▓▒▓▒▒▓▒▓▒▓▓▒▒▓█░
+ █▓▒▓▒▓▒▓▓▓░░░░░░▓▓█░
+ █▓▓▓▓▓▒▓▒░░░░░░░░▓█░
+ ▓▓▓▓▓▒░░░░░░░░░░░░█░
+ ▓▓▓▓░░░░▄▄▄▄░░░▄█▄▀░
+ ░▀▄▓░░▒▀▓▓▒▒░░█▓▒▒░░
+ ▀▄░░░░░░░░░░░░▀▄▒▒█░
+ ░▀░▀░░░░░▒▒▀▄▄▒▀▒▒█░
+ ░░▀░░░░░░▒▄▄▒▄▄▄▒▒█░
+ ░░░▀▄▄▒▒░░░░▀▀▒▒▄▀░░
+ ░░░░░▀█▄▒▒░░░░▒▄▀░░░
+ ░░░░░░░░▀▀█▄▄▄▄▀░░░░
+"
+fi
+
+if [[ $1 = "--dansgame" ]]; then
+echo -n " ░░░░░░░░░░░░░░░░░░░
+ ░░▄█████████████▄ ░
+ ▄████████▀▀▄▄▄▄▄▄█
+ ███████▀▄█▀▀▀░░░░░▀▄
+ █████▀▄█▀░░░░░░░░░░▀
+ ███▀▄█▀▒▒▒▒▒░░░░▄▄▀░▓
+ ██▀▄█▓▄▄▄▄▄▒▒▒░░▒▄▄░░
+ ██▓█▀▓▀▄▄▄▒▒██▒░▀▀░░░
+ ███▓▓▓▓▓▒▒▒▒▓▓▓▒░░░░░░
+ ░███▓▓▓▓▓▒▒▒█▄▄▒░░░░░░░
+ ░░███▓▓▓▓▓▒▒█▀▀▀▒░░░░░░
+ ░░░▀█▓▓▓▓▓▓▒▒██░░██▒░░░
+ ░░░░░▀▓▓▓▓▓▒▒▒▒▀▀▒▒▒░░░
+ ░░░░░░▀▓▓▓▓▓▓▓▓██░░░░░
+ ░░░░░░░░▀▓▓▓▓▓███▓▒░
+"
+fi
+}
 
 #Sanity checks
  if [[ ! -f /usr/bin/toilet ]]; then
@@ -131,48 +210,18 @@ exit
 channel_name=$2
 curl -s https://api.twitch.tv/kraken/streams/$channel_name > /tmp/twitchy
 grep -q 404 /tmp/twitchy
-	if [[ $? = 0 ]]; then
+if [[ $? = 0 ]]; then
 	echo " $channel_name doesn't exist"
 	if [[ $memes_everywhere = "yes" ]]; then
- echo -n " ▒▒▒░░░░░░░░░░▄▐░░░░
- ▒░░░░░░▄▄▄░░▄██▄░░░
- ░░░░░░▐▀█▀▌░░░░▀█▄░
- ░░░░░░▐█▄█▌░░░░░░▀█▄
- ░░░░░░░▀▄▀░░░▄▄▄▄▄▀▀
- ░░░░░▄▄▄██▀▀▀▀░░░░░
- ░░░░█▀▄▄▄█░▀▀░░░░░░
- ░░░░▌░▄▄▄▐▌▀▀▀░░░░░
- ░▄░▐░░░▄▄░█░▀▀░░░░░
- ░▀█▌░░░▄░▀█▀░▀░░░░░
- ░░░░░░░░▄▄▐▌▄▄░░░░░
- ░░░░░░░░▀███▀█░▄░░░
- ░░░░░░░▐▌▀▄▀▄▀▐▄░░░
- ░░░░░░░▐▀░░░░░░▐▌░░
- ░░░░░░░█░░░░░░░░█░░
- ░░░░░░▐▌░░░░░░░░░█░ 
-"
+		emote --doot
 	fi
-	else
+else
 	sqlite3 $database "insert into channels (Name,TimeWatched) values ('$channel_name',0);"
 	echo " $channel_name added to database"
 if [[ $memes_everywhere = "yes" ]]; then
- echo -n " ░░░░░▄██████████▄▄░░░
- ░░░░▄██████████████▐░░
- ░░▄█████████▀▀▓▀███░░░
- ░▄███████▓▒▒▒▒▒▒▓▓█▐░░
- ░▌████████▒▒▒▄▒▒▒▒▄▐░░
- ░░███████▒▒▒▀░▀▒▒▀▌░░░
- ░░▌▓▀▀██▒▒▒▒▒▄▄▒▒▄▌░░░
- ░░▌▒▓▓▌█▒▒▒▒▒▒▀░▒▀▌░░░
- ░░░▄▒░▌█▒▒▒▒▒▒▒▐░▒▌░░░
- ░░░▀█▓▓▓▒▒▒▒▒▒▒▀▀▒▐░░░
- ░░░░▌▓▓▓▒▒▒▒░░░░▒▐░░░░
- ░░░░░▀▄▓▓▒▒▒▒▌██▐░░░░░
- ░░░░░░▀▄▓▒▒▒▒▒▀▀░░░░░░
- ░░░░░░░░▀▄▄▒▒▓▄▐░░░░░░
-"
-	fi
-	fi
+	emote --pogchamp
+fi
+fi
 ;;
 
 #Alternate naming
@@ -255,21 +304,7 @@ do
 done < /tmp/twitchyadd
 
 if [[ $memes_everywhere = "yes" ]]; then
- echo -n " ░░░░░▄██████████▄▄░░░
- ░░░░▄██████████████▐░░
- ░░▄█████████▀▀▓▀███░░░
- ░▄███████▓▒▒▒▒▒▒▓▓█▐░░
- ░▌████████▒▒▒▄▒▒▒▒▄▐░░
- ░░███████▒▒▒▀░▀▒▒▀▌░░░
- ░░▌▓▀▀██▒▒▒▒▒▄▄▒▒▄▌░░░
- ░░▌▒▓▓▌█▒▒▒▒▒▒▀░▒▀▌░░░
- ░░░▄▒░▌█▒▒▒▒▒▒▒▐░▒▌░░░
- ░░░▀█▓▓▓▒▒▒▒▒▒▒▀▀▒▐░░░
- ░░░░▌▓▓▓▒▒▒▒░░░░▒▐░░░░
- ░░░░░▀▄▓▓▒▒▒▒▌██▐░░░░░
- ░░░░░░▀▄▓▒▒▒▒▒▀▀░░░░░░
- ░░░░░░░░▀▄▄▒▒▓▄▐░░░░░░
-"
+	emote --pogchamp
 fi
 ;;
 
@@ -288,17 +323,20 @@ do
 done < /tmp/twitchy
 
 echo -n " Channel number: "
-read game_number
-game_number=$[ $game_number -1 ]
-final_selection=${channel_name[$game_number]}
+read -a game_number
+number_of_channels=${#game_number[@]}
 
-sqlite3 $database "delete from channels where Name = '$final_selection';"
-
-if [[ $memes_everywhere = "yes" ]]; then
-	echo " "$final_selection" R E K T" | toilet -f smblock --gay
-else
-	echo " "$final_selection "deleted from db"
-fi
+for check_channels in $(seq 0 $[ $number_of_channels -1 ])
+do
+	for_deletion=$[ ${game_number[$check_channels]} -1 ]
+	final_selection=${channel_name[$for_deletion]}
+ 	sqlite3 $database "delete from channels where Name = '$final_selection';"
+ 	if [[ $memes_everywhere = "yes" ]]; then
+		echo " "$final_selection" R E K T" | toilet -f smblock --gay
+	else
+		echo " "$final_selection "deleted from db"
+	fi
+done
 ;;
 
 #Script argument is matched to database
@@ -331,31 +369,15 @@ fi
 fi
 
 totalstreams=$(cat /tmp/twitchy | wc -l)
-	if [[ $totalstreams = 0 ]]; then
-		if [[ $memes_everywhere = "yes" ]]; then
-		echo -n " Gray Faec (no space)
- ░░░░░░░░░░░░░░░░░░░░
- ░░░░▄▀▀▀▀▀█▀▄▄▄▄░░░░
- ░░▄▀▒▓▒▓▓▒▓▒▒▓▒▓▀▄░░
- ▄▀▒▒▓▒▓▒▒▓▒▓▒▓▓▒▒▓█░
- █▓▒▓▒▓▒▓▓▓░░░░░░▓▓█░
- █▓▓▓▓▓▒▓▒░░░░░░░░▓█░
- ▓▓▓▓▓▒░░░░░░░░░░░░█░
- ▓▓▓▓░░░░▄▄▄▄░░░▄█▄▀░
- ░▀▄▓░░▒▀▓▓▒▒░░█▓▒▒░░
- ▀▄░░░░░░░░░░░░▀▄▒▒█░
- ░▀░▀░░░░░▒▒▀▄▄▒▀▒▒█░
- ░░▀░░░░░░▒▄▄▒▄▄▄▒▒█░
- ░░░▀▄▄▒▒░░░░▀▀▒▒▄▀░░
- ░░░░░▀█▄▒▒░░░░▒▄▀░░░
- ░░░░░░░░▀▀█▄▄▄▄▀░░░░
-"
+if [[ $totalstreams = 0 ]]; then
+	if [[ $memes_everywhere = "yes" ]]; then
+		emote --kappa
 		exit
 	else
 		echo " Search string not found in database"
 		exit
 	fi
-	fi
+fi
 
 if [[ $memes_everywhere = "yes" ]]; then
 	meme_quantity=$(echo "$meme" | wc -l)
@@ -384,20 +406,18 @@ if [[ $fav_mode = 1 ]]; then
 	sort -gr /tmp/twitchyfinal -o /tmp/twitchyfinal
 else
 if [[ $sort_by_games = "yes" ]]; then
-	LC_ALL=C sort -t ";" -k2,2 -k4nr /tmp/twitchyfinal -o /tmp/twitchyxfinal
-	/bin/grep -v ";offline" /tmp/twitchyxfinal > /tmp/twitchyfinal
+	LC_ALL=C sort -t ";" -k2,2 -k4nr /tmp/twitchyfinal -o /tmp/twitchyfinal
 	touch /tmp/twitchygamesshown
 else
 	sort /tmp/twitchyfinal -o /tmp/twitchyfinal
 fi
 fi
 
+spacex="                      "
 if [[ $sort_by_games = "yes" ]] && [[ $fav_mode != 1 ]]; then
-	spacex="                      "
 	spacex2="                         "
 	truncate_status_at=$[ $truncate_status_at + 15 ]
 else
-	spacex="                      "
 	spacex2="                                        "
 fi
 
@@ -463,10 +483,14 @@ do
 	else
 		
 		if [[ $show_offline = "yes" ]]; then
-				echo -e '\E[91m'" x "$stream_name'\E[0m'
+			if [[ $sort_by_games = "yes" ]] && [[ $fav_mode != 1 ]] && [[ $once_and_done != 1 ]]; then
+				echo -e " "'\E[96m'"Offline"'\E[0m'
+				once_and_done=1
+			fi
+			echo -e '\E[91m'" x "$stream_name'\E[0m'
 		fi
 	fi
-	done < /tmp/twitchyfinal
+done < /tmp/twitchyfinal
 
 if [[ $i = 0 ]]; then
 	if [[ $onlywatch_mode = 1 ]]; then
@@ -475,22 +499,7 @@ if [[ $i = 0 ]]; then
 		echo " All channels offline"
 	fi
 	if [[ $memes_everywhere = "yes" ]]; then
-echo -n " ░░░░░░░░░░░░░░░░░░░
- ░░▄█████████████▄ ░
- ▄████████▀▀▄▄▄▄▄▄█
- ███████▀▄█▀▀▀░░░░░▀▄
- █████▀▄█▀░░░░░░░░░░▀
- ███▀▄█▀▒▒▒▒▒░░░░▄▄▀░▓
- ██▀▄█▓▄▄▄▄▄▒▒▒░░▒▄▄░░
- ██▓█▀▓▀▄▄▄▒▒██▒░▀▀░░░
- ███▓▓▓▓▓▒▒▒▒▓▓▓▒░░░░░░
- ░███▓▓▓▓▓▒▒▒█▄▄▒░░░░░░░
- ░░███▓▓▓▓▓▒▒█▀▀▀▒░░░░░░
- ░░░▀█▓▓▓▓▓▓▒▒██░░██▒░░░
- ░░░░░▀▓▓▓▓▓▒▒▒▒▀▀▒▒▒░░░
- ░░░░░░▀▓▓▓▓▓▓▓▓██░░░░░
- ░░░░░░░░▀▓▓▓▓▓███▓▒░
-"
+		emote --dansgame
 fi
 	exit
 fi
@@ -508,27 +517,11 @@ for check_channels in $(seq 0 $[ $number_of_channels -1 ])
 do
 	if [[ ${game_number[$check_channels]} -gt $a_var ]]; then
 		if [[ $memes_everywhere = "yes" ]]; then
-	echo -n " Gay Faec (no space)
- ░░░░░░░░░░░░░░░░░░░░
- ░░░░▄▀▀▀▀▀█▀▄▄▄▄░░░░
- ░░▄▀▒▓▒▓▓▒▓▒▒▓▒▓▀▄░░
- ▄▀▒▒▓▒▓▒▒▓▒▓▒▓▓▒▒▓█░
- █▓▒▓▒▓▒▓▓▓░░░░░░▓▓█░
- █▓▓▓▓▓▒▓▒░░░░░░░░▓█░
- ▓▓▓▓▓▒░░░░░░░░░░░░█░
- ▓▓▓▓░░░░▄▄▄▄░░░▄█▄▀░
- ░▀▄▓░░▒▀▓▓▒▒░░█▓▒▒░░
- ▀▄░░░░░░░░░░░░▀▄▒▒█░
- ░▀░▀░░░░░▒▒▀▄▄▒▀▒▒█░
- ░░▀░░░░░░▒▄▄▒▄▄▄▒▒█░
- ░░░▀▄▄▒▒░░░░▀▀▒▒▄▀░░
- ░░░░░▀█▄▒▒░░░░▒▄▀░░░
- ░░░░░░░░▀▀█▄▄▄▄▀░░░░
-" | toilet -f term --gay
-	exit
-	else
-		echo " Invalid selection."
-		exit
+			emote --kappa | toilet -f term --gay
+			exit
+		else
+			echo " Invalid selection."
+			exit
 		fi
 	fi
 done
