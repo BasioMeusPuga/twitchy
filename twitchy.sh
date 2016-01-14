@@ -10,8 +10,12 @@ number_of_faves=10
 show_offline=no
 
 sort_by_games=yes
-# The following setting is not valid if sort_by_games is set to yes
+#The following setting is not valid if sort_by_games is set to yes
 show_viewers=no
+
+#Notify when online
+notify_sound=""
+check_interval_seconds=60
 
 # Put yo' spicy memes here
 memes_everywhere=no
@@ -150,7 +154,11 @@ if [[ $status = "" ]]; then
 	if [[ $fav_mode = 1 ]]; then
 		echo ${fav_time[$line]}"^"$(echo $line | cut -d "|" -f2)";"$game_name";"$channel_status";"$channel_viewers >> /tmp/twitchyfinal
 	else
+	if [[ $monitor_mode = 1 ]]; then
+		echo $1 >> /tmp/twitchynowonline
+	else
 		echo $line";"$game_name";"$channel_status";"$channel_viewers >> /tmp/twitchyfinal
+	fi
 	fi
 else
 	if [[ $fav_mode = 1 ]]; then
@@ -196,6 +204,8 @@ echo -ne " Usage: twitchy [OPTION]
  -f\t\t\t\tList favorites
  -fr\t\t\t\tReset time watched
  -h\t\t\t\tThis helpful text
+ -n\t\t\t\tMonitor selected offline channels and send a notification when any one comes online
+ -no\t\t\t\tSTOP EVERYTHING
  -s <username>\t\t\tSync followed channels from specified account
  -w <channel name> \t\tWatch specified channel(s)
  
@@ -308,10 +318,30 @@ if [[ $memes_everywhere = "yes" ]]; then
 fi
 ;;
 
-#Delete streamer from database - Does not affect time tracking
-"-d")
+#Notify when channel comes online
+#Delete channel from database
+"-n"|"-d")
 
-sqlite3 $database "select Name from channels;" | sort > /tmp/twitchy
+if [[ $1 = "-n" ]]; then
+	sqlite3 $database "select Name from channels;" > /tmp/twitchy
+	totalstreams=$(cat /tmp/twitchy | wc -l)
+
+	while read line
+	do
+		get_status $line &
+	done < /tmp/twitchy
+
+	while [[ $(cat /tmp/twitchyfinal | wc -l) != $totalstreams ]]
+	do
+		sleep .1
+	done 2> /dev/null
+
+	/bin/grep ";offline" /tmp/twitchyfinal | cut -d ";" -f1 > /tmp/twitchytmp
+	mv /tmp/twitchytmp /tmp/twitchyfinal
+	sort /tmp/twitchyfinal -o /tmp/twitchyfinal
+else
+	sqlite3 $database "select Name from channels;" | sort > /tmp/twitchyfinal
+fi
 
 i=0
 while read line
@@ -320,7 +350,7 @@ do
 	a_var=$[ $i +1 ]
 	echo -e " "'\E[93m'$a_var'\E[0m' $line
 	i=$[ $i + 1 ]
-done < /tmp/twitchy
+done < /tmp/twitchyfinal
 
 echo -n " Channel number: "
 read -a game_number
@@ -328,15 +358,55 @@ number_of_channels=${#game_number[@]}
 
 for check_channels in $(seq 0 $[ $number_of_channels -1 ])
 do
-	for_deletion=$[ ${game_number[$check_channels]} -1 ]
-	final_selection=${channel_name[$for_deletion]}
- 	sqlite3 $database "delete from channels where Name = '$final_selection';"
- 	if [[ $memes_everywhere = "yes" ]]; then
-		echo " "$final_selection" R E K T" | toilet -f smblock --gay
+	intermediate_selection=$[ ${game_number[$check_channels]} -1 ]
+	final_selection=${channel_name[$intermediate_selection]}
+ 	
+ 	if [[ $1 = "-d" ]]; then
+ 		sqlite3 $database "delete from channels where Name = '$final_selection';"
+		if [[ $memes_everywhere = "yes" ]]; then
+			echo " "$final_selection" R E K T" | toilet -f smblock --gay
+		else
+			echo " "$final_selection "deleted from db"
+		fi
 	else
-		echo " "$final_selection "deleted from db"
+		echo $final_selection >> /tmp/twitchynotify
 	fi
 done
+
+if [[ $1 = "-d" ]]; then
+	exit
+fi
+
+echo -e " Now monitoring:\n" $(cat /tmp/twitchynotify)
+
+monitor_mode=1
+touch /tmp/twitchynowonline
+
+while true
+do
+	sleep $check_interval_seconds
+
+while read line
+	do
+ 		get_status $line
+	done < /tmp/twitchynotify
+
+	now_online=$(cat /tmp/twitchynowonline | sed ':a;N;$!ba;s/\n/ | /g')
+	if [[ $now_online != "" ]]; then
+		notify_message=$(echo -e "Now online:\n"$now_online)
+		if [[ $notify_sound != "" ]]; then
+			mplayer $notify_sound &
+		fi
+		notify-send -i 'dialog-information' "$notify_message"
+		break
+	fi
+
+done &
+;;
+
+#Stop monitoring and exit ALL background processes
+"-no")
+killall -9 twitchy &> /dev/null
 ;;
 
 #Script argument is matched to database
