@@ -7,6 +7,7 @@ has only a terminal (and the 3 or so required accessory programs) handy.
 
 What you get with the script:
 * Moderately severe meme support.
+* Background monitoring of selected offline channel. Shiny notifications if/when they come online.
 * Tracking of most watched channels.
 * Sync your followed accounts to a local sqlite database that does not judge you.
 * Really fast bash multi-threading using nothing but &. (Kappa)
@@ -18,15 +19,17 @@ What you get with the script:
 **Usage**
 
     twitchy [OPTION]
-    [ARGUMENTS]                    Launch channel in mpv
-    -a <channel name>              Add channel
-    -an                            Set/unset alternate names
-    -d                             Delete channel
-    -f                             List favorites
-    -fr                            Reset time watched
-    -h                             This helpful text
-    -s <username>                  Sync followed channels from specified account
-    -w <channel name>              Watch specified channel(s)
+    [ARGUMENTS]						Launch channel in mpv
+    -a <channel name>				Add channel
+    -an 						Set/unset alternate names
+    -d 						Delete channel
+    -f 						List favorites
+    -fr 						Reset time watched
+    -h						This helpful text
+	-n						Monitor selected offline channels and send a notification when any one comes online
+	-no						STOP EVERYTHING
+    -s <username>							Sync followed channels from specified account
+    -w <channel name>				Watch specified channel(s)
     
 **Examples**
 
