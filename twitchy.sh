@@ -433,7 +433,7 @@ if [[ $1 = "-w" ]]; then
 	done
 else
 	channel_arg=$1
-	sqlite3 $database "select Name from channels where Name or AltName like '%$channel_arg%';" > /tmp/twitchy
+	sqlite3 $database "select Name from channels where Name like '%$channel_arg%' or AltName like '%$channel_arg%';" > /tmp/twitchy
 fi
 fi
 fi
