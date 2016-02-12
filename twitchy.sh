@@ -3,7 +3,7 @@
 
 #Options
 database="$HOME/.twitchy.db"
-video_player=mpv
+video_player="mpv --cache 8192"
 quality=medium
 truncate_status_at=100
 number_of_faves=10
@@ -433,7 +433,7 @@ if [[ $1 = "-w" ]]; then
 	done
 else
 	channel_arg=$1
-	sqlite3 $database "select Name from channels where Name like '%$channel_arg%';" > /tmp/twitchy
+	sqlite3 $database "select Name from channels where Name or AltName like '%$channel_arg%';" > /tmp/twitchy
 fi
 fi
 fi
@@ -639,7 +639,7 @@ echo " Now watching: "${now_watching::-1}
 
 for check_channels in $(seq 0 $[ $number_of_channels -2 ])
 do
-	livestreamer twitch.tv/${final_selection[$check_channels]} ${final_quality[$check_channels]} --player $video_player &> /dev/null &
+	livestreamer twitch.tv/${final_selection[$check_channels]} ${final_quality[$check_channels]} --player "$video_player" --hls-segment-threads 3 &> /dev/null &
 done
 
 if [[ $multi_twitch != "yes" ]]; then
@@ -650,10 +650,10 @@ if [[ $multi_twitch != "yes" ]]; then
 			sqlite3 $database "insert into games (Name) values ('${game_played[$game_number]}');"
 		fi
 	fi
-	chromium --high-dpi-support=1 --force-device-scale-factor=1 --app=http://www.twitch.tv/${final_selection[$final_channel]}/chat?popout= &> /dev/null &
+	chromium --app=http://www.twitch.tv/${final_selection[$final_channel]}/chat?popout= &> /dev/null &
 fi
 	final_channel=$[ $number_of_channels -1 ]
-	livestreamer twitch.tv/${final_selection[$final_channel]} ${final_quality[$final_channel]} --player $video_player &> /dev/null
+	livestreamer twitch.tv/${final_selection[$final_channel]} ${final_quality[$final_channel]} --player "$video_player" --hls-segment-threads 3 &> /dev/null
 ;;
 
 esac
