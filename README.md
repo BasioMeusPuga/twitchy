@@ -19,25 +19,22 @@ What you get with the script:
 **Usage**
 
     twitchy [OPTION]
-    [ARGUMENTS]						Launch channel in mpv
-    -a <channel name>				Add channel
-    -an 						Set/unset alternate names
-    -d 						Delete channel
-    -f 						List favorites
-    -fr 						Reset time watched
-    -h						This helpful text
-	-n						Monitor selected offline channels and send a notification when any one comes online
-	-no						STOP EVERYTHING
-    -s <username>							Sync followed channels from specified account
-    -w <channel name>				Watch specified channel(s)
+    [ARGUMENTS]                                Launch channel in $video_player_you_have_installed
+    -a <channel name>                          Add channel
+    -an                                        Set/unset alternate names
+    -d                                         Delete channel
+    -f                                         List favorites
+    -fr                                        Reset time watched
+    -h                                         This helpful text
+    -n                                         Monitor selected offline channels and send a notification when any one comes online
+    -no                                        STOP EVERYTHING
+    -s <username>                              Sync followed channels from specified account
+    -w <channel name>                          Watch specified channel(s)
     
 **Examples**
 
 Using no argument while launching the script will check the status of every channel in the local database:
 ![alt tag](https://imgur.com/cwdHy7L.png)
-
-Alternate view with alphabetical sorting - set $sort_by_games != yes on line 11
-![alt tag](https://imgur.com/JbP14Xo.png)
     
 Add "bobross" to local database:
 
@@ -47,11 +44,13 @@ Display all strings matching *obr*:
 
     $ twitchy obr
     Checking channels...
-    1 bobross                   Creative                                The Joy of Painting Monday Season 7 Marathon #painting...
-    2 mariobro                  Sonic: Generations                      #WhereMuhPrincessAt?
-    x yobringmeabetterexample                               
-    3 flatulentcobra            Wizard Poker                            Playing secret Paladin. Killing a puppy later.
-    Channel number (Multiple allowed): 1-h 2-s 3-l
+    Creative
+    1 bobross                   80085                       The Joy of Painting Monday Season 7 Marathon #painting...
+    Sonic: Generations
+    2 mariobro                  123                         #WhereMuhPrincessAt?
+    Wizard Poker                               
+    3 flatulentcobra            6969                        Playing secret Paladin. Killing a puppy later.
+    Channel number(s): 1-h 2-s 3-l
 
     Custom quality settings: Specify with hyphen next to channel number.
     E.g. <1-h 2-s 3-l> will simultaneously play channel 1 in high quality, 2 in source quality, and 3 in low quality.
@@ -60,8 +59,10 @@ Watch specified channel(s) - Do not have to be in local database:
 
     $ twitchy -w northernlion cobaltstreak
     Checking channels...
+    The Binding of Isaac: Afterbirth
+    1 northernlion                5757                      Egg
+    Offline
     x cobaltstreak
-    1 northernlion              The Binding of Isaac: Afterbirth        Egg
-    Channel number (Multiple allowed): 1
+    Channel number(s): 1
     
-*Caveat Emptor: Chat is launched in a chromium window. If you prefer firefox / another browser / the inevitability of being claimed by the void, line 590 (or thereabouts) is where you need to be. Just substitute for firefox / comment it out.*
+*Caveat Emptor: Chat is launched in a chromium window. If you prefer firefox / another browser / the inevitability of being claimed by the void, line 678 (or thereabouts) is where you need to be. Just substitute for firefox / comment it out.*
