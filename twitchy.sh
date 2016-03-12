@@ -174,7 +174,7 @@ status=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep '"stream":null')
 if [[ $status = "" ]]; then
 	game_name=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep game | cut -d ":" -f2- | tr -d "\"" | sed -n 1p)
 	channel_viewers=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep viewers | cut -d ":" -f2- | tr -d "\"" | tr -d "%")
-	channel_status=$(echo "${stream[$1]}" | sed 's/","/\n/g' | /bin/grep -o "status.*" | cut -c 10-)
+	channel_status=$(echo "${stream[$1]}" | sed 's/","/\n/g' | /bin/grep -o "status.*" | cut -c 10- | sed 's/%/%%/g' | sed 's/;/；/g')
 
 	if [[ $fav_mode = 1 ]]; then
 		echo ${fav_time[$line]}"^"$(echo $line | cut -d "|" -f2)";"$game_name";"$channel_status";"$channel_viewers >> /tmp/twitchyfinal
@@ -253,6 +253,11 @@ if [[ $? = 0 ]]; then
 		emote --doot
 	fi
 else
+	if_already_added=$(sqlite3 $database "select Name from channels where Name = '$channel_name';")
+		if [[ $if_already_added != "" ]]; then
+		echo " $channel_name already in database"
+		exit
+		fi
 	sqlite3 $database "insert into channels (Name,TimeWatched) values ('$channel_name',0);"
 	echo " $channel_name added to database"
 if [[ $memes_everywhere = "yes" ]]; then
