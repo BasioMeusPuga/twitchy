@@ -285,21 +285,24 @@ while read line
 do
 	real_name[i]=$(echo $line | cut -d "|" -f1)
 	alternate_name[i]=$(echo $line | cut -d "|" -f2)
-		if [[ ${alternate_name[$i]} = "" ]]; then
-			alternate_name[i]="UNSET"
-		fi
-	a_var=$[ $i +1 ]
-
-	echo -ne " "'\E[93m'$a_var'\E[0m'
-	if [[ $replace_streamer = 1 ]]; then
-	spacex="               "
-	if [[ $a_var -lt 10 ]]; then
-		printf " ""%s %s ${alternate_name[$i]} \n" " "${real_name[$i]}"${spacex:${#real_name[$i]}}"
+	if [[ ${alternate_name[$i]} = "" ]]; then
+		alternate_name[i]="UNSET"
 	else
-		printf " ""%s %s ${alternate_name[$i]} \n" ${real_name[$i]}"${spacex:${#real_name[$i]}}"
+		alternate_name[i]=$(echo -e '\E[96m'${alternate_name[i]}'\E[0m')
 	fi
+
+	if [[ $replace_streamer = 1 ]]; then
+		space=20
 	else
-		echo -e " "${real_name[$i]}"\t"${alternate_name[$i]}
+		space=45
+	fi
+
+	a_var=$[ $i +1 ]
+	echo -ne " "'\E[93m'$a_var'\E[0m'
+	if [[ $a_var -lt 10 ]]; then
+		printf "  ""%-"$space"s %-"$space"s\n" "${real_name[$i]}" "${alternate_name[$i]}"
+		else
+		printf " ""%-"$space"s %-"$space"s\n" "${real_name[$i]}" "${alternate_name[$i]}"
 	fi
 i=$[ $i + 1 ]
 done < /tmp/twitchy
@@ -606,6 +609,11 @@ fi
 
 echo -n " Channel number(s): "
 read -a game_number
+
+if [[ $game_number = "" ]]; then
+	emote --kappa
+	game_number=1
+fi
 
 for_quality=("${game_number[@]}")
 number_of_channels=${#game_number[@]}
