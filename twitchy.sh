@@ -3,7 +3,7 @@
 
 #Options
 database="$HOME/.twitchy.db"
-video_player="mpv --cache 8192"
+video_player=mpv
 quality=medium
 truncate_status_at=100
 number_of_faves=10
@@ -172,8 +172,8 @@ fi
 
 status=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep '"stream":null')
 if [[ $status = "" ]]; then
-	game_name=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep game | cut -d ":" -f2- | tr -d "\"" | sed -n 1p)
-	channel_viewers=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep viewers | cut -d ":" -f2- | tr -d "\"" | tr -d "%")
+	game_name=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep game | sed -n '1p' | cut -d ":" -f2- | tr -d "\"" | sed -n 1p)
+	channel_viewers=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep viewers | sed -n '1p' | cut -d ":" -f2- | tr -d "\"" | tr -d "%")
 	channel_status=$(echo "${stream[$1]}" | sed 's/","/\n/g' | /bin/grep -o "status.*" | cut -c 10- | sed 's/%/%%/g' | sed 's/;/；/g')
 
 	if [[ $fav_mode = 1 ]]; then
@@ -453,8 +453,8 @@ if [[ $1 = "-f" ]]; then
  	sqlite3 $database "select TimeWatched,Name from channels where TimeWatched > 0;" | sort -gr | head -n$number_of_faves > /tmp/twitchy
 else
 if [[ $1 = "-fr" ]]; then
-	read -p " Reset time watched? (y/n) " confirm_reset
-	if [[ $confirm_reset = "y" ]]; then
+	read -p " Reset time watched? (yes/n) " confirm_reset
+	if [[ $confirm_reset = "yes" ]]; then
 		sqlite3 $database "update channels set TimeWatched = 0;"
 	fi
 	exit
@@ -612,7 +612,7 @@ read -a game_number
 
 if [[ $game_number = "" ]]; then
 	emote --kappa
-	game_number=1
+	game_number=$(shuf -i1-$a_var -n1)
 fi
 
 for_quality=("${game_number[@]}")
@@ -677,7 +677,10 @@ echo -e " Now watching: "'\E[1;97m'${now_watching::-1}'\E[0m'
 
 for check_channels in $(seq 0 $[ $number_of_channels -2 ])
 do
-	livestreamer twitch.tv/${final_selection[$check_channels]} ${final_quality[$check_channels]} --player "$video_player" --hls-segment-threads 3 &> /dev/null &
+	if [[ $video_player = "mpv" ]]; then
+		video_player_final=$video_player" --cache 8192 --title ${final_selection[$check_channels]}"
+	fi
+	livestreamer twitch.tv/${final_selection[$check_channels]} ${final_quality[$check_channels]} --player "$video_player_final" --hls-segment-threads 3 &> /dev/null &
 done
 
 if [[ $multi_twitch != "yes" ]]; then
@@ -691,7 +694,10 @@ if [[ $multi_twitch != "yes" ]]; then
 	chromium --app=http://www.twitch.tv/${final_selection[$final_channel]}/chat?popout= &> /dev/null &
 fi
 	final_channel=$[ $number_of_channels -1 ]
-	livestreamer twitch.tv/${final_selection[$final_channel]} ${final_quality[$final_channel]} --player "$video_player" --hls-segment-threads 3 &> /dev/null
+	if [[ $video_player = "mpv" ]]; then
+		video_player_final=$video_player" --cache 8192 --title ${final_selection[$final_channel]}"
+	fi
+	livestreamer twitch.tv/${final_selection[$final_channel]} ${final_quality[$final_channel]} --player "$video_player_final" --hls-segment-threads 3 &> /dev/null
 ;;
 
 esac
