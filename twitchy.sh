@@ -135,7 +135,11 @@ else
 	((sec=num))
 fi
 
-time_watched_hms=$(echo "$day"d "$hour"h "$min"m "$sec"s)
+if [[ "$day" = 0 ]]; then
+	time_watched_hms=$(echo "$(printf "%02d" $hour)"h "$(printf "%02d" $min)"m "$(printf "%02d" $sec)"s)
+else
+	time_watched_hms=$(echo "$(printf "%02d" $day)"d "$(printf "%02d" $hour)"h "$(printf "%02d" $min)"m "$(printf "%02d" $sec)"s)
+fi
 }
 
 #Sanity checks
@@ -174,6 +178,7 @@ status=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep '"stream":null')
 if [[ $status = "" ]]; then
 	game_name=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep game | sed -n '1p' | cut -d ":" -f2- | tr -d "\"" | sed -n 1p)
 	channel_viewers=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep viewers | sed -n '1p' | cut -d ":" -f2- | tr -d "\"" | tr -d "%")
+	display_name=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep display_name | sed -n '1p' | cut -d ":" -f2- | tr -d "\"" | tr -d "%")
 	channel_status=$(echo "${stream[$1]}" | sed 's/","/\n/g' | /bin/grep -o "status.*" | cut -c 10- | sed 's/%/%%/g' | sed 's/;/；/g')
 
 	if [[ $fav_mode = 1 ]]; then
@@ -182,7 +187,7 @@ if [[ $status = "" ]]; then
 	if [[ $monitor_mode = 1 ]]; then
 		echo $1 >> /tmp/twitchynowonline
 	else
-		echo $line";"$game_name";"$channel_status";"$channel_viewers >> /tmp/twitchyfinal
+		echo $line";"$game_name";"$channel_status";"$channel_viewers";"$display_name >> /tmp/twitchyfinal
 	fi
 	fi
 else
@@ -532,15 +537,18 @@ do
 		line=$(echo $line | cut -d "^" -f2)
 	fi
 	
-	stream_name=$(echo $line | cut -d ";" -f1)
-	real_name_stream=$stream_name
+	real_name_stream=$(echo $line | cut -d ";" -f1)
+	stream_name=$(echo $line | cut -d ";" -f5)
+		if [[ $stream_name = "" ]]; then
+			stream_name=$real_name_stream
+		fi
 	if [[ $how_can_tables_be_real_if_our_databases_arent_real != 1 ]]; then
-		alt_name_stream=$(sqlite3 $database "select AltName from channels where Name = '$stream_name';") 2> /dev/null
+		alt_name_stream=$(sqlite3 $database "select AltName from channels where Name like '$stream_name';") 2> /dev/null
 		if [[ $alt_name_stream != "" ]]; then
 			stream_name=$alt_name_stream
 		fi
 	fi
-
+	
 	game_name=$(echo $line | cut -d ";" -f2 | sed 's/'\''//g')
 	stream_viewers=$(echo $line | cut -d ";" -f4 | sed 's/'\''//g')
 	stream_viewers=$(printf "%'.f\n" $stream_viewers | cut -d "." -f1)
@@ -578,7 +586,7 @@ do
 			if [[ $a_var -gt 9 ]]; then
 				spacex="                     "
 			fi
-			game_name=$(echo $game_name" - "$stream_status)
+			game_name=$(echo '\E[96m'$game_name'\E[0m'" - "'\E[92m'$stream_status'\E[0m')
 			echo -ne " "'\E[93m'$a_var'\E[0m'
 			printf " "'\E[92m'"%s %s $fav_time${spacex2:${#fav_time}}$game_name \E[0m\n" $stream_name"${spacex:${#stream_name}}"
 			i=$[ $i + 1 ]
