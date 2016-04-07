@@ -176,10 +176,11 @@ fi
 
 status=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep '"stream":null')
 if [[ $status = "" ]]; then
+	display_name=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep display_name | sed -n '1p' | cut -d ":" -f2- | tr -d "\"" | tr -d "%")
 	game_name=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep game | sed -n '1p' | cut -d ":" -f2- | tr -d "\"" | sed -n 1p)
 	channel_viewers=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep viewers | sed -n '1p' | cut -d ":" -f2- | tr -d "\"" | tr -d "%")
-	display_name=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep display_name | sed -n '1p' | cut -d ":" -f2- | tr -d "\"" | tr -d "%")
 	channel_status=$(echo "${stream[$1]}" | sed 's/","/\n/g' | /bin/grep -o "status.*" | cut -c 10- | sed 's/%/%%/g' | sed 's/;/；/g')
+	partner_status=$(echo "${stream[$1]}" | sed 's/,/\n/g' | grep "\"partner\"" | sed -n '1p' | cut -d ":" -f2)
 
 	if [[ $fav_mode = 1 ]]; then
 		echo ${fav_time[$line]}"^"$(echo $line | cut -d "|" -f2)";"$game_name";"$channel_status";"$channel_viewers >> /tmp/twitchyfinal
@@ -187,7 +188,7 @@ if [[ $status = "" ]]; then
 	if [[ $monitor_mode = 1 ]]; then
 		echo $1 >> /tmp/twitchynowonline
 	else
-		echo $line";"$game_name";"$channel_status";"$channel_viewers";"$display_name >> /tmp/twitchyfinal
+		echo $line";"$game_name";"$channel_status";"$channel_viewers";"$display_name";"$partner_status >> /tmp/twitchyfinal
 	fi
 	fi
 else
@@ -251,7 +252,7 @@ exit
 
 channel_name=$2
 curl -s https://api.twitch.tv/kraken/streams/$channel_name > /tmp/twitchy
-grep -q 404 /tmp/twitchy
+grep -q ":404" /tmp/twitchy
 if [[ $? = 0 ]]; then
 	echo " $channel_name doesn't exist"
 	if [[ $memes_everywhere = "yes" ]]; then
@@ -647,6 +648,9 @@ do
 	game_number[$check_channels]=$[ ${game_number[$check_channels]} -1 ]
 	final_selection[$check_channels]=${channel_name[${game_number[$check_channels]}]}
 	quality_check[$check_channels]=$(echo ${for_quality[$check_channels]} | cut -d "-" -f2)
+	
+	partner_status_channel=$(/bin/grep ${final_selection[$check_channels]} /tmp/twitchyfinal | cut -d ";" -f6)
+	if [[ $partner_status_channel = "true" ]]; then
 	case ${quality_check[$check_channels]} in
 	"l")
 		custom_quality=1
@@ -668,6 +672,11 @@ do
 		final_quality[$check_channels]=$quality
 	;;
 	esac
+	else
+		custom_quality=1
+		final_quality[$check_channels]=source
+	fi
+	
 	
 	if [[ $custom_quality = 1 ]]; then
 		now_watching=$(echo $now_watching $(echo ${final_selection[$check_channels]}) "-" ${final_quality[$check_channels]} "|" )
