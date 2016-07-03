@@ -31,6 +31,10 @@ What you get with the script:
     -s <username>                              Sync followed channels from specified account
     -w <channel name>                          Watch specified channel(s)
     
+    When playing:
+    m to attempt music identification with twitchecho
+    q to quit
+    
 **Examples**
 
 Using no argument while launching the script will check the status of every channel in the local database:
@@ -64,5 +68,3 @@ Watch specified channel(s) - Do not have to be in local database:
     Offline
     x cobaltstreak
     Channel number(s): 1
-    
-*Caveat Emptor: Chat is launched in a chromium window. If you prefer firefox / another browser / the inevitability of being claimed by the void, line 678 (or thereabouts) is where you need to be. Just substitute for firefox / comment it out.*
