@@ -4,7 +4,7 @@
 #Options
 database="$HOME/.twitchy.db"
 video_player=mpv
-quality=medium
+quality=high
 truncate_status_at=100
 number_of_faves=10
 show_offline=no
@@ -218,6 +218,7 @@ if [[ $run_once != "yes" ]]; then
 		total_time_spent=$time_watched_hms
 		echo -e " Total time spent watching "$final_selection" - "'\E[1;97m'$total_time_spent" ("$time_rank")"'\E[0m'
 		run_once="yes"
+		trap 'kill $(jobs -p)' EXIT
 		exit
 	else
 		exit
@@ -677,7 +678,6 @@ do
 		final_quality[$check_channels]=source
 	fi
 	
-	
 	if [[ $custom_quality = 1 ]]; then
 		now_watching=$(echo $now_watching $(echo ${final_selection[$check_channels]}) "-" ${final_quality[$check_channels]} "|" )
 	else
@@ -695,7 +695,7 @@ echo -e " Now watching: "'\E[1;97m'${now_watching::-1}'\E[0m'
 for check_channels in $(seq 0 $[ $number_of_channels -2 ])
 do
 	if [[ $video_player = "mpv" ]]; then
-		video_player_final=$video_player" --cache 8192 --title ${final_selection[$check_channels]}"
+		video_player_final=$video_player" --hwdec=vaapi --vo=vaapi --cache 8192 --title ${final_selection[$check_channels]}"
 	fi
 	livestreamer twitch.tv/${final_selection[$check_channels]} ${final_quality[$check_channels]} --player "$video_player_final" --hls-segment-threads 3 &> /dev/null &
 done
@@ -708,13 +708,35 @@ if [[ $multi_twitch != "yes" ]]; then
 			sqlite3 $database "insert into games (Name) values ('${game_played[$game_number]}');"
 		fi
 	fi
-	chromium --app=http://www.twitch.tv/${final_selection[$final_channel]}/chat?popout= &> /dev/null &
+	
+	if [[ $BROWSER = "/usr/bin/chromium" ]]; then
+		chromium --app=http://www.twitch.tv/${final_selection[$final_channel]}/chat?popout= &> /dev/null &
+	else
+		eval $BROWSER "http://www.twitch.tv/${final_selection[$final_channel]}/chat?popout=" &> /dev/null &
+	fi
+		
 fi
 	final_channel=$[ $number_of_channels -1 ]
 	if [[ $video_player = "mpv" ]]; then
-		video_player_final=$video_player" --cache 8192 --title ${final_selection[$final_channel]}"
+		video_player_final=$video_player" --hwdec=vaapi --vo=vaapi --cache 8192 --title ${final_selection[$final_channel]}"
 	fi
+	
+if [[ $multi_twitch != "yes" ]]; then
+	livestreamer twitch.tv/${final_selection[$final_channel]} ${final_quality[$final_channel]} --player "$video_player_final" --hls-segment-threads 3 &> /dev/null &
+	while :
+	do
+		read -t 0.1 -n 1 key
+			if [[ $key = q ]]; then
+				ctrl_c
+			else
+			if [[ $key = m ]]; then
+				eval $BROWSER twitchecho.com/${final_selection[$final_channel]} &> /dev/null
+			fi
+			fi
+	done
+	else
 	livestreamer twitch.tv/${final_selection[$final_channel]} ${final_quality[$final_channel]} --player "$video_player_final" --hls-segment-threads 3 &> /dev/null
+fi
 ;;
 
 esac
