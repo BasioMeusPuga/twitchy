@@ -164,6 +164,7 @@ if [[ ! -f "$database" ]]; then
 fi
 
 rm /tmp/twitchy* 2> /dev/null
+my_pid=$$
 
 #Check status of each stream that meets criteria
 function get_status {
@@ -723,7 +724,7 @@ fi
 	
 if [[ $multi_twitch != "yes" ]]; then
 	livestreamer twitch.tv/${final_selection[$final_channel]} ${final_quality[$final_channel]} --player "$video_player_final" --hls-segment-threads 3 &> /dev/null &
-	while :
+	while [[ $(pgrep -P $my_pid) != "" ]]
 	do
 		read -t 0.1 -n 1 key
 			if [[ $key = q ]]; then
