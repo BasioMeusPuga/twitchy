@@ -9,6 +9,7 @@ What you get with the script:
 * Moderately severe meme support.
 * Background monitoring of selected offline channel. Shiny notifications if/when they come online.
 * Tracking of most watched channels.
+* Music identification hotkey (uses twitchecho.com)
 * Sync your followed accounts to a local sqlite database that does not judge you.
 * Really fast bash multi-threading using nothing but &. (Kappa)
 * A cure for pattern baldness. (Keepo? This feels like a Keepo.)
