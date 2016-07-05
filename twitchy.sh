@@ -245,7 +245,11 @@ echo -ne " Usage: twitchy [OPTION]
  -w <channel name> \t\tWatch specified channel(s)
  
  Custom quality settings: Specify with hyphen next to channel number.
- E.g. <1-l 2-m 4-s> will simultaneously play channel 1 in low quality, 2 in medium quality, and 4 in source quality.\n"
+ E.g. <1-l 2-m 4-s> will simultaneously play channel 1 in low quality, 2 in medium quality, and 4 in source quality
+
+ When playing:
+ <m> to attempt music identification with twitchecho
+ <q> to quit\n"
 exit
 ;;
 
