@@ -4,6 +4,7 @@
 #Options
 database="$HOME/.twitchy.db"
 video_player=mpv
+mpv_hardware_acceleration=no
 quality=high
 truncate_status_at=100
 number_of_faves=10
@@ -165,6 +166,7 @@ fi
 
 rm /tmp/twitchy* 2> /dev/null
 my_pid=$$
+echo $my_pid > /tmp/twitchypid
 
 #Check status of each stream that meets criteria
 function get_status {
@@ -453,7 +455,7 @@ done &
 
 #Stop monitoring and exit ALL background processes
 "-no")
-killall -9 twitchy &> /dev/null
+kill $(cat /tmp/twitchypid) &> /dev/null
 ;;
 
 #Script argument is matched to database
@@ -700,7 +702,11 @@ echo -e " Now watching: "'\E[1;97m'${now_watching::-1}'\E[0m'
 for check_channels in $(seq 0 $[ $number_of_channels -2 ])
 do
 	if [[ $video_player = "mpv" ]]; then
+	if [[ $mpv_hardware_acceleration = "yes" ]]; then
 		video_player_final=$video_player" --hwdec=vaapi --vo=vaapi --cache 8192 --title ${final_selection[$check_channels]}"
+		else
+		video_player_final=$video_player" --cache 8192 --title ${final_selection[$check_channels]}"
+	fi
 	fi
 	livestreamer twitch.tv/${final_selection[$check_channels]} ${final_quality[$check_channels]} --player "$video_player_final" --hls-segment-threads 3 &> /dev/null &
 done
@@ -723,7 +729,11 @@ if [[ $multi_twitch != "yes" ]]; then
 fi
 	final_channel=$[ $number_of_channels -1 ]
 	if [[ $video_player = "mpv" ]]; then
+	if [[ $mpv_hardware_acceleration = "yes" ]]; then
 		video_player_final=$video_player" --hwdec=vaapi --vo=vaapi --cache 8192 --title ${final_selection[$final_channel]}"
+	else
+		video_player_final=$video_player" --cache 8192 --title ${final_selection[$final_channel]}"
+	fi
 	fi
 	
 if [[ $multi_twitch != "yes" ]]; then
