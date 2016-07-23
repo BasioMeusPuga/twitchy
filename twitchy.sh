@@ -260,7 +260,7 @@ exit
 
 channel_name=$2
 curl -s https://api.twitch.tv/kraken/streams/$channel_name > /tmp/twitchy
-grep -q ":404" /tmp/twitchy
+grep -q \"status\":404 /tmp/twitchy
 if [[ $? = 0 ]]; then
 	echo " $channel_name doesn't exist"
 	if [[ $memes_everywhere = "yes" ]]; then
@@ -339,14 +339,17 @@ fi
 user_id=$2
 if [[ $user_id != "" ]]; then
 	curl -s https://api.twitch.tv/kraken/users/$user_id/follows/channels > /tmp/twitchy
-	grep -q 404 /tmp/twitchy
+	grep -q \"status\":404 /tmp/twitchy
 	if [[ $? = 0 ]]; then
 		echo " $user_id doesn't exist"
 		exit
 	fi
 fi
 
-cat /tmp/twitchy | sed 's/,/\n/g' | grep -v "display" | grep name | cut -d ":" -f2- | tr -d "\"" | sort > /tmp/twitchynew
+total_followed=$(cat /tmp/twitchy | sed 's/,/\n/g' | grep "_total" | cut -d ":" -f2)
+curl -s "https://api.twitch.tv/kraken/users/$user_id/follows/channels?limit=$total_followed" > /tmp/twitchy
+
+cat /tmp/twitchy | sed 's/,/\n/g' | grep -v "display" | grep name | grep -v status | cut -d ":" -f2- | tr -d "\"" | sort > /tmp/twitchynew
 sqlite3 $database "select Name from channels;" | sort > /tmp/twitchyalreadyfollowed
 comm -1 -3 /tmp/twitchyalreadyfollowed /tmp/twitchynew > /tmp/twitchyadd
 	new_additions=$(cat /tmp/twitchyadd | wc -l)
