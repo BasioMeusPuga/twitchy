@@ -165,8 +165,10 @@ if [[ ! -f "$database" ]]; then
 fi
 
 rm /tmp/twitchy* 2> /dev/null
-my_pid=$$
-echo $my_pid > /tmp/twitchypid
+if [[ $1 != "-no" ]]; then
+	my_pid=$$
+	echo $my_pid > /tmp/twitchypid
+fi
 
 #Check status of each stream that meets criteria
 function get_status {
@@ -349,7 +351,7 @@ fi
 total_followed=$(cat /tmp/twitchy | sed 's/,/\n/g' | grep "_total" | cut -d ":" -f2)
 curl -s "https://api.twitch.tv/kraken/users/$user_id/follows/channels?limit=$total_followed" > /tmp/twitchy
 
-cat /tmp/twitchy | sed 's/,/\n/g' | grep -v "display" | grep name | grep -v status | cut -d ":" -f2- | tr -d "\"" | sort > /tmp/twitchynew
+cat /tmp/twitchy | sed 's/,/\n/g' | grep -v "display" | grep \"name\" | grep -v \"status\" | cut -d ":" -f2- | tr -d "\"" | sort > /tmp/twitchynew
 sqlite3 $database "select Name from channels;" | sort > /tmp/twitchyalreadyfollowed
 comm -1 -3 /tmp/twitchyalreadyfollowed /tmp/twitchynew > /tmp/twitchyadd
 	new_additions=$(cat /tmp/twitchyadd | wc -l)
@@ -358,7 +360,8 @@ comm -1 -3 /tmp/twitchyalreadyfollowed /tmp/twitchynew > /tmp/twitchyadd
 		exit
 	fi
 
-echo " Added to local database:"
+echo -ne " "'\E[93m'"$new_additions channels added to database:"'\E[0m'"\n"
+# 	echo " $new_additions channels added to database:"
 while read line
 do
 	sqlite3 $database "insert into channels (Name,TimeWatched) values ('$line',0);"
