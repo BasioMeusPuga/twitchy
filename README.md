@@ -3,7 +3,7 @@ livestreamer wrapper for twitch.tv
 
 This script hopefully fulfills the needs of the discerning git cloner who wants to watch Twitch, hates the CPU utilization of having a browser/flash running, and 
 has only a terminal (and the 3 or so required accessory programs) handy.
-*Requires livestreamer, sqlite, toilet*
+*Requires livestreamer, sqlite (and optionally, toilet - for horribly disfigured text)*
 
 What you get with the script:
 * Moderately severe meme support.
@@ -17,7 +17,9 @@ What you get with the script:
 * Multi Twitch support so rudimentary you'll curse your loincloth wearing ancestors for not thinking of it first.
 * The ability to display alternate names for games / streamers. If your happiness is somehow contingent upon displaying "Hearthstone: Heroes of Warcraft" as "Wizard Poker", well, you've come to the right place.
 
-**Usage**
+## Usage
+
+**PLEASE GO THROUGH THE FIRST FEW LINES OF THE SCRIPT TO SET YOUR PREFERRED PLAYER/QUALITY AND DISPLAY SETTINGS**
 
     twitchy [OPTION]
     [ARGUMENTS]                                Launch channel in $video_player_you_have_installed
@@ -32,11 +34,11 @@ What you get with the script:
     -s <username>                              Sync followed channels from specified account
     -w <channel name>                          Watch specified channel(s)
     
-    When playing:
+    While playing:
     m to attempt music identification with twitchecho
     q to quit
     
-**Examples**
+## Examples
 
 Using no argument while launching the script will check the status of every channel in the local database:
 ![alt tag](https://imgur.com/cwdHy7L.png)
