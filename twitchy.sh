@@ -713,6 +713,8 @@ do
 		else
 		video_player_final=$video_player" --cache 8192 --title ${final_selection[$check_channels]}"
 	fi
+	else
+		video_player_final=$video_player
 	fi
 	livestreamer twitch.tv/${final_selection[$check_channels]} ${final_quality[$check_channels]} --player "$video_player_final" --hls-segment-threads 3 &> /dev/null &
 done
@@ -740,6 +742,8 @@ fi
 	else
 		video_player_final=$video_player" --cache 8192 --title ${final_selection[$final_channel]}"
 	fi
+		else
+		video_player_final=$video_player
 	fi
 	
 if [[ $multi_twitch != "yes" ]]; then
