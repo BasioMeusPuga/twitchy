@@ -12,6 +12,7 @@ show_offline=no
 
 #Notify when online
 notify_sound=""
+notification_player=""
 check_interval_seconds=60
 
 #Put yo' spicy memes here
@@ -31,6 +32,46 @@ meme="RAISE YOUR DONGERS
  S P I C Y M E M E S
  D O N G S Q U A D 4 2 0"
  
+#Sanity checks
+if [[ ! -f /usr/bin/livestreamer ]]; then
+	echo " livestreamer not installed. FeelsBadMan."
+	exit
+fi
+
+if [[ ! -f /usr/bin/toilet ]]; then
+	memes_everywhere=no
+fi
+
+if [[ ! -f /usr/bin/sqlite3 ]] && [[ $1 != "-w" ]]; then
+	echo " sqlite not installed. Only -w will function. FailFish."
+	exit
+fi
+
+if [[ ! -f "$database" ]]; then
+	if [[ $1 != "-w" ]]; then
+		echo -ne " First run. Creating db and exiting.
+ PLEASE GO THROUGH THE FIRST FEW LINES OF THE SCRIPT TO SET YOUR PREFERRED PLAYER, QUALITY AND DISPLAY SETTINGS\n"
+		sqlite3 "$database" "create table channels (id INTEGER PRIMARY KEY,Name TEXT,TimeWatched INTEGER, AltName TEXT);"
+		sqlite3 "$database" "create table games (id INTEGER PRIMARY KEY,Name TEXT,AltName TEXT);"
+		exit
+	else
+		how_can_tables_be_real_if_our_databases_arent_real=1
+	fi
+fi
+
+if [[ $1 != "-no" ]]; then
+	my_pid=$$
+	echo $my_pid > /tmp/twitchypid
+fi
+
+if [[ $notification_player = "" ]]; then
+	notification_player=$video_player
+fi
+
+rm /tmp/twitchy* 2> /dev/null
+
+#Functions
+##Emotes
 function emote {
 if [[ $1 = "--pogchamp" ]]; then
  echo -n " ░░░░░▄██████████▄▄░░░
@@ -110,6 +151,7 @@ echo -n " ░░░░░░░░░░░░░░░░░░░
 fi
 }
 
+##Time format conversion
 function convert_time () {
 num=$1
 min=0
@@ -143,40 +185,7 @@ else
 fi
 }
 
-#Sanity checks
-if [[ ! -f /usr/bin/livestreamer ]]; then
-	echo " livestreamer not installed. FeelsBadMan."
-	exit
-fi
-
-if [[ ! -f /usr/bin/toilet ]]; then
-	memes_everywhere=no
-fi
-
-if [[ ! -f /usr/bin/sqlite3 ]] && [[ $1 != "-w" ]]; then
-	echo " sqlite not installed. Only -w will function."
-	exit
-fi
-
-if [[ ! -f "$database" ]]; then
-	if [[ $1 != "-w" ]]; then
-		echo -ne " First run. Creating db and exiting.
- PLEASE GO THROUGH THE FIRST FEW LINES OF THE SCRIPT TO SET YOUR PREFERRED PLAYER, QUALITY AND DISPLAY SETTINGS\n"
-		sqlite3 "$database" "create table channels (id INTEGER PRIMARY KEY,Name TEXT,TimeWatched INTEGER, AltName TEXT);"
-		sqlite3 "$database" "create table games (id INTEGER PRIMARY KEY,Name TEXT,AltName TEXT);"
-		exit
-	else
-		how_can_tables_be_real_if_our_databases_arent_real=1
-	fi
-fi
-
-rm /tmp/twitchy* 2> /dev/null
-if [[ $1 != "-no" ]]; then
-	my_pid=$$
-	echo $my_pid > /tmp/twitchypid
-fi
-
-#Check status of each stream that meets criteria
+##Check status of each stream that meets criteria
 function get_status {
 if [[ $fav_mode = 1 ]]; then
 	stream[$1]=$(curl -s https://api.twitch.tv/kraken/streams/"$(echo $line | cut -d "|" -f2)")
@@ -211,7 +220,7 @@ else
 fi
 } &> /dev/null
 
-#Time watched tracking
+##Time watched tracking
 start_time=0
 trap ctrl_c INT
 trap ctrl_c EXIT
@@ -229,7 +238,7 @@ if [[ $run_once != "yes" ]]; then
 		total_time_spent=$time_watched_hms
 		echo -e " Total time spent watching "$final_selection" - "'\E[1;97m'$total_time_spent" ("$time_rank")"'\E[0m'
 		run_once="yes"
-		trap 'kill $(jobs -p)' EXIT
+		trap 'kill $(jobs -p)' EXIT &> /dev/null
 		exit
 	else
 		exit
@@ -237,6 +246,7 @@ if [[ $run_once != "yes" ]]; then
 fi
 }
 
+#Parse arguments and you know... generally do things.
 case ${1} in
 
 "-h"|"--help")
@@ -366,7 +376,6 @@ comm -1 -3 /tmp/twitchyalreadyfollowed /tmp/twitchynew > /tmp/twitchyadd
 	fi
 
 echo -ne " "'\E[93m'"$new_additions channels added to database:"'\E[0m'"\n"
-# 	echo " $new_additions channels added to database:"
 while read line
 do
 	sqlite3 "$database" "insert into channels (Name,TimeWatched) values ('$line',0);"
@@ -455,7 +464,7 @@ while read line
 	if [[ $now_online != "" ]]; then
 		notify_message=$(echo -e "Now online:\n"$now_online)
 		if [[ $notify_sound != "" ]]; then
-			mplayer $notify_sound &
+			eval $notification_player "$notify_sound" &
 		fi
 		notify-send -i 'dialog-information' "$notify_message"
 		break
@@ -708,7 +717,7 @@ if [[ $custom_quality = 1 ]]; then
 else
 	echo " Video Quality: "$quality "| Video Player: "$video_player
 fi
-echo -e " Now watching: "'\E[1;97m'${now_watching::-1}'\E[0m'
+echo -e " Now watching:"'\E[1;97m'${now_watching::-1}'\E[0m'
 
 for check_channels in $(seq 0 $(( number_of_channels -2 )))
 do
