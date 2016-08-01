@@ -5,10 +5,13 @@ import json
 import sqlite3
 import sys
 import argparse
+import locale
 
 from multiprocessing.dummy import Pool as ThreadPool 
 from os.path import expanduser, exists
 from os import system
+
+locale.setlocale(locale.LC_ALL, '')
 
 database_path = str(expanduser("~") + '/.twitchy.db')
 if not exists(database_path):
@@ -32,9 +35,8 @@ class colors:
 # Functions
 ## Display template mapping for extra spicy output
 def template_mapping(display_number, called_from):
-	global template
 	first_column = 25
-	third_column = 25
+	third_column = 20
 	
 	if called_from == "list":
 		second_column = 40
@@ -47,8 +49,25 @@ def template_mapping(display_number, called_from):
 	template = "{0:%s}{1:%s}{2:%s}" % (first_column, second_column, third_column)
 	if display_number >= 10:
 		template = "{0:%s}{1:%s}{2:%s}" % (first_column - 1, second_column, third_column)		
-	elif display_number >= 100:
+	if display_number >= 100:
 		template = "{0:%s}{1:%s}{2:%s}" % (first_column - 2, second_column, third_column)
+
+	return template
+
+## Convert time in seconds to a more human readable format. This doesn't mean you're human.
+def time_convert(seconds):
+	m, s = divmod(seconds, 60)
+	h, m = divmod(m, 60)
+	d, h = divmod(h, 24)
+
+	if d > 0:
+		time_converted = "%dd %02dh %02dm %02ds" % (d, h, m, s)
+	elif h > 0:
+		time_converted = "%02dh %02dm %02ds" % (h, m, s)
+	else:
+		time_converted = "%02dm %02ds" % (m, s)
+
+	return time_converted
 
 ## Add to database. Call with "-a" or "-s". Haha I said ass.
 def add_to_database(channel_input):
@@ -108,14 +127,16 @@ def read_modify_deletefrom_database(channel_input):
 	display_number = 1
 	for i in relevant_list:
 		if str(i[2]) != "None":
-			template_mapping(display_number, "list")
-			print (" " + colors.NUMBERYELLOW + str(display_number) +  colors.ENDC + " " + template.format(i[0],  colors.GAMECYAN + str(i[2]) + colors.ENDC, str(i[1])))
+			template = template_mapping(display_number, "list")
+			time_watched = time_convert(i[1])
+			print (" " + colors.NUMBERYELLOW + str(display_number) +  colors.ENDC + " " + template.format(i[0],  colors.GAMECYAN + str(i[2]) + colors.ENDC, time_watched))
 		else:
-			template_mapping(display_number, "listnocolor")
+			template = template_mapping(display_number, "listnocolor")
 			if i[1] == 0:
-				print (" " + colors.NUMBERYELLOW + str(display_number) + colors.OFFLINERED + " " + template.format(i[0], str(i[2]), str(i[1])))
+				print (" " + colors.NUMBERYELLOW + str(display_number) + colors.OFFLINERED + " " + template.format(i[0], str(i[2]), "Unwatched"))
 			else:
-				print (" " + colors.NUMBERYELLOW + str(display_number) + colors.ENDC + " " + template.format(i[0], str(i[2]), str(i[1])))
+				time_watched = time_convert(i[1])
+				print (" " + colors.NUMBERYELLOW + str(display_number) + colors.ENDC + " " + template.format(i[0], str(i[2]), time_watched))
 		display_number = display_number + 1
 
 	if sys.argv[1] == "-d":
@@ -188,8 +209,8 @@ def watch(channel_input):
 			games_shown.append(i[1])
 		
 		stream_final.insert(display_number - 1, i[0])
-		template_mapping(display_number, "watch")
-		print (" " + colors.NUMBERYELLOW + (str(display_number) + colors.ENDC) + " " + (colors.ONLINEGREEN + template.format(i[0], str(i[3]), i[2]) + colors.ENDC))
+		template = template_mapping(display_number, "watch")
+		print (" " + colors.NUMBERYELLOW + (str(display_number) + colors.ENDC) + " " + (colors.ONLINEGREEN + template.format(i[0], str(format(i[3], "n")), i[2]) + colors.ENDC))
 		display_number = display_number + 1
 
 	try:
