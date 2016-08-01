@@ -71,3 +71,10 @@ Watch specified channel(s) - Do not have to be in local database:
     Offline
     x cobaltstreak
     Channel number(s): 1
+
+<p align="center">
+  <img src="https://i.imgur.com/pdmJTRJ.jpg" alt="More Daddy, more!"/>
+</p>
+
+If you clone this repo now, you get the **HIGHLY EXPERIMENTAL** Python rewrite of this script for free. It's so utterly non functional the people at xda are writing disclaimers about it as we speak.
+But seriously, I need someone to test the code. 
