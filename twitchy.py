@@ -7,10 +7,18 @@ import sys
 import argparse
 
 from multiprocessing.dummy import Pool as ThreadPool 
-from os.path import expanduser
+from os.path import expanduser, exists
 from os import system
 
-database = sqlite3.connect(str(expanduser("~") + '/.twitchy.db'))
+database_path = str(expanduser("~") + '/.twitchy.db')
+if not exists(database_path):
+	print (" First run. Creating db and exiting")
+	database = sqlite3.connect(database_path)
+	database.execute("CREATE TABLE channels (id INTEGER PRIMARY KEY, Name TEXT, TimeWatched INTEGER, AltName TEXT)")
+	database.execute("CREATE TABLE games (id INTEGER PRIMARY KEY, Name TEXT, AltName TEXT)")
+	exit()
+
+database = sqlite3.connect(database_path)
 database.row_factory = lambda cursor, row: row[0]
 dbase = database.cursor()
 
@@ -18,7 +26,8 @@ class colors:
 	GAMECYAN = '\033[96m'
 	NUMBERYELLOW = '\033[93m'
 	ONLINEGREEN = '\033[92m'
-	OFFLINERED = '\033[93m'
+	OFFLINERED = '\033[91m'
+	TEXTWHITE = '\033[97m'
 	ENDC = '\033[0m'
     
 # Functions
@@ -27,18 +36,20 @@ def add_to_database(channel_input):
 	final_addition_streams = []
 
 	def final_addition (final_addition_input):
+		something_added = False
+		print (" " + colors.NUMBERYELLOW + "Additions to database:" + colors.ENDC)
 		for channel_name in final_addition_input:
 			does_it_exist = dbase.execute("SELECT Name FROM channels WHERE name = '%s'" % channel_name).fetchone()
 			if str(does_it_exist) == "None":
+				something_added = True
 				database.execute("INSERT INTO channels (Name,TimeWatched) VALUES ('%s',0)" % channel_name)
-				database.commit()
-				print(" " + channel_name + " added to database")
-			else:
-				print(" " + channel_name + " is already in database")
+				print(" " + channel_name)
+		database.commit()
+		if something_added == False:
+			print (" " + colors.OFFLINERED + "None" + colors.ENDC)
 
 	if sys.argv[1] == "-s":
 		username = channel_input[0]
-				
 		r = requests.get('https://api.twitch.tv/kraken/users/%s/follows/channels' % username)
 		stream_data = json.loads(r.text)
 		
@@ -87,7 +98,6 @@ def watch(channel_input):
 			stream_data['error']
 		except:
 			if str(stream_data['stream']) != "None":
-
 				stream_status.append([stream_data['stream']['channel']['name'], str(stream_data['stream']['channel']['game']), str(stream_data['stream']['channel']['status']), stream_data['stream']['viewers'], stream_data['stream']['channel']['partner']])
 		"""Dictionary Scheme
 		List0: Display name
@@ -99,7 +109,7 @@ def watch(channel_input):
 	pool = ThreadPool(30)
 	results = pool.map(get_status, status_check_required)
 	pool.close()
-	pool.join() 
+	pool.join()
 
 	if len(stream_status) > 0:
 		stream_status = sorted(stream_status, key=lambda x: (x[1], -x[3]))
