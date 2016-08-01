@@ -16,10 +16,9 @@ if not exists(database_path):
 	database = sqlite3.connect(database_path)
 	database.execute("CREATE TABLE channels (id INTEGER PRIMARY KEY, Name TEXT, TimeWatched INTEGER, AltName TEXT)")
 	database.execute("CREATE TABLE games (id INTEGER PRIMARY KEY, Name TEXT, AltName TEXT)")
+	database.close()
 	exit()
-
 database = sqlite3.connect(database_path)
-database.row_factory = lambda cursor, row: row[0]
 dbase = database.cursor()
 
 class colors:
@@ -31,6 +30,26 @@ class colors:
 	ENDC = '\033[0m'
     
 # Functions
+## Display template mapping for extra spicy output
+def template_mapping(display_number, called_from):
+	global template
+	first_column = 25
+	third_column = 25
+	
+	if called_from == "list":
+		second_column = 40
+	elif called_from == "listnocolor":
+		second_column = 31
+	elif called_from == "watch":
+		second_column = 20
+		third_column = 100
+
+	template = "{0:%s}{1:%s}{2:%s}" % (first_column, second_column, third_column)
+	if display_number >= 10:
+		template = "{0:%s}{1:%s}{2:%s}" % (first_column - 1, second_column, third_column)		
+	elif display_number >= 100:
+		template = "{0:%s}{1:%s}{2:%s}" % (first_column - 2, second_column, third_column)
+
 ## Add to database. Call with "-a" or "-s". Haha I said ass.
 def add_to_database(channel_input):
 	final_addition_streams = []
@@ -39,7 +58,7 @@ def add_to_database(channel_input):
 		something_added = False
 		print (" " + colors.NUMBERYELLOW + "Additions to database:" + colors.ENDC)
 		for channel_name in final_addition_input:
-			does_it_exist = dbase.execute("SELECT Name FROM channels WHERE name = '%s'" % channel_name).fetchone()
+			does_it_exist = dbase.execute("SELECT Name FROM channels WHERE Name = '%s'" % channel_name).fetchone()
 			if str(does_it_exist) == "None":
 				something_added = True
 				database.execute("INSERT INTO channels (Name,TimeWatched) VALUES ('%s',0)" % channel_name)
@@ -78,8 +97,50 @@ def add_to_database(channel_input):
 	database.close()
 	exit()
 
+## Brilliantly named function. Call with "-d", "-an" or "-n"
+def read_modify_deletefrom_database(channel_input):
+	if channel_input == "BlankForAllIntensivePurposes":
+		relevant_list = dbase.execute('SELECT Name, TimeWatched, AltName FROM channels').fetchall()
+	else:
+		relevant_list = dbase.execute("SELECT Name, TimeWatched, AltName FROM channels WHERE Name LIKE ?", ('%'+channel_input+'%',)).fetchall()
+	relevant_list.sort()
+
+	display_number = 1
+	for i in relevant_list:
+		if str(i[2]) != "None":
+			template_mapping(display_number, "list")
+			print (" " + colors.NUMBERYELLOW + str(display_number) +  colors.ENDC + " " + template.format(i[0],  colors.GAMECYAN + str(i[2]) + colors.ENDC, str(i[1])))
+		else:
+			template_mapping(display_number, "listnocolor")
+			if i[1] == 0:
+				print (" " + colors.NUMBERYELLOW + str(display_number) + colors.OFFLINERED + " " + template.format(i[0], str(i[2]), str(i[1])))
+			else:
+				print (" " + colors.NUMBERYELLOW + str(display_number) + colors.ENDC + " " + template.format(i[0], str(i[2]), str(i[1])))
+		display_number = display_number + 1
+
+	if sys.argv[1] == "-d":
+		try:
+			stream_select = input(" Channel number(s)? ")
+			print (" " + colors.NUMBERYELLOW + "Deleted from database:" + colors.ENDC)
+			mynums = [int(i) for i in stream_select.split()]
+			for j in mynums:
+				print (" " + relevant_list[j -1][0])
+				database.execute("DELETE FROM channels WHERE Name = '%s'" % relevant_list[j -1][0])
+			database.commit()
+		except IndexError:
+			print (" You high, bro?")
+
+	elif sys.argv[1] == "-an":
+		print ("In Progress...")
+
+	database.close()	 
+	exit()
+
 ## Livestreamer called here with "-w", "-c" or our carefully chosen input string
 def watch(channel_input):
+	database.row_factory = lambda cursor, row: row[0]
+	dbase = database.cursor()
+
 	print (" " + colors.NUMBERYELLOW + "Checking channels..." + colors.ENDC)
 	if channel_input == "BlankForAllIntensivePurposes":
 		status_check_required = dbase.execute('SELECT name FROM channels').fetchall()
@@ -120,7 +181,6 @@ def watch(channel_input):
 	stream_final = []
 	games_shown = []
 	display_number = 1
-	template = "{0:25}{1:20}{2:100}"
 
 	for i in stream_status:
 		if i[1] not in games_shown:
@@ -128,35 +188,47 @@ def watch(channel_input):
 			games_shown.append(i[1])
 		
 		stream_final.insert(display_number - 1, i[0])
-		if display_number >= 10:
-			template = "{0:24}{1:20}{2:100}"
-		elif display_number >= 100:
-			template = "{0:23}{1:20}{2:100}"
-
+		template_mapping(display_number, "watch")
 		print (" " + colors.NUMBERYELLOW + (str(display_number) + colors.ENDC) + " " + (colors.ONLINEGREEN + template.format(i[0], str(i[3]), i[2]) + colors.ENDC))
 		display_number = display_number + 1
 
-	stream_select = int(input(" Channel number? "))
-	final_selection = stream_final[stream_select - 1]
-	print (" Now watching " + final_selection)
-	system('livestreamer twitch.tv/' + final_selection + ' high --player mpv --hls-segment-threads 3')
+	try:
+		stream_select = int(input(" Channel number? "))
+		final_selection = stream_final[stream_select - 1]
+		print (" Now watching " + final_selection)
+		system('livestreamer twitch.tv/' + final_selection + ' high --player mpv --hls-segment-threads 3')
+	except IndexError:
+		print (" Seriously, bro, you high?")
 
 # Parse CLI input
-parser = argparse.ArgumentParser(description='Watch twitch.tv from your terminal. IT\'S THE FUTURE.', add_help = False)
-parser.add_argument('-h', '--help', help='This helpful message', action='help')
-parser.add_argument('-a', type=str, nargs='+', help='Add channel name(s) to database', metavar = "", required=False)
-parser.add_argument('-c', type=str, help='Search string in database', metavar = "", required=False)
-parser.add_argument('-s', type=str, nargs = 1, help='Sync specific channel\'s followed accounts to local database', metavar = "username", required=False)
-parser.add_argument('-w', type=str, nargs='+', help='Watch specific channel(s)', metavar = "", required=False)
-args = parser.parse_args()
+def main():
+	parser = argparse.ArgumentParser(description='Watch twitch.tv from your terminal. IT\'S THE FUTURE.', add_help = False)
+	parser.add_argument('-h', '--help', help='This helpful message', action='help')
+	parser.add_argument('-a', type=str, nargs='+', help='Add channel name(s) to database', metavar = "", required=False)
+	parser.add_argument('-an', type=str, nargs = '?', const = 'BlankForAllIntensivePurposes', help='Set/Unset alternate names', required=False)
+	parser.add_argument('-d', type=str, nargs = '?', const = 'BlankForAllIntensivePurposes', help='Delete channel(s) from database', required=False)
+	parser.add_argument('-c', type=str, help='Search string in database', metavar = "", required=False)
+	parser.add_argument('-s', type=str, nargs = 1, help='Sync username\'s followed accounts to local database', metavar = "username", required=False)
+	parser.add_argument('-w', type=str, nargs='+', help='Watch specified channel(s)', metavar = "", required=False)
+	args = parser.parse_args()
 
-if args.a:
-	add_to_database(args.a)
-if args.c:
-	watch(args.c)
-elif args.s:
-	add_to_database(args.s)
-elif args.w:
-	watch(args.w)
-else:
-	watch("BlankForAllIntensivePurposes")
+	if args.a:
+		add_to_database(args.a)
+	elif args.an:
+		read_modify_deletefrom_database(args.an)
+	elif args.c:
+		watch(args.c)
+	elif args.d:
+		read_modify_deletefrom_database(args.d)
+	elif args.s:
+		add_to_database(args.s)
+	elif args.w:
+		watch(args.w)
+	else:
+		watch("BlankForAllIntensivePurposes")
+
+try: 
+	main()
+except KeyboardInterrupt:
+	database.close()
+	exit()
