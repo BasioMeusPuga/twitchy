@@ -7,6 +7,7 @@ import sys
 import argparse
 import locale
 
+from random import randrange
 from multiprocessing.dummy import Pool as ThreadPool
 from os.path import expanduser, exists
 from os import system
@@ -18,7 +19,7 @@ if not exists(database_path):
 	print(" First run. Creating db and exiting")
 	database = sqlite3.connect(database_path)
 	database.execute("CREATE TABLE channels (id INTEGER PRIMARY KEY, Name TEXT, TimeWatched INTEGER, AltName TEXT)")
-	database.execute("CREATE TABLE games (id INTEGER PRIMARY KEY, Name TEXT, AltName TEXT)")
+	database.execute("CREATE TABLE games (id INTEGER PRIMARY KEY, Name TEXT, TimeWatched INTEGER, AltName TEXT)")
 	database.close()
 	exit()
 database = sqlite3.connect(database_path)
@@ -37,14 +38,22 @@ class colors:
 # Functions
 # Display template mapping for extra spicy output
 def template_mapping(display_number, called_from):
-	first_column = 25
 	third_column = 20
 
 	if called_from == "list":
+		first_column = 25
 		second_column = 40
 	elif called_from == "listnocolor":
+		first_column = 25
 		second_column = 31
+	elif called_from == "gameslist":
+		first_column = 50
+		second_column = 55
+	elif called_from == "gameslistnocolor":
+		first_column = 50
+		second_column = 46
 	elif called_from == "watch":
+		first_column = 25
 		second_column = 20
 		third_column = 100
 
@@ -82,7 +91,7 @@ def add_to_database(channel_input):
 		print(" " + colors.NUMBERYELLOW + "Additions to database:" + colors.ENDC)
 		for channel_name in final_addition_input:
 			does_it_exist = dbase.execute("SELECT Name FROM channels WHERE Name = '%s'" % channel_name).fetchone()
-			if str(does_it_exist) == "None":
+			if does_it_exist is None:
 				something_added = True
 				database.execute("INSERT INTO channels (Name,TimeWatched) VALUES ('%s',0)" % channel_name)
 				print(" " + channel_name)
@@ -120,24 +129,52 @@ def add_to_database(channel_input):
 	exit()
 
 
-# Brilliantly named function. Call with "-d", "-an" or "-n"
+# Obscurely named function. Call with "-d", "-an" or "-n"
 def read_modify_deletefrom_database(channel_input):
-	if channel_input == "BlankForAllIntensivePurposes":
-		relevant_list = dbase.execute('SELECT Name, TimeWatched, AltName FROM channels').fetchall()
+	table_wanted = input(" Change (s)treamer or (g)ame name? ")
+	if table_wanted == "s":
+		table_wanted = "channels"
+	elif table_wanted == "g":
+		table_wanted = "games"
 	else:
-		relevant_list = dbase.execute("SELECT Name, TimeWatched, AltName FROM channels WHERE Name LIKE ?", ('%' + channel_input + '%',)).fetchall()
+		exit()
+
+	if channel_input == "BlankForAllIntensivePurposes":
+		relevant_list = dbase.execute('SELECT Name, TimeWatched, AltName FROM %s' % table_wanted).fetchall()
+	else:
+		relevant_list = dbase.execute("SELECT Name, TimeWatched, AltName FROM '{0}' WHERE Name LIKE '{1}'".format(table_wanted, ('%' + channel_input + '%'))).fetchall()
+
+	if len(relevant_list) == 0:
+		print(colors.OFFLINERED + " Database query returned nothing." + colors.ENDC)
+		exit()
+
 	relevant_list.sort()
+	"""List Scheme of Tuples
+		List0: Name
+		List1: TimeWatched
+		List2: AltName"""
 
 	display_number = 1
 	for i in relevant_list:
-		if str(i[2]) != "None":
-			template = template_mapping(display_number, "list")
-			time_watched = time_convert(i[1])
-			print(" " + colors.NUMBERYELLOW + str(display_number) + colors.ENDC + " " + template.format(i[0], colors.GAMECYAN + str(i[2]) + colors.ENDC, time_watched))
-		else:
-			template = template_mapping(display_number, "listnocolor")
+		if i[2] is not None:
+			if table_wanted == "channels":
+				template = template_mapping(display_number, "list")
+			elif table_wanted == "games":
+				template = template_mapping(display_number, "gameslist")
+
 			if i[1] == 0:
-				print(" " + colors.NUMBERYELLOW + str(display_number) + colors.OFFLINERED + " " + template.format(i[0], str(i[2]), "Unwatched"))
+				print(" " + colors.NUMBERYELLOW + str(display_number) + colors.ENDC + " " + template.format(i[0], colors.GAMECYAN + str(i[2]) + colors.OFFLINERED, " Unwatched" + colors.ENDC))
+			else:
+				time_watched = time_convert(i[1])
+				print(" " + colors.NUMBERYELLOW + str(display_number) + colors.ENDC + " " + template.format(i[0], colors.GAMECYAN + str(i[2]) + colors.ENDC, time_watched))
+		else:
+			if table_wanted == "channels":
+				template = template_mapping(display_number, "listnocolor")
+			elif table_wanted == "games":
+				template = template_mapping(display_number, "gameslistnocolor")
+
+			if i[1] == 0:
+				print(" " + colors.NUMBERYELLOW + str(display_number) + colors.OFFLINERED + " " + template.format(i[0], str(i[2]), "Unwatched") + colors.ENDC)
 			else:
 				time_watched = time_convert(i[1])
 				print(" " + colors.NUMBERYELLOW + str(display_number) + colors.ENDC + " " + template.format(i[0], str(i[2]), time_watched))
@@ -145,29 +182,29 @@ def read_modify_deletefrom_database(channel_input):
 
 	if sys.argv[1] == "-d":
 		try:
-			stream_select = input(" Channel number(s)? ")
+			final_selection = input(" Stream / Channel number(s)? ")
 			print(" " + colors.NUMBERYELLOW + "Deleted from database:" + colors.ENDC)
-			mynums = [int(i) for i in stream_select.split()]
+			mynums = [int(i) for i in final_selection.split()]
 			for j in mynums:
 				print(" " + relevant_list[j - 1][0])
-				database.execute("DELETE FROM channels WHERE Name = '%s'" % relevant_list[j - 1][0])
+				database.execute("DELETE FROM '{0}' WHERE Name = '{1}'".format(table_wanted, relevant_list[j - 1][0]))
 			database.commit()
 		except IndexError:
 			print(" You high, bro?")
 
 	if sys.argv[1] == "-an":
 		try:
-			stream_select = int(input(" Channel number? "))
-			old_name = relevant_list[stream_select - 1][0]
+			final_selection = int(input(" Stream / Channel number? "))
+			old_name = relevant_list[final_selection - 1][0]
 			new_name = input(" Replace " + old_name + " with? ")
 
 			if new_name == "":
-				database.execute("UPDATE channels SET AltName = '%s' where Name = '%s'" % (None, old_name))
+				database.execute("UPDATE '{0}' SET AltName = NULL WHERE Name = '{1}'".format(table_wanted, old_name))
 			else:
-				database.execute("UPDATE channels SET AltName = '%s' where Name = '%s'" % (new_name, old_name))
+				database.execute("UPDATE '{0}' SET AltName = '{1}' WHERE Name = '{2}'".format(table_wanted, new_name, old_name))
 			database.commit()
 		except:
-			print("You've come to the wrong place. Look! Behind you!")
+			print(" You've come to the wrong place. Look! Behind you!")
 
 	database.close()
 	exit()
@@ -189,9 +226,8 @@ def watch(channel_input):
 		status_check_required = channel_input
 		altname_list = []
 		for j in channel_input:
-			altname_list.append(dbase.execute("SELECT AltName FROM channels WHERE Name = '%s'" % j).fetchone())	
-	
-	database.close()
+			altname_list.append(dbase.execute("SELECT AltName FROM channels WHERE Name = '%s'" % j).fetchone())
+
 	stream_status = []
 
 	def get_status(channel_name):
@@ -201,10 +237,10 @@ def watch(channel_input):
 		try:
 			stream_data['error']
 		except:
-			if str(stream_data['stream']) != "None":  # Offline Channels return None
+			if stream_data['stream'] is not None:  # Offline Channels return None
 				alt_name = altname_list[status_check_required.index(channel_name)]
 				stream_status.append([stream_data['stream']['channel']['name'], str(stream_data['stream']['channel']['game']), str(stream_data['stream']['channel']['status']), stream_data['stream']['viewers'], alt_name, stream_data['stream']['channel']['partner']])
-		"""Dictionary Scheme
+		"""List Scheme
 		List0: Stream name
 		List1: Game Name
 		List2: Stream Status
@@ -228,14 +264,18 @@ def watch(channel_input):
 	display_number = 1
 
 	for i in stream_status:
-		if i[1] not in games_shown:
-			print(" " + colors.GAMECYAN + i[1] + colors.ENDC)
-			games_shown.append(i[1])
+		display_name_game = dbase.execute("SELECT AltName FROM games WHERE Name = '%s'" % i[1]).fetchone()
+		if display_name_game is None:
+			display_name_game = i[1]
 
-		stream_final.insert(display_number - 1, i[0])
+		if display_name_game not in games_shown:
+			print(" " + colors.GAMECYAN + display_name_game + colors.ENDC)
+			games_shown.append(display_name_game)
+
+		stream_final.insert(display_number - 1, [i[0], i[1]])
 		template = template_mapping(display_number, "watch")
 
-		if str(i[4]) == "None":
+		if i[4] is None:
 			display_name = i[0]
 		else:
 			display_name = i[4]
@@ -245,11 +285,24 @@ def watch(channel_input):
 
 	try:
 		stream_select = int(input(" Channel number? "))
-		final_selection = stream_final[stream_select - 1]
-		print(" Now watching " + final_selection)
-		system('livestreamer twitch.tv/' + final_selection + ' high --player mpv --hls-segment-threads 3')
-	except IndexError:
-		print(" Seriously, bro, you high?")
+		final_selection = stream_final[stream_select - 1][0]
+		playtime(final_selection, stream_final[stream_select - 1][1])
+	except (IndexError, ValueError):
+		random_stream = randrange(0, display_number - 2)
+		final_selection = stream_final[random_stream][0]
+		playtime(final_selection, stream_final[random_stream][1])
+
+
+# Stuff to do once we have sufficient data to start livestreamer
+def playtime(final_selection, game_name):
+	does_it_exist = dbase.execute("SELECT Name FROM games WHERE Name = '%s'" % game_name).fetchone()
+	if does_it_exist is None:
+		database.execute("INSERT INTO games (Name,Timewatched,AltName) VALUES ('%s',0,NULL)" % game_name)
+		database.commit()
+	database.close()
+
+	print(" Now watching " + final_selection)
+	system('livestreamer twitch.tv/' + final_selection + ' high --player mpv --hls-segment-threads 3')
 
 
 # Parse CLI input
