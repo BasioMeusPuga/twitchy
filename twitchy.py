@@ -1,20 +1,32 @@
 #!/usr/bin/python
 
+
 import requests
 import json
 import sqlite3
 import sys
 import argparse
 import locale
-
-from random import randrange
+import subprocess
+import shlex
 from multiprocessing.dummy import Pool as ThreadPool
 from os.path import expanduser, exists
-from os import system
+from random import randrange
+from time import time
 
-locale.setlocale(locale.LC_ALL, '')
 
+# Options
+player = "mpv"
+mpv_hardware_acceleration = True
+default_quality = "high"
+truncate_status_at = 100
 database_path = str(expanduser("~") + '/.twitchy.db')
+
+
+# Stuff that isn't options. Or optional. Lel.
+""" Set locale for commas """
+locale.setlocale(locale.LC_ALL, '')
+""" Database related """
 if not exists(database_path):
 	print(" First run. Creating db and exiting")
 	database = sqlite3.connect(database_path)
@@ -26,6 +38,7 @@ database = sqlite3.connect(database_path)
 dbase = database.cursor()
 
 
+# Color code declaration
 class colors:
 	GAMECYAN = '\033[96m'
 	NUMBERYELLOW = '\033[93m'
@@ -36,6 +49,17 @@ class colors:
 
 
 # Functions
+# I'm told global variables are literally Hitler
+def get_options():
+	return player, mpv_hardware_acceleration, default_quality, truncate_status_at, database_path
+	"""Options List Scheme
+	0: Video Player
+	1: Hardware accel (for mpv)
+	2: Default player quality
+	3: Truncate status
+	4: Database location"""
+
+
 # Display template mapping for extra spicy output
 def template_mapping(display_number, called_from):
 	third_column = 20
@@ -150,9 +174,9 @@ def read_modify_deletefrom_database(channel_input):
 
 	relevant_list.sort()
 	"""List Scheme of Tuples
-		List0: Name
-		List1: TimeWatched
-		List2: AltName"""
+	0: Name
+	1: TimeWatched
+	2: AltName"""
 
 	display_number = 1
 	for i in relevant_list:
@@ -210,7 +234,7 @@ def read_modify_deletefrom_database(channel_input):
 	exit()
 
 
-# Livestreamer called here with "-w", "-c" or our carefully chosen input string
+# Generate stuff for livestreamer to agonize endless over. Is it fat? It's a program so no.
 def watch(channel_input):
 	database.row_factory = lambda cursor, row: row[0]
 	dbase = database.cursor()
@@ -239,14 +263,20 @@ def watch(channel_input):
 		except:
 			if stream_data['stream'] is not None:  # Offline Channels return None
 				alt_name = altname_list[status_check_required.index(channel_name)]
-				stream_status.append([stream_data['stream']['channel']['name'], str(stream_data['stream']['channel']['game']), str(stream_data['stream']['channel']['status']), stream_data['stream']['viewers'], alt_name, stream_data['stream']['channel']['partner']])
+
+				truncate_status_at = get_options()
+				status_message = str(stream_data['stream']['channel']['status'])
+				if len(status_message) > truncate_status_at[3]:
+					status_message = status_message[0:truncate_status_at[3] - 3] + "..."
+
+				stream_status.append([stream_data['stream']['channel']['name'], str(stream_data['stream']['channel']['game']), status_message, stream_data['stream']['viewers'], alt_name, stream_data['stream']['channel']['partner']])
 		"""List Scheme
-		List0: Stream name
-		List1: Game Name
-		List2: Stream Status
-		List3: Viewers
-		List4: Alternate Name
-		List5: Partner Status"""
+		0: Stream name
+		1: Game name
+		2: Status message
+		3: Viewers
+		4: Alternate name
+		5: Partner status"""
 
 	pool = ThreadPool(30)
 	pool.map(get_status, status_check_required)
@@ -288,7 +318,7 @@ def watch(channel_input):
 		final_selection = stream_final[stream_select - 1][0]
 		playtime(final_selection, stream_final[stream_select - 1][1])
 	except (IndexError, ValueError):
-		random_stream = randrange(0, display_number - 2)
+		random_stream = randrange(0, display_number - 1)
 		final_selection = stream_final[random_stream][0]
 		playtime(final_selection, stream_final[random_stream][1])
 
@@ -301,8 +331,50 @@ def playtime(final_selection, game_name):
 		database.commit()
 	database.close()
 
+	start_time = time()
 	print(" Now watching " + final_selection)
-	system('livestreamer twitch.tv/' + final_selection + ' high --player mpv --hls-segment-threads 3')
+
+	options = get_options()
+	if options[0] == "mpv" and options[1] is True:
+		player_final = "mpv --hwdec=vaapi --vo=vaapi --cache 8192 --title '{0}'".format(final_selection)
+	else:
+		player_final = "mpv --cache 8192 --title '{0}'".format(final_selection)
+
+	args_to_subprocess = "livestreamer twitch.tv/'{0}' '{1}' --player '{2}' --hls-segment-threads 3".format(final_selection, options[2], player_final)
+	args_to_subprocess = shlex.split(args_to_subprocess)
+
+	try:
+		subprocess.run(args_to_subprocess, stdout=subprocess.DEVNULL)
+		# xx = subprocess.Popen(args_to_subprocess, shell=True, stdout=subprocess.DEVNULL)
+	except KeyboardInterrupt:
+		print()
+
+	time_tracking(final_selection, game_name, start_time)
+
+
+def time_tracking(channel_input, game_name, start_time):
+	end_time = time()
+	time_watched = int(end_time - start_time)
+
+	database = sqlite3.connect(database_path)
+	dbase = database.cursor()
+
+	# Update time watched for a channel that exists in the database (avoids exceptions due to -w)
+	does_it_exist = dbase.execute("SELECT Name FROM channels WHERE Name = '%s'" % channel_input).fetchone()
+	if does_it_exist[0] is not None:
+		total_time_watched = dbase.execute("SELECT TimeWatched FROM channels WHERE Name = '%s'" % channel_input).fetchone()
+		total_time_watched = total_time_watched[0] + time_watched
+		database.execute("UPDATE channels set TimeWatched = '{0}' WHERE Name = '{1}'".format(total_time_watched, channel_input))
+		print(" Total time spent watching " + colors.TEXTWHITE + channel_input + colors.ENDC + ": " + time_convert(total_time_watched))
+
+	# Update time watched for game. All game names will already be in the database.
+		total_time_watched = dbase.execute("SELECT TimeWatched FROM games WHERE Name = '%s'" % game_name).fetchone()
+		total_time_watched = total_time_watched[0] + time_watched
+		database.execute("UPDATE games set TimeWatched = '{0}' WHERE Name = '{1}'".format(total_time_watched, game_name))
+		print(" Total time spent watching " + colors.TEXTWHITE + game_name + colors.ENDC + ": " + time_convert(total_time_watched))
+
+	database.commit()
+	database.close()
 
 
 # Parse CLI input
