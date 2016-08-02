@@ -5,10 +5,13 @@ import requests
 import json
 import sqlite3
 import sys
+import select
 import argparse
 import locale
 import subprocess
 import shlex
+import webbrowser
+
 from multiprocessing.dummy import Pool as ThreadPool
 from os.path import expanduser, exists
 from random import randrange
@@ -340,14 +343,29 @@ def playtime(final_selection, game_name):
 	else:
 		player_final = "mpv --cache 8192 --title '{0}'".format(final_selection)
 
+	try:
+		webbrowser.get('chromium').open_new('--app=http://www.twitch.tv/%s/chat?popout=' % final_selection)
+	except:
+		webbrowser.open_new('http://www.twitch.tv/%s/chat?popout=' % final_selection)
+
 	args_to_subprocess = "livestreamer twitch.tv/'{0}' '{1}' --player '{2}' --hls-segment-threads 3".format(final_selection, options[2], player_final)
 	args_to_subprocess = shlex.split(args_to_subprocess)
+	livestreamer_process = subprocess.Popen(args_to_subprocess, stdout=subprocess.DEVNULL)
 
-	try:
-		subprocess.run(args_to_subprocess, stdout=subprocess.DEVNULL)
-		# xx = subprocess.Popen(args_to_subprocess, shell=True, stdout=subprocess.DEVNULL)
-	except KeyboardInterrupt:
-		print()
+	print(" q / Ctrl + C to quit | m to identify music ")
+	while livestreamer_process.returncode is None:
+		livestreamer_process.poll()
+		try:
+			keypress, o, e = select.select([sys.stdin], [], [], 0.8)
+			if (keypress):
+				keypress_made = sys.stdin.readline().strip()
+				if keypress_made == "q":
+					livestreamer_process.terminate()
+				elif keypress_made == "m":
+					webbrowser.open('http://www.twitchecho.com/%s' % final_selection)
+		except KeyboardInterrupt:
+			livestreamer_process.terminate()
+			break
 
 	time_tracking(final_selection, game_name, start_time)
 
