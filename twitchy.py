@@ -262,14 +262,14 @@ def watch(channel_input):
 	if channel_input == "BlankForAllIntensivePurposes":
 		status_check_required = dbase.execute('SELECT Name FROM channels').fetchall()
 		altname_list = dbase.execute('SELECT AltName FROM channels').fetchall()
-	elif sys.argv[1] == "-c":
-		status_check_required = dbase.execute("SELECT Name FROM channels WHERE Name LIKE ?", ('%' + channel_input + '%',)).fetchall()
-		altname_list = dbase.execute("SELECT AltName FROM channels WHERE Name LIKE ?", ('%' + channel_input + '%',)).fetchall()
 	elif sys.argv[1] == "-w":
 		status_check_required = channel_input
 		altname_list = []
 		for j in channel_input:
 			altname_list.append(dbase.execute("SELECT AltName FROM channels WHERE Name = '%s'" % j).fetchone())
+	else:
+		status_check_required = database.execute("SELECT Name FROM channels WHERE Name LIKE '{0}' or AltName LIKE '{1}'".format(('%' + channel_input + '%'), ('%' + channel_input + '%'))).fetchall()
+		altname_list = database.execute("SELECT AltName FROM channels WHERE Name LIKE '{0}' or AltName LIKE '{1}'".format(('%' + channel_input + '%'), ('%' + channel_input + '%'))).fetchall()
 
 	stream_status = []
 
@@ -399,7 +399,7 @@ def playtime(final_selection, stream_quality, game_name):
 
 	args_to_subprocess = "livestreamer twitch.tv/'{0}' '{1}' --player '{2}' --hls-segment-threads 3".format(final_selection, stream_quality, player_final)
 	args_to_subprocess = shlex.split(args_to_subprocess)
-	livestreamer_process = subprocess.Popen(args_to_subprocess, stdout=subprocess.DEVNULL)
+	livestreamer_process = subprocess.Popen(args_to_subprocess, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 	print(" q / Ctrl + C to quit | m to identify music ")
 	while livestreamer_process.returncode is None:
@@ -445,6 +445,7 @@ def time_tracking(channel_input, game_name, start_time):
 
 	database.commit()
 	database.close()
+	exit()
 
 
 # Alleged Multi-Twitch.
@@ -458,34 +459,34 @@ def multi_twitch(channel_input):
 		print(" " + colors.TEXTWHITE + channel_input[i][0] + colors.ENDC + " - " + colors.TEXTWHITE + stream_quality + colors.ENDC)
 		args_to_subprocess = "livestreamer twitch.tv/'{0}' '{1}' --player '{2}' --hls-segment-threads 3".format(channel_input[i][0], stream_quality, player_final + " --title " + channel_input[i][0])
 		args_to_subprocess = shlex.split(args_to_subprocess)
-		subprocess.Popen(args_to_subprocess, stdout=subprocess.DEVNULL)
+		subprocess.Popen(args_to_subprocess, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 	print(" " + colors.TEXTWHITE + channel_input[number_of_channels - 1][1] + colors.ENDC + " - " + colors.TEXTWHITE + stream_quality + colors.ENDC)
 	stream_quality = channel_input[number_of_channels - 1][1]
 	args_to_subprocess = "livestreamer twitch.tv/'{0}' '{1}' --player '{2}' --hls-segment-threads 3".format(channel_input[number_of_channels - 1][0], stream_quality, player_final + " --title " + channel_input[number_of_channels - 1][0])
 	args_to_subprocess = shlex.split(args_to_subprocess)
-	subprocess.run(args_to_subprocess, stdout=subprocess.DEVNULL)
+	subprocess.run(args_to_subprocess, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 	exit()
 
 
 # Parse CLI input
 def main():
 	parser = argparse.ArgumentParser(description='Watch twitch.tv from your terminal. IT\'S THE FUTURE.', add_help=False)
+	parser.add_argument('searchfor', type=str, nargs='?', help='Search for channel name in database', metavar="*searchstring*")
 	parser.add_argument('-h', '--help', help='This helpful message', action='help')
 	parser.add_argument('-a', type=str, nargs='+', help='Add channel name(s) to database', metavar="", required=False)
-	parser.add_argument('-an', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Set/Unset alternate names', required=False)
-	parser.add_argument('-d', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Delete channel(s) from database', required=False)
-	parser.add_argument('-c', type=str, help='Search string in database', metavar="", required=False)
+	parser.add_argument('-an', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Set/Unset alternate names', metavar="*searchstring*", required=False)
+	parser.add_argument('-d', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Delete channel(s) from database', metavar="*searchstring*", required=False)
 	parser.add_argument('-s', type=str, nargs=1, help='Sync username\'s followed accounts to local database', metavar="username", required=False)
 	parser.add_argument('-w', type=str, nargs='+', help='Watch specified channel(s)', metavar="", required=False)
 	args = parser.parse_args()
 
+	if args.searchfor:
+		watch(args.searchfor)
 	if args.a:
 		add_to_database(args.a)
 	elif args.an:
 		read_modify_deletefrom_database(args.an)
-	elif args.c:
-		watch(args.c)
 	elif args.d:
 		read_modify_deletefrom_database(args.d)
 	elif args.s:
