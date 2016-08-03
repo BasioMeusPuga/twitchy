@@ -16,6 +16,7 @@ from multiprocessing.dummy import Pool as ThreadPool
 from os.path import expanduser, exists
 from random import randrange
 from time import time
+from shutil import which
 
 
 # Options
@@ -23,22 +24,7 @@ player = "mpv"
 mpv_hardware_acceleration = True
 default_quality = "high"
 truncate_status_at = 100
-database_path = str(expanduser("~") + '/.twitchy.db')
-
-
-# Stuff that isn't options. Or optional. Lel.
-""" Set locale for commas """
-locale.setlocale(locale.LC_ALL, '')
-""" Database related """
-if not exists(database_path):
-	print(" First run. Creating db and exiting")
-	database = sqlite3.connect(database_path)
-	database.execute("CREATE TABLE channels (id INTEGER PRIMARY KEY, Name TEXT, TimeWatched INTEGER, AltName TEXT)")
-	database.execute("CREATE TABLE games (id INTEGER PRIMARY KEY, Name TEXT, TimeWatched INTEGER, AltName TEXT)")
-	database.close()
-	exit()
-database = sqlite3.connect(database_path)
-dbase = database.cursor()
+database_path = expanduser("~") + '/.twitchy.db'
 
 
 # Color code declaration
@@ -51,21 +37,51 @@ class colors:
 	ENDC = '\033[0m'
 
 
+# Stuff that isn't options. Or optional. Lel.
+""" Check for requirements """
+if which('livestreamer') is None:
+	print(colors.OFFLINERED + " livestreamer " + colors.ENDC + "is not installed. FeelsBadMan.")
+	exit()
+if which(player) is None:
+	print(colors.OFFLINERED + " " + player + colors.ENDC + " is not installed / doesn't exist. FeelsKappaMan.")
+	exit()
+
+""" Database related """
+if not exists(database_path):
+	print(" First run. Creating db and exiting")
+	database = sqlite3.connect(database_path)
+	database.execute("CREATE TABLE channels (id INTEGER PRIMARY KEY, Name TEXT, TimeWatched INTEGER, AltName TEXT)")
+	database.execute("CREATE TABLE games (id INTEGER PRIMARY KEY, Name TEXT, TimeWatched INTEGER, AltName TEXT)")
+	database.close()
+	exit()
+database = sqlite3.connect(database_path)
+dbase = database.cursor()
+""" Set locale for comma placement """
+locale.setlocale(locale.LC_ALL, '')
+
+
 # Functions
 # I'm told global variables are literally Hitler
 def get_options():
-	return player, mpv_hardware_acceleration, default_quality, truncate_status_at, database_path
-	"""Options List Scheme
+	if player == "mpv" and mpv_hardware_acceleration is True:
+		player_final = "mpv --hwdec=vaapi --vo=vaapi --cache 8192"
+	else:
+		player_final = "mpv --cache 8192"
+	return player_final, mpv_hardware_acceleration, default_quality, truncate_status_at, database_path
+	""" Options List Scheme
 	0: Video Player
 	1: Hardware accel (for mpv)
 	2: Default player quality
 	3: Truncate status
-	4: Database location"""
+	4: Database location """
 
 
 # Display template mapping for extra spicy output
 def template_mapping(display_number, called_from):
+
 	third_column = 20
+	""" What value is specified for the last column really doesn't matter
+	as long as a value is specified """
 
 	if called_from == "list":
 		first_column = 25
@@ -176,10 +192,10 @@ def read_modify_deletefrom_database(channel_input):
 		exit()
 
 	relevant_list.sort()
-	"""List Scheme of Tuples
+	""" List Scheme of Tuples
 	0: Name
 	1: TimeWatched
-	2: AltName"""
+	2: AltName """
 
 	display_number = 1
 	for i in relevant_list:
@@ -211,13 +227,13 @@ def read_modify_deletefrom_database(channel_input):
 		try:
 			final_selection = input(" Stream / Channel number(s)? ")
 			print(" " + colors.NUMBERYELLOW + "Deleted from database:" + colors.ENDC)
-			mynums = [int(i) for i in final_selection.split()]
-			for j in mynums:
+			entered_numbers = [int(i) for i in final_selection.split()]
+			for j in entered_numbers:
 				print(" " + relevant_list[j - 1][0])
 				database.execute("DELETE FROM '{0}' WHERE Name = '{1}'".format(table_wanted, relevant_list[j - 1][0]))
 			database.commit()
 		except IndexError:
-			print(" You high, bro?")
+			print(colors.OFFLINERED + " How can columns be real if our databases aren\'t real?" + colors.ENDC)
 
 	if sys.argv[1] == "-an":
 		try:
@@ -231,7 +247,7 @@ def read_modify_deletefrom_database(channel_input):
 				database.execute("UPDATE '{0}' SET AltName = '{1}' WHERE Name = '{2}'".format(table_wanted, new_name, old_name))
 			database.commit()
 		except:
-			print(" You've come to the wrong place. Look! Behind you!")
+			print(colors.OFFLINERED + " OH MY GOD WHAT IS THAT BEHIND YOU?" + colors.ENDC)
 
 	database.close()
 	exit()
@@ -267,19 +283,19 @@ def watch(channel_input):
 			if stream_data['stream'] is not None:  # Offline Channels return None
 				alt_name = altname_list[status_check_required.index(channel_name)]
 
-				truncate_status_at = get_options()
+				truncate_status_at = get_options()[3]
 				status_message = str(stream_data['stream']['channel']['status'])
-				if len(status_message) > truncate_status_at[3]:
-					status_message = status_message[0:truncate_status_at[3] - 3] + "..."
+				if len(status_message) > truncate_status_at:
+					status_message = status_message[0:truncate_status_at - 3] + "..."
 
 				stream_status.append([stream_data['stream']['channel']['name'], str(stream_data['stream']['channel']['game']), status_message, stream_data['stream']['viewers'], alt_name, stream_data['stream']['channel']['partner']])
-		"""List Scheme
+		""" List Scheme
 		0: Stream name
 		1: Game name
 		2: Status message
 		3: Viewers
 		4: Alternate name
-		5: Partner status"""
+		5: Partner status """
 
 	pool = ThreadPool(30)
 	pool.map(get_status, status_check_required)
@@ -316,18 +332,54 @@ def watch(channel_input):
 		print(" " + colors.NUMBERYELLOW + (str(display_number) + colors.ENDC) + " " + (colors.ONLINEGREEN + template.format(display_name, str(format(i[3], "n")), i[2]) + colors.ENDC))
 		display_number = display_number + 1
 
+	""" Parse user input.
+	Multiple valid entries are passed to multi_twitch().
+	Single entries are passed to playtime()
+	Allows for time_tracking() and music identification
+	using hacks so ugly they might as well be yo' mama. """
+
 	try:
-		stream_select = int(input(" Channel number? "))
-		final_selection = stream_final[stream_select - 1][0]
-		playtime(final_selection, stream_final[stream_select - 1][1])
+		stream_select = input(" Channel number(s)? ")
+
+		watch_input_final = []
+		final_selection = []
+		default_quality = get_options()[2]
+
+		entered_numbers = stream_select.split()
+		for a in entered_numbers:
+			watch_input_final.append(a.split("-"))
+
+		for j in watch_input_final:
+			if len(j) == 1:
+				final_selection.append([stream_final[int(j[0]) - 1][0], default_quality])
+			else:
+				if j[1] == "l":
+					custom_quality = "low"
+				elif j[1] == "m":
+					custom_quality = "medium"
+				elif j[1] == "h":
+					custom_quality = "high"
+				elif j[1] == "s":
+					custom_quality = "source"
+				else:
+					custom_quality = default_quality
+				final_selection.append([stream_final[int(j[0]) - 1][0], custom_quality])
+
+		if len(final_selection) == 1:
+			playtime(final_selection[0][0], final_selection[0][1], stream_final[int(watch_input_final[0][0]) - 1][1])
+		elif len(final_selection) > 1:
+			database.close()  # This must be removed if time tracking is ever to be implemented for multi_twitch()
+			multi_twitch(final_selection)
+		else:
+			random_stream = randrange(0, display_number - 1)
+			final_selection = stream_final[random_stream][0]
+			playtime(final_selection, default_quality, stream_final[random_stream][1])
 	except (IndexError, ValueError):
-		random_stream = randrange(0, display_number - 1)
-		final_selection = stream_final[random_stream][0]
-		playtime(final_selection, stream_final[random_stream][1])
+		print(colors.OFFLINERED + " Huh? Wut? Lel? Kappa?" + colors.ENDC)
 
 
 # Stuff to do once we have sufficient data to start livestreamer
-def playtime(final_selection, game_name):
+def playtime(final_selection, stream_quality, game_name):
 	does_it_exist = dbase.execute("SELECT Name FROM games WHERE Name = '%s'" % game_name).fetchone()
 	if does_it_exist is None:
 		database.execute("INSERT INTO games (Name,Timewatched,AltName) VALUES ('%s',0,NULL)" % game_name)
@@ -335,25 +387,24 @@ def playtime(final_selection, game_name):
 	database.close()
 
 	start_time = time()
-	print(" Now watching " + final_selection)
+	print(" Now watching " + colors.TEXTWHITE + final_selection + colors.ENDC + " | Quality: " + colors.TEXTWHITE + stream_quality + colors.ENDC)
 
 	options = get_options()
-	if options[0] == "mpv" and options[1] is True:
-		player_final = "mpv --hwdec=vaapi --vo=vaapi --cache 8192 --title '{0}'".format(final_selection)
-	else:
-		player_final = "mpv --cache 8192 --title '{0}'".format(final_selection)
+	player_final = options[0] + " --title " + final_selection
 
 	try:
 		webbrowser.get('chromium').open_new('--app=http://www.twitch.tv/%s/chat?popout=' % final_selection)
 	except:
 		webbrowser.open_new('http://www.twitch.tv/%s/chat?popout=' % final_selection)
 
-	args_to_subprocess = "livestreamer twitch.tv/'{0}' '{1}' --player '{2}' --hls-segment-threads 3".format(final_selection, options[2], player_final)
+	args_to_subprocess = "livestreamer twitch.tv/'{0}' '{1}' --player '{2}' --hls-segment-threads 3".format(final_selection, stream_quality, player_final)
 	args_to_subprocess = shlex.split(args_to_subprocess)
 	livestreamer_process = subprocess.Popen(args_to_subprocess, stdout=subprocess.DEVNULL)
 
 	print(" q / Ctrl + C to quit | m to identify music ")
 	while livestreamer_process.returncode is None:
+		""" returncode does nothing without polling
+		A delay in the while loop is introduced by the select function below """
 		livestreamer_process.poll()
 		try:
 			keypress, o, e = select.select([sys.stdin], [], [], 0.8)
@@ -370,6 +421,7 @@ def playtime(final_selection, game_name):
 	time_tracking(final_selection, game_name, start_time)
 
 
+# ONLY gets called if ONE channel is specified.
 def time_tracking(channel_input, game_name, start_time):
 	end_time = time()
 	time_watched = int(end_time - start_time)
@@ -377,7 +429,7 @@ def time_tracking(channel_input, game_name, start_time):
 	database = sqlite3.connect(database_path)
 	dbase = database.cursor()
 
-	# Update time watched for a channel that exists in the database (avoids exceptions due to -w)
+	""" Update time watched for a channel that exists in the database (avoids exceptions due to -w) """
 	does_it_exist = dbase.execute("SELECT Name FROM channels WHERE Name = '%s'" % channel_input).fetchone()
 	if does_it_exist[0] is not None:
 		total_time_watched = dbase.execute("SELECT TimeWatched FROM channels WHERE Name = '%s'" % channel_input).fetchone()
@@ -385,14 +437,35 @@ def time_tracking(channel_input, game_name, start_time):
 		database.execute("UPDATE channels set TimeWatched = '{0}' WHERE Name = '{1}'".format(total_time_watched, channel_input))
 		print(" Total time spent watching " + colors.TEXTWHITE + channel_input + colors.ENDC + ": " + time_convert(total_time_watched))
 
-	# Update time watched for game. All game names will already be in the database.
-		total_time_watched = dbase.execute("SELECT TimeWatched FROM games WHERE Name = '%s'" % game_name).fetchone()
-		total_time_watched = total_time_watched[0] + time_watched
-		database.execute("UPDATE games set TimeWatched = '{0}' WHERE Name = '{1}'".format(total_time_watched, game_name))
-		print(" Total time spent watching " + colors.TEXTWHITE + game_name + colors.ENDC + ": " + time_convert(total_time_watched))
+	""" Update time watched for game. All game names will already be in the database. """
+	total_time_watched = dbase.execute("SELECT TimeWatched FROM games WHERE Name = '%s'" % game_name).fetchone()
+	total_time_watched = total_time_watched[0] + time_watched
+	database.execute("UPDATE games set TimeWatched = '{0}' WHERE Name = '{1}'".format(total_time_watched, game_name))
+	print(" Total time spent watching " + colors.TEXTWHITE + game_name + colors.ENDC + ": " + time_convert(total_time_watched))
 
 	database.commit()
 	database.close()
+
+
+# Alleged Multi-Twitch.
+def multi_twitch(channel_input):
+	print(" Now watching: ")
+	number_of_channels = len(channel_input)
+	player_final = get_options()[0]
+
+	for i in range(0, number_of_channels - 1):
+		stream_quality = channel_input[i][1]
+		print(" " + colors.TEXTWHITE + channel_input[i][0] + colors.ENDC + " - " + colors.TEXTWHITE + stream_quality + colors.ENDC)
+		args_to_subprocess = "livestreamer twitch.tv/'{0}' '{1}' --player '{2}' --hls-segment-threads 3".format(channel_input[i][0], stream_quality, player_final + " --title " + channel_input[i][0])
+		args_to_subprocess = shlex.split(args_to_subprocess)
+		subprocess.Popen(args_to_subprocess, stdout=subprocess.DEVNULL)
+
+	print(" " + colors.TEXTWHITE + channel_input[number_of_channels - 1][1] + colors.ENDC + " - " + colors.TEXTWHITE + stream_quality + colors.ENDC)
+	stream_quality = channel_input[number_of_channels - 1][1]
+	args_to_subprocess = "livestreamer twitch.tv/'{0}' '{1}' --player '{2}' --hls-segment-threads 3".format(channel_input[number_of_channels - 1][0], stream_quality, player_final + " --title " + channel_input[number_of_channels - 1][0])
+	args_to_subprocess = shlex.split(args_to_subprocess)
+	subprocess.run(args_to_subprocess, stdout=subprocess.DEVNULL)
+	exit()
 
 
 # Parse CLI input
