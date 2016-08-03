@@ -76,5 +76,4 @@ Watch specified channel(s) - Do not have to be in local database:
   <img src="https://i.imgur.com/pdmJTRJ.jpg" alt="More Daddy, more!"/>
 </p>
 
-If you clone this repo now, you get the **HIGHLY EXPERIMENTAL** Python rewrite of this script for free. It's so utterly non functional the people at xda are writing disclaimers about it as we speak.
-But seriously, I need someone to test the code. 
+If you clone this repo now, you get the **MILDLY EXPERIMENTAL** Python rewrite of this script for free. It's more or less at functional parity with the bash script and each time you bash (get it? bash? no?) your Python interpreter into numb compliance, legend has it a flower blooms in the desert. A Kappa is born. $dead_celebrity attains one more day of sobriety.
