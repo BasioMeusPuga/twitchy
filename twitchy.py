@@ -80,8 +80,7 @@ def get_options():
 def template_mapping(display_number, called_from):
 
 	third_column = 20
-	""" What value is specified for the last column really doesn't matter
-	as long as a value is specified """
+	""" Preceding specificiation is mostly pointless as long as it's non zero """
 
 	if called_from == "list":
 		first_column = 25
@@ -267,6 +266,9 @@ def watch(channel_input):
 		altname_list = []
 		for j in channel_input:
 			altname_list.append(dbase.execute("SELECT AltName FROM channels WHERE Name = '%s'" % j).fetchone())
+	elif sys.argv[1] == "-f":
+		print(" Why u play faves?")
+		quit()
 	else:
 		status_check_required = database.execute("SELECT Name FROM channels WHERE Name LIKE '{0}' or AltName LIKE '{1}'".format(('%' + channel_input + '%'), ('%' + channel_input + '%'))).fetchall()
 		altname_list = database.execute("SELECT AltName FROM channels WHERE Name LIKE '{0}' or AltName LIKE '{1}'".format(('%' + channel_input + '%'), ('%' + channel_input + '%'))).fetchall()
@@ -282,6 +284,8 @@ def watch(channel_input):
 		except:
 			if stream_data['stream'] is not None:  # Offline Channels return None
 				alt_name = altname_list[status_check_required.index(channel_name)]
+				if alt_name is None:
+					alt_name = stream_data['stream']['channel']['display_name']
 
 				truncate_status_at = get_options()[3]
 				status_message = str(stream_data['stream']['channel']['status'])
@@ -294,7 +298,7 @@ def watch(channel_input):
 		1: Game name
 		2: Status message
 		3: Viewers
-		4: Alternate name
+		4: Display name
 		5: Partner status """
 
 	pool = ThreadPool(30)
@@ -324,12 +328,7 @@ def watch(channel_input):
 		stream_final.insert(display_number - 1, [i[0], i[1]])
 		template = template_mapping(display_number, "watch")
 
-		if i[4] is None:
-			display_name = i[0]
-		else:
-			display_name = i[4]
-
-		print(" " + colors.NUMBERYELLOW + (str(display_number) + colors.ENDC) + " " + (colors.ONLINEGREEN + template.format(display_name, str(format(i[3], "n")), i[2]) + colors.ENDC))
+		print(" " + colors.NUMBERYELLOW + (str(display_number) + colors.ENDC) + " " + (colors.ONLINEGREEN + template.format(i[4], str(format(i[3], "n")), i[2]) + colors.ENDC))
 		display_number = display_number + 1
 
 	""" Parse user input.
@@ -368,7 +367,7 @@ def watch(channel_input):
 		if len(final_selection) == 1:
 			playtime(final_selection[0][0], final_selection[0][1], stream_final[int(watch_input_final[0][0]) - 1][1])
 		elif len(final_selection) > 1:
-			database.close()  # This must be removed if time tracking is ever to be implemented for multi_twitch()
+			database.close()
 			multi_twitch(final_selection)
 		else:
 			random_stream = randrange(0, display_number - 1)
@@ -430,18 +429,26 @@ def time_tracking(channel_input, game_name, start_time):
 	dbase = database.cursor()
 
 	""" Update time watched for a channel that exists in the database (avoids exceptions due to -w) """
-	does_it_exist = dbase.execute("SELECT Name FROM channels WHERE Name = '%s'" % channel_input).fetchone()
-	if does_it_exist[0] is not None:
-		total_time_watched = dbase.execute("SELECT TimeWatched FROM channels WHERE Name = '%s'" % channel_input).fetchone()
-		total_time_watched = total_time_watched[0] + time_watched
+	channel_record = dbase.execute("SELECT Name,TimeWatched FROM channels WHERE Name = '%s'" % channel_input).fetchone()
+	if channel_record[0] is not None:
+		total_time_watched = channel_record[1] + time_watched
 		database.execute("UPDATE channels set TimeWatched = '{0}' WHERE Name = '{1}'".format(total_time_watched, channel_input))
-		print(" Total time spent watching " + colors.TEXTWHITE + channel_input + colors.ENDC + ": " + time_convert(total_time_watched))
+
+		names_only = []
+		all_seen = dbase.execute("SELECT TimeWatched,Name FROM channels WHERE TimeWatched > 0").fetchall()
+		all_seen.sort(reverse=True)
+		names_only = [el[1] for el in all_seen]
+		print(" Total time spent watching " + colors.TEXTWHITE + channel_input + colors.ENDC + ": " + time_convert(total_time_watched) + " (" + str(names_only.index(channel_input) + 1) + ")")
 
 	""" Update time watched for game. All game names will already be in the database. """
 	total_time_watched = dbase.execute("SELECT TimeWatched FROM games WHERE Name = '%s'" % game_name).fetchone()
 	total_time_watched = total_time_watched[0] + time_watched
 	database.execute("UPDATE games set TimeWatched = '{0}' WHERE Name = '{1}'".format(total_time_watched, game_name))
-	print(" Total time spent watching " + colors.TEXTWHITE + game_name + colors.ENDC + ": " + time_convert(total_time_watched))
+
+	all_seen = dbase.execute("SELECT TimeWatched,Name FROM games WHERE TimeWatched > 0").fetchall()
+	all_seen.sort(reverse=True)
+	names_only = [el[1] for el in all_seen]
+	print(" Total time spent watching " + colors.TEXTWHITE + game_name + colors.ENDC + ": " + time_convert(total_time_watched) + " (" + str(names_only.index(game_name) + 1) + ")")
 
 	database.commit()
 	database.close()
@@ -477,6 +484,7 @@ def main():
 	parser.add_argument('-a', type=str, nargs='+', help='Add channel name(s) to database', metavar="", required=False)
 	parser.add_argument('-an', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Set/Unset alternate names', metavar="*searchstring*", required=False)
 	parser.add_argument('-d', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Delete channel(s) from database', metavar="*searchstring*", required=False)
+	parser.add_argument('-f', action='store_true', help='Check if your favo(u)rite channels are online', required=False)
 	parser.add_argument('-s', type=str, nargs=1, help='Sync username\'s followed accounts to local database', metavar="username", required=False)
 	parser.add_argument('-w', type=str, nargs='+', help='Watch specified channel(s)', metavar="", required=False)
 	args = parser.parse_args()
@@ -489,6 +497,8 @@ def main():
 		read_modify_deletefrom_database(args.an)
 	elif args.d:
 		read_modify_deletefrom_database(args.d)
+	elif args.f:
+		watch("NotReallyNeededButWhatever")
 	elif args.s:
 		add_to_database(args.s)
 	elif args.w:
@@ -501,3 +511,5 @@ try:
 except KeyboardInterrupt:
 	database.close()
 	exit()
+# except:
+# 	print(colors.OFFLINERED + " Invalid input. DansGame." + colors.ENDC)
