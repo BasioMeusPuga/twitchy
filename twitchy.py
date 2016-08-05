@@ -53,6 +53,7 @@ if not exists(database_path):
 	database = sqlite3.connect(database_path)
 	database.execute("CREATE TABLE channels (id INTEGER PRIMARY KEY, Name TEXT, TimeWatched INTEGER, AltName TEXT)")
 	database.execute("CREATE TABLE games (id INTEGER PRIMARY KEY, Name TEXT, TimeWatched INTEGER, AltName TEXT)")
+	database.execute("CREATE TABLE miscellaneous (id INTEGER PRIMARY KEY, Name TEXT, Value TEXT)")
 	database.close()
 	exit()
 database = sqlite3.connect(database_path)
@@ -68,13 +69,12 @@ def get_options():
 		player_final = "mpv --hwdec=vaapi --vo=vaapi --cache 8192"
 	else:
 		player_final = "mpv --cache 8192"
-	return player_final, mpv_hardware_acceleration, default_quality, truncate_status_at, database_path
+	return player_final, mpv_hardware_acceleration, default_quality, truncate_status_at
 	""" Options List Scheme
 	0: Video Player
-	1: Hardware accel (for mpv)
+	1: Hardware accel (for mpv) - Boolean
 	2: Default player quality
-	3: Truncate status
-	4: Database location """
+	3: Truncate status """
 
 
 # Display template mapping for extra spicy output
@@ -326,7 +326,7 @@ def watch(channel_input):
 			print(" " + colors.GAMECYAN + display_name_game + colors.ENDC)
 			games_shown.append(display_name_game)
 
-		stream_final.insert(display_number - 1, [i[0], i[1]])
+		stream_final.insert(display_number - 1, [i[0], i[1], i[4]])
 		template = template_mapping(display_number, "watch")
 
 		print(" " + colors.NUMBERYELLOW + (str(display_number) + colors.ENDC) + " " + (colors.ONLINEGREEN + template.format(i[4], str(format(i[3], "n")), i[2]) + colors.ENDC))
@@ -366,28 +366,33 @@ def watch(channel_input):
 				final_selection.append([stream_final[int(j[0]) - 1][0], custom_quality])
 
 		if len(final_selection) == 1:
-			playtime(final_selection[0][0], final_selection[0][1], stream_final[int(watch_input_final[0][0]) - 1][1])
+			playtime(final_selection[0][0], final_selection[0][1], stream_final[int(watch_input_final[0][0]) - 1][1], stream_final[int(watch_input_final[0][0]) - 1][2])
 		elif len(final_selection) > 1:
 			database.close()
 			multi_twitch(final_selection)
 		else:
 			random_stream = randrange(0, display_number - 1)
 			final_selection = stream_final[random_stream][0]
-			playtime(final_selection, default_quality, stream_final[random_stream][1])
+			playtime(final_selection, default_quality, stream_final[random_stream][1], stream_final[random_stream][2])
 	except (IndexError, ValueError):
 		print(colors.OFFLINERED + " Huh? Wut? Lel? Kappa?" + colors.ENDC)
 
 
 # Stuff to do once we have sufficient data to start livestreamer
-def playtime(final_selection, stream_quality, game_name):
+def playtime(final_selection, stream_quality, game_name, display_name):
+	start_time = time()
+
+	""" Add game name to database after it's been started at least once """
 	does_it_exist = dbase.execute("SELECT Name FROM games WHERE Name = '%s'" % game_name).fetchone()
 	if does_it_exist is None:
 		database.execute("INSERT INTO games (Name,Timewatched,AltName) VALUES ('%s',0,NULL)" % game_name)
-		database.commit()
+	
+	""" For conky output - Populate the miscellaneous table with the display name and start time """
+	database.execute("INSERT INTO miscellaneous (Name,Value) VALUES ('%s','%s')" % (display_name, start_time))
+	database.commit()
 	database.close()
 
-	start_time = time()
-	print(" Now watching " + colors.TEXTWHITE + final_selection + colors.ENDC + " | Quality: " + colors.TEXTWHITE + stream_quality + colors.ENDC)
+	print(" Now watching " + colors.TEXTWHITE + display_name + colors.ENDC + " | Quality: " + colors.TEXTWHITE + stream_quality + colors.ENDC)
 
 	options = get_options()
 	player_final = options[0] + " --title " + final_selection
@@ -418,11 +423,11 @@ def playtime(final_selection, stream_quality, game_name):
 			livestreamer_process.terminate()
 			break
 
-	time_tracking(final_selection, game_name, start_time)
+	time_tracking(final_selection, game_name, start_time, display_name)
 
 
 # ONLY gets called if ONE channel is specified.
-def time_tracking(channel_input, game_name, start_time):
+def time_tracking(channel_input, game_name, start_time, display_name):
 	end_time = time()
 	time_watched = int(end_time - start_time)
 
@@ -439,17 +444,21 @@ def time_tracking(channel_input, game_name, start_time):
 		all_seen = dbase.execute("SELECT TimeWatched,Name FROM channels WHERE TimeWatched > 0").fetchall()
 		all_seen.sort(reverse=True)
 		names_only = [el[1] for el in all_seen]
-		print(" Total time spent watching " + colors.TEXTWHITE + channel_input + colors.ENDC + ": " + time_convert(total_time_watched) + " (" + str(names_only.index(channel_input) + 1) + ")")
+		print(" Total time spent watching " + colors.TEXTWHITE + display_name + colors.ENDC + ": " + time_convert(total_time_watched) + " (" + str(names_only.index(channel_input) + 1) + ")")
 
 	""" Update time watched for game. All game names will already be in the database. """
-	total_time_watched = dbase.execute("SELECT TimeWatched FROM games WHERE Name = '%s'" % game_name).fetchone()
-	total_time_watched = total_time_watched[0] + time_watched
+	game_details = dbase.execute("SELECT TimeWatched,AltName FROM games WHERE Name = '%s'" % game_name).fetchone()
+	total_time_watched = game_details[0] + time_watched
 	database.execute("UPDATE games set TimeWatched = '{0}' WHERE Name = '{1}'".format(total_time_watched, game_name))
 
 	all_seen = dbase.execute("SELECT TimeWatched,Name FROM games WHERE TimeWatched > 0").fetchall()
 	all_seen.sort(reverse=True)
 	names_only = [el[1] for el in all_seen]
-	print(" Total time spent watching " + colors.TEXTWHITE + game_name + colors.ENDC + ": " + time_convert(total_time_watched) + " (" + str(names_only.index(game_name) + 1) + ")")
+	print(" Total time spent watching " + colors.TEXTWHITE + game_details[1] + colors.ENDC + ": " + time_convert(total_time_watched) + " (" + str(names_only.index(game_name) + 1) + ")")
+
+	"""For conky output - Truncate table miscellaneous after stream ends """
+	database.execute("DELETE FROM miscellaneous")
+	database.execute("VACUUM")
 
 	database.commit()
 	database.close()
@@ -476,6 +485,43 @@ def multi_twitch(channel_input):
 	subprocess.run(args_to_subprocess, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 	exit()
 
+# Update the script to the latest git revision
+def update_script():
+	print(" " + colors.NUMBERYELLOW + "Updating to latest revision..." + colors.ENDC)
+	script_path = open(realpath(__file__), mode='w')
+	script_git = requests.get('https://raw.githubusercontent.com/BasioMeusPuga/twitchy/master/twitchy.py')
+	script_path.write(script_git.text)
+	print(" " + colors.ONLINEGREEN + "Done." + colors.ENDC)
+
+
+# I hereby declare this the greatest declaration of ALL TIME (Also, generate data for conky)
+def firefly_needed_another_6_seasons(at_least):
+	database = sqlite3.connect(database_path)
+	dbase = database.cursor()
+
+	play_status = dbase.execute("SELECT Name,Value FROM miscellaneous").fetchall()
+	number_playing = len(play_status)
+	if number_playing == 0:
+		print("idle")
+		exit(1)
+
+	current_time = int(time())
+	start_time = int(float(play_status[0][1]))
+
+	if number_playing == 1:
+		now_playing = play_status[0][0]
+		time_watched = time_convert(current_time - start_time)
+		if at_least == "np":
+			output = now_playing
+		elif at_least == "tw":
+			output = time_watched
+		else:
+			output = now_playing + " | " + time_watched
+	elif number_playing > 1:
+		output = "Multiple streams playing..."
+
+	print(output)
+	exit()
 
 # Parse CLI input
 def main():
@@ -484,6 +530,7 @@ def main():
 	parser.add_argument('-h', '--help', help='This helpful message', action='help')
 	parser.add_argument('-a', type=str, nargs='+', help='Add channel name(s) to database', metavar="", required=False)
 	parser.add_argument('-an', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Set/Unset alternate names', metavar="*searchstring*", required=False)
+	parser.add_argument('--conky', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Generate data for conky', metavar="np / tw", required=False)
 	parser.add_argument('-d', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Delete channel(s) from database', metavar="*searchstring*", required=False)
 	parser.add_argument('-f', action='store_true', help='Check if your favorite channels are online', required=False)
 	parser.add_argument('-s', type=str, nargs=1, help='Sync username\'s followed accounts to local database', metavar="username", required=False)
@@ -497,6 +544,8 @@ def main():
 		add_to_database(args.a)
 	elif args.an:
 		read_modify_deletefrom_database(args.an)
+	elif args.conky:
+		firefly_needed_another_6_seasons(args.conky)
 	elif args.d:
 		read_modify_deletefrom_database(args.d)
 	elif args.f:
@@ -504,12 +553,7 @@ def main():
 	elif args.s:
 		add_to_database(args.s)
 	elif args.update:
-		print(" " + colors.NUMBERYELLOW + "Updating to latest revision..." + colors.ENDC)
-		script_path = open(realpath(__file__), mode = 'w')
-		script_git = requests.get('https://raw.githubusercontent.com/BasioMeusPuga/twitchy/master/twitchy.py')
-		script_path.write(script_git.text)
-		print(" " + colors.ONLINEGREEN + "Done." + colors.ENDC)
-		exit()
+		update_script()
 	elif args.w:
 		watch(args.w)
 	else:
