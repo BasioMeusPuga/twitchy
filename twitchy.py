@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer
-# rev = 18
+# rev = 19
 
 
 import requests
@@ -259,7 +259,12 @@ def watch(channel_input):
 	database.row_factory = lambda cursor, row: row[0]
 	dbase = database.cursor()
 
-	print(" " + colors.NUMBERYELLOW + "Checking channels..." + colors.ENDC)
+	try:
+		if sys.argv[1] != "--conky":
+			print(" " + colors.NUMBERYELLOW + "Checking channels..." + colors.ENDC)
+	except:
+		pass
+
 	if channel_input == "BlankForAllIntensivePurposes":
 		status_check_required = dbase.execute('SELECT Name FROM channels').fetchall()
 		altname_list = dbase.execute('SELECT AltName FROM channels').fetchall()
@@ -307,6 +312,18 @@ def watch(channel_input):
 	pool.map(get_status, status_check_required)
 	pool.close()
 	pool.join()
+
+	""" Return online channels for conky.
+	Terminates the watch() function here """
+	try:
+		if sys.argv[1] == "--conky":
+			output = ""
+			for i in stream_status:
+				output = output + ", " + i[4]
+			output = output[2:]
+			return output
+	except:
+		pass
 
 	if len(stream_status) > 0:
 		stream_status = sorted(stream_status, key=lambda x: (x[1], -x[3]))
@@ -514,13 +531,16 @@ def update_script():
 
 # I hereby declare this the greatest declaration of ALL TIME (Also, generate data for conky)
 def firefly_needed_another_6_seasons(at_least):
+	if at_least == "go":
+		print(watch("BlankForAllIntensivePurposes"))
+		exit()
+
 	database = sqlite3.connect(database_path)
 	dbase = database.cursor()
 
 	play_status = dbase.execute("SELECT Name,Value FROM miscellaneous").fetchall()
 	number_playing = len(play_status)
 	if number_playing == 0:
-		print("idle")
 		exit(1)
 
 	current_time = int(time())
