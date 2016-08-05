@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer
+# rev = 18
 
 
 import requests
@@ -487,12 +488,29 @@ def multi_twitch(channel_input):
 
 # Update the script to the latest git revision
 def update_script():
-	print(" " + colors.NUMBERYELLOW + "Updating to latest revision..." + colors.ENDC)
-	script_path = open(realpath(__file__), mode='w')
-	script_git = requests.get('https://raw.githubusercontent.com/BasioMeusPuga/twitchy/master/twitchy.py')
-	script_path.write(script_git.text)
-	print(" " + colors.ONLINEGREEN + "Done." + colors.ENDC)
+	print(" " + colors.NUMBERYELLOW + "Checking for update..." + colors.ENDC)
+	script_path = realpath(__file__)
+	
+	with open(script_path) as script_text:
+		the_lines = script_text.readlines()
+	current_revision = the_lines[2].replace("\n",'')
+	script_text.close()
 
+	script_git_list = []
+	script_git = requests.get('https://raw.githubusercontent.com/BasioMeusPuga/twitchy/master/twitchy.py', stream = True)
+	for x in script_git.iter_lines():
+		script_git_list.append(x)
+	git_revision = script_git_list[2].decode("utf-8")
+
+	if current_revision == git_revision:
+		print(" " + colors.ONLINEGREEN + "Already at latest revision." + colors.ENDC)
+	else:
+		script_path = open(realpath(__file__), mode='w')
+		script_git = requests.get('https://raw.githubusercontent.com/BasioMeusPuga/twitchy/master/twitchy.py', stream = True)
+		script_path.write(script_git.text)
+		print(" " + colors.ONLINEGREEN + "Done." + colors.ENDC)
+
+	exit()
 
 # I hereby declare this the greatest declaration of ALL TIME (Also, generate data for conky)
 def firefly_needed_another_6_seasons(at_least):
