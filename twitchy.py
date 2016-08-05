@@ -1,4 +1,5 @@
-#!/usr/bin/python
+#!/usr/bin/python3
+# Requires: python3, livestreamer
 
 
 import requests
@@ -13,7 +14,7 @@ import shlex
 import webbrowser
 
 from multiprocessing.dummy import Pool as ThreadPool
-from os.path import expanduser, exists
+from os.path import expanduser, exists, realpath
 from random import randrange
 from time import time
 from shutil import which
@@ -115,11 +116,11 @@ def time_convert(seconds):
 	d, h = divmod(h, 24)
 
 	if d > 0:
-		time_converted = "%dd %02dh %02dm %02ds" % (d, h, m, s)
+		time_converted = "%dd %dh %dm %ds" % (d, h, m, s)
 	elif h > 0:
-		time_converted = "%02dh %02dm %02ds" % (h, m, s)
+		time_converted = "%dh %dm %ds" % (h, m, s)
 	else:
-		time_converted = "%02dm %02ds" % (m, s)
+		time_converted = "%dm %ds" % (m, s)
 
 	return time_converted
 
@@ -484,14 +485,15 @@ def main():
 	parser.add_argument('-a', type=str, nargs='+', help='Add channel name(s) to database', metavar="", required=False)
 	parser.add_argument('-an', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Set/Unset alternate names', metavar="*searchstring*", required=False)
 	parser.add_argument('-d', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Delete channel(s) from database', metavar="*searchstring*", required=False)
-	parser.add_argument('-f', action='store_true', help='Check if your favo(u)rite channels are online', required=False)
+	parser.add_argument('-f', action='store_true', help='Check if your favorite channels are online', required=False)
 	parser.add_argument('-s', type=str, nargs=1, help='Sync username\'s followed accounts to local database', metavar="username", required=False)
+	parser.add_argument('--update', action='store_true', help='Update to git master', required=False)
 	parser.add_argument('-w', type=str, nargs='+', help='Watch specified channel(s)', metavar="", required=False)
 	args = parser.parse_args()
 
 	if args.searchfor:
 		watch(args.searchfor)
-	if args.a:
+	elif args.a:
 		add_to_database(args.a)
 	elif args.an:
 		read_modify_deletefrom_database(args.an)
@@ -501,6 +503,13 @@ def main():
 		watch("NotReallyNeededButWhatever")
 	elif args.s:
 		add_to_database(args.s)
+	elif args.update:
+		print(" " + colors.NUMBERYELLOW + "Updating to latest revision..." + colors.ENDC)
+		script_path = open(realpath(__file__), mode = 'w')
+		script_git = requests.get('https://raw.githubusercontent.com/BasioMeusPuga/twitchy/master/twitchy.py')
+		script_path.write(script_git.text)
+		print(" " + colors.ONLINEGREEN + "Done." + colors.ENDC)
+		exit()
 	elif args.w:
 		watch(args.w)
 	else:
