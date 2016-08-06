@@ -10,7 +10,6 @@ What you get with the script:
 * Tracking of most watched channels.
 * Music identification hotkey (uses twitchecho.com)
 * Sync your followed accounts to a local sqlite database that does not judge you.
-* Really fast bash multi-threading using nothing but &. (Kappa)
 * A cure for pattern baldness. (Keepo? This feels like a Keepo.)
 * Flippable switches in the first few lines of the script.
 * Multi Twitch support so rudimentary you'll curse your loincloth wearing ancestors for not thinking of it first.
@@ -26,7 +25,7 @@ What you get with the script:
     
     [OPTIONS]
     -h, --help                      This helpful message
-    -a <channel name>               Add channel
+    -a <channel name>               Add channel(s)
     -an                             Set/unset alternate names
     --conky [ np / tw / go ]        Generate data for conky
     -d                              Delete channel(s) from database
