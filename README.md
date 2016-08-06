@@ -1,13 +1,12 @@
 # twitchy
 livestreamer wrapper for twitch.tv
 
-This script hopefully fulfills the needs of the discerning git cloner who wants to watch Twitch, hates the CPU utilization of having a browser/flash running, and 
-has only a terminal (and the 3 or so required accessory programs) handy.
-*Requires livestreamer, sqlite (and optionally, toilet - for horribly disfigured text)*
+**Requires livestreamer, python3**
+
+This script hopefully fulfills the needs of the discerning git cloner who wants to watch Twitch, hates the CPU utilization of having a browser/flash running, and has only a terminal handy.
 
 What you get with the script:
-* Moderately severe meme support.
-* Background monitoring of selected offline channel. Shiny notifications if/when they come online.
+* Integration with your conky instance.
 * Tracking of most watched channels.
 * Music identification hotkey (uses twitchecho.com)
 * Sync your followed accounts to a local sqlite database that does not judge you.
@@ -22,17 +21,17 @@ What you get with the script:
 **PLEASE GO THROUGH THE FIRST FEW LINES OF THE SCRIPT TO SET YOUR PREFERRED PLAYER/QUALITY AND DISPLAY SETTINGS**
 
     twitchy [OPTION]
-    [ARGUMENTS]                                Launch channel in $video_player_you_have_installed
-    -a <channel name>                          Add channel
-    -an                                        Set/unset alternate names
-    -d                                         Delete channel
-    -f                                         List favorites
-    -fr                                        Reset time watched
-    -h                                         This helpful text
-    -n                                         Monitor selected offline channels and send a notification when any one comes online
-    -no                                        STOP EVERYTHING
-    -s <username>                              Sync followed channels from specified account
-    -w <channel name>                          Watch specified channel(s)
+    [ARGUMENTS]                         Launch channel in $video_player_you_have_installed
+    -h, --help                          This helpful message
+    -a <channel name>                   Add channel
+    -an                                 Set/unset alternate names
+    --conky [ np / tw / go ]            Sync followed channels from specified account
+                                        (np: Now Playing / tw: Time Watched / go: Get Online channels)
+    -d                                  Delete channel(s) from database
+    -f                                  Check if your favorite channels are online
+    -s <username>                       Sync followed channels from specified account
+    --update                            Update to the latest git revision
+    -w <channel name>                   Watch specified channel(s)
     
     While playing:
     m to attempt music identification with twitchecho
@@ -71,9 +70,3 @@ Watch specified channel(s) - Do not have to be in local database:
     Offline
     x cobaltstreak
     Channel number(s): 1
-
-<p align="center">
-  <img src="https://i.imgur.com/pdmJTRJ.jpg" alt="More Daddy, more!"/>
-</p>
-
-If you clone this repo now, you get the **MILDLY EXPERIMENTAL** Python rewrite of this script for free. It's more or less at functional parity with the bash script and each time you bash (get it? bash? no?) your Python interpreter into numb compliance, legend has it a flower blooms in the desert. A Kappa is born. $dead_celebrity attains one more day of sobriety.
