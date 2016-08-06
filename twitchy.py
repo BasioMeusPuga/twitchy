@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer
-# rev = 20
+# rev = 21
 
 
 import requests
@@ -27,10 +27,10 @@ mpv_hardware_acceleration = True
 default_quality = "high"
 truncate_status_at = 100
 database_path = expanduser("~") + '/.twitchy.db'
+number_of_faves_displayed = 10
 """ The number of favorites displayed no longer includes offline channels.
 i.e. setting this value to n will display - in descending order of time watched,
 the first n ONLINE channels in the database """
-number_of_faves_displayed = 10
 
 
 # Color code declaration
@@ -130,14 +130,6 @@ def time_convert(seconds):
 	else:
 		time_converted = "%ds" % s
 
-	try:
-		if sys.argv[1] == "--conky":
-			pass
-		else:
-			time_converted = time_converted.rjust(11)
-	except:
-		time_converted = time_converted.rjust(11)
-
 	return time_converted
 
 
@@ -224,7 +216,7 @@ def read_modify_deletefrom_database(channel_input):
 			if i[1] == 0:
 				print(" " + colors.NUMBERYELLOW + str(display_number) + colors.ENDC + " " + template.format(i[0], colors.GAMECYAN + str(i[2]) + colors.OFFLINERED, "  Unwatched" + colors.ENDC))
 			else:
-				time_watched = time_convert(i[1])
+				time_watched = time_convert(i[1]).rjust(11)
 				print(" " + colors.NUMBERYELLOW + str(display_number) + colors.ENDC + " " + template.format(i[0], colors.GAMECYAN + str(i[2]) + colors.ENDC, time_watched))
 		else:
 			if table_wanted == "channels":
@@ -235,7 +227,7 @@ def read_modify_deletefrom_database(channel_input):
 			if i[1] == 0:
 				print(" " + colors.NUMBERYELLOW + str(display_number) + colors.OFFLINERED + " " + template.format(i[0], str(i[2]), "  Unwatched") + colors.ENDC)
 			else:
-				time_watched = time_convert(i[1])
+				time_watched = time_convert(i[1]).rjust(11)
 				print(" " + colors.NUMBERYELLOW + str(display_number) + colors.ENDC + " " + template.format(i[0], str(i[2]), time_watched))
 		display_number = display_number + 1
 
@@ -275,10 +267,12 @@ def watch(channel_input):
 	dbase = database.cursor()
 
 	try:
-		if sys.argv[1] != "--conky":
-			print(" " + colors.NUMBERYELLOW + "Checking channels..." + colors.ENDC)
+		if sys.argv[1] == "--conky":
+			pass
+		else:
+			raise
 	except:
-		pass
+		print(" " + colors.NUMBERYELLOW + "Checking channels..." + colors.ENDC)
 
 	if channel_input == "BlankForAllIntensivePurposes":
 		status_check_required = dbase.execute('SELECT Name FROM channels').fetchall()
@@ -359,8 +353,7 @@ def watch(channel_input):
 				""" The display list is now sorted in descending order """
 				stream_status = sorted(stream_status, key=lambda x: x[6], reverse=True)
 			else:
-				""" This is needed because the first argument may just be a string """
-				stream_status = sorted(stream_status, key=lambda x: (x[1], -x[3]))
+				raise
 		except:
 			stream_status = sorted(stream_status, key=lambda x: (x[1], -x[3]))
 	else:
@@ -383,18 +376,13 @@ def watch(channel_input):
 		try:
 			if sys.argv[1] == "-f":
 				column_3_display = colors.GAMECYAN + display_name_game + colors.ONLINEGREEN + " - " + i[2]
-				print(" " + colors.NUMBERYELLOW + (str(display_number) + colors.ENDC) + " " + (colors.ONLINEGREEN + template.format(i[4], time_convert(i[6]), column_3_display) + colors.ENDC))
+				print(" " + colors.NUMBERYELLOW + (str(display_number) + colors.ENDC) + " " + (colors.ONLINEGREEN + template.format(i[4], time_convert(i[6]).rjust(11), column_3_display) + colors.ENDC))
 				display_number = display_number + 1
 				if display_number == number_of_faves_displayed + 1:
 					break
 			else:
-				if display_name_game not in games_shown:
-					print(" " + colors.GAMECYAN + display_name_game + colors.ENDC)
-					games_shown.append(display_name_game)
-				print(" " + colors.NUMBERYELLOW + (str(display_number) + colors.ENDC) + " " + (colors.ONLINEGREEN + template.format(i[4], str(format(i[3], "n")).rjust(8), i[2]) + colors.ENDC))
-				display_number = display_number + 1
+				raise
 		except:
-			""" Try to find a way of doing this without replicating code """
 			if display_name_game not in games_shown:
 				print(" " + colors.GAMECYAN + display_name_game + colors.ENDC)
 				games_shown.append(display_name_game)
@@ -657,5 +645,3 @@ try:
 except KeyboardInterrupt:
 	database.close()
 	exit()
-# except:
-# 	print(colors.OFFLINERED + " Invalid input. DansGame." + colors.ENDC)
