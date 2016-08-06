@@ -20,22 +20,30 @@ What you get with the script:
 
 **PLEASE GO THROUGH THE FIRST FEW LINES OF THE SCRIPT TO SET YOUR PREFERRED PLAYER/QUALITY AND DISPLAY SETTINGS**
 
-    twitchy [OPTION]
-    [ARGUMENTS]                         Launch channel in $video_player_you_have_installed
-    -h, --help                          This helpful message
-    -a <channel name>                   Add channel
-    -an                                 Set/unset alternate names
-    --conky [ np / tw / go ]            Sync followed channels from specified account
-                                        (np: Now Playing / tw: Time Watched / go: Get Online channels)
-    -d                                  Delete channel(s) from database
-    -f                                  Check if your favorite channels are online
-    -s <username>                       Sync followed channels from specified account
-    --update                            Update to the latest git revision
-    -w <channel name>                   Watch specified channel(s)
+    $ twitchy [ARGUMENT] [OPTIONS]
+    
+    [ARGUMENT] to the script is used as a search string for channels in the local database.
+    
+    [OPTIONS]
+    -h, --help                      This helpful message
+    -a <channel name>               Add channel
+    -an                             Set/unset alternate names
+    --conky [ np / tw / go ]        Generate data for conky
+    -d                              Delete channel(s) from database
+    -f                              Check if your favorite channels are online
+    -s <username>                   Sync followed channels from specified account
+    --update                        Update to the latest git revision
+    -w <channel name>               Watch specified channel(s)
     
     While playing:
-    m to attempt music identification with twitchecho
-    q to quit
+    <m> to attempt music identification with twitchecho
+    <q> to quit
+    
+    Conky options. Execute script with:
+    --conky np                      Get name of the currently playing stream
+    --conky tw                      Time spent Watching the currently playing stream
+    --conky go                      Get comma separated list of Online channels
+    The script will exit with exit code 1 in case either np or tw is used while nothing is playing.
     
 ## Examples
 
