@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer
-# rev = 23
+# rev = 24
 
 
 import requests
@@ -31,6 +31,7 @@ number_of_faves_displayed = 10
 """ The number of favorites displayed no longer includes offline channels.
 i.e. setting this value to n will display - in descending order of time watched,
 the first n ONLINE channels in the database """
+display_chat_for_multiple_twitch_streams = False
 
 
 # Color code declaration
@@ -74,13 +75,13 @@ def get_options():
 		player_final = "mpv --hwdec=vaapi --vo=vaapi --cache 8192"
 	else:
 		player_final = "mpv --cache 8192"
-	return player_final, mpv_hardware_acceleration, default_quality, truncate_status_at
+	return player_final, mpv_hardware_acceleration, default_quality, truncate_status_at, display_chat_for_multiple_twitch_streams
 	""" Options List Scheme
 	0: Video Player
 	1: Hardware accel (for mpv) - Boolean
 	2: Default player quality
 	3: Truncate status
-	4: Number of favorites to be displayed """
+	4: Display chat if Multiple streams are played """
 
 
 # Display template mapping for extra spicy output
@@ -543,9 +544,16 @@ def multi_twitch(channel_input):
 		player_final = get_options()[0]
 		player_final = player_final + " --title " + display_name.replace(' ', '')
 		print(" " + colors.TEXTWHITE + display_name + colors.ENDC + " - " + colors.TEXTWHITE + stream_quality + colors.ENDC)
+
+		display_chat = get_options()[4]
+		if display_chat is True:
+			try:
+				webbrowser.get('chromium').open_new('--app=http://www.twitch.tv/%s/chat?popout=' % channel_name)
+			except:
+				webbrowser.open_new('http://www.twitch.tv/%s/chat?popout=' % channel_name)
+
 		args_to_subprocess = "livestreamer twitch.tv/'{0}' '{1}' --player '{2}' --hls-segment-threads 3".format(channel_name, stream_quality, player_final)
 		args_to_subprocess = shlex.split(args_to_subprocess)
-
 		if current_channel < (number_of_channels - 1):
 			subprocess.Popen(args_to_subprocess, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 		else:
@@ -584,7 +592,7 @@ def update_script():
 		script_path = open(realpath(__file__), mode='w')
 		script_git = requests.get('https://raw.githubusercontent.com/BasioMeusPuga/twitchy/master/twitchy.py', stream=True)
 		script_path.write(script_git.text)
-		print(" " + colors.ONLINEGREEN + "Updated to Revision" + current_revision.split('=')[1] + colors.ENDC)
+		print(" " + colors.ONLINEGREEN + "Updated to Revision" + git_revision.split('=')[1] + colors.ENDC)
 
 	exit()
 
