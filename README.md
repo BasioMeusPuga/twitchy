@@ -5,19 +5,15 @@ livestreamer wrapper for twitch.tv
 
 This script hopefully fulfills the needs of the discerning git cloner who wants to watch Twitch, hates the CPU utilization of having a browser/flash running, and has only a terminal handy.
 
-What you get with the script:
+Features:
 * Integration with your conky instance.
 * Tracking of most watched channels.
-* Music identification hotkey (uses twitchecho.com)
+* Music identification (uses twitchecho.com)
 * Sync your followed accounts to a local sqlite database that does not judge you.
-* A cure for pattern baldness. (Keepo? This feels like a Keepo.)
-* Flippable switches in the first few lines of the script.
-* Multi Twitch support so rudimentary you'll curse your loincloth wearing ancestors for not thinking of it first.
+* Stream as many... streams as you want at once.
 * The ability to display alternate names for games / streamers. If your happiness is somehow contingent upon displaying "Hearthstone: Heroes of Warcraft" as "Wizard Poker", well, you've come to the right place.
 
 ## Usage
-
-**PLEASE GO THROUGH THE FIRST FEW LINES OF THE SCRIPT TO SET YOUR PREFERRED PLAYER/QUALITY AND DISPLAY SETTINGS**
 
     $ twitchy [ARGUMENT] [OPTIONS]
     
@@ -27,6 +23,7 @@ What you get with the script:
     -h, --help                      This helpful message
     -a <channel name>               Add channel(s)
     -an                             Set/unset alternate names
+    --configure                     Configure options
     --conky [ np / tw / go ]        Generate data for conky
     -d                              Delete channel(s) from database
     -f                              Check if your favorite channels are online
