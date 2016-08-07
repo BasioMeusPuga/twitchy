@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer
-# rev = 24
+# rev = 25
 
 
 import requests
@@ -19,19 +19,7 @@ from os.path import expanduser, exists, realpath
 from random import randrange
 from time import time
 from shutil import which
-
-
-# Options
-player = "mpv"
-mpv_hardware_acceleration = True
-default_quality = "high"
-truncate_status_at = 100
-database_path = expanduser("~") + '/.twitchy.db'
-number_of_faves_displayed = 10
-""" The number of favorites displayed no longer includes offline channels.
-i.e. setting this value to n will display - in descending order of time watched,
-the first n ONLINE channels in the database """
-display_chat_for_multiple_twitch_streams = False
+from ast import literal_eval
 
 
 # Color code declaration
@@ -44,26 +32,129 @@ class colors:
 	ENDC = '\033[0m'
 
 
+# Mostly just to avoid shenanigans
+database_path = expanduser("~") + '/.twitchy.db'
+
+
+# Options
+def configure_options(special_occasion):
+	try:
+		print(colors.GAMECYAN + " Configure:" + colors.ENDC)
+		player = input(" Media player [mpv]: ")
+		if which(player) is None:
+			if which('mpv') is not None:
+				player = "mpv"
+			else:
+				print(colors.OFFLINERED + " " + player + colors.ENDC + " is not in $PATH. Please check if this is what you want.")
+				raise
+
+		mpv_hardware_acceleration = True
+		if player == "mpv":
+			mpv_option = input(" Use hardware acceleration with mpv [Y/n]: ")
+			if mpv_option == "yes" or mpv_option == "Y" or mpv_option == "y" or mpv_option == "":
+				mpv_hardware_acceleration = True
+			else:
+				mpv_hardware_acceleration = False
+
+		default_quality = input(" Default stream quality [low/medium/HIGH/source]: ")
+		if default_quality == "" or (default_quality != "low" and default_quality != "medium" and default_quality != "source"):
+			default_quality = "high"
+
+		truncate_status_at = input(" Truncate stream status at [100]: ")
+		if truncate_status_at == "":
+			truncate_status_at = 100
+		else:
+			truncate_status_at = int(truncate_status_at)
+
+		""" The number of favorites displayed no longer includes offline channels.
+		i.e. setting this value to n will display - in descending order of time watched,
+		the first n ONLINE channels in the database """
+		number_of_faves_displayed = input(" Number of favorites to display [5]: ")
+		if number_of_faves_displayed == "":
+			number_of_faves_displayed = 5
+		else:
+			number_of_faves_displayed = int(number_of_faves_displayed)
+
+		chat_for_MT = input(" Display chat for multiple Twitch streams [y/N]: ")
+		if chat_for_MT == "" or chat_for_MT == "N" or chat_for_MT == "n" or chat_for_MT == "no":
+			display_chat_for_multiple_twitch_streams = False
+		else:
+			display_chat_for_multiple_twitch_streams = True
+
+		print("\n" + colors.GAMECYAN + " Current Settings:" + colors.ENDC)
+		penultimate_check = """ Media Player: {0}
+ Default Quality: {1}
+ Truncate status at: {2}
+ Numer of faves: {3}
+ Display chat for multiple streams: {4}""".format(colors.NUMBERYELLOW + player + colors.ENDC, colors.NUMBERYELLOW + default_quality + colors.ENDC, colors.NUMBERYELLOW + str(truncate_status_at) + colors.ENDC, colors.NUMBERYELLOW + str(number_of_faves_displayed) + colors.ENDC, colors.NUMBERYELLOW + str(display_chat_for_multiple_twitch_streams) + colors.ENDC)
+
+		print(penultimate_check)
+
+		do_we_like = input(" Does this look correct to you? [Y/n]: ")
+		if do_we_like == "Y" or do_we_like == "yes" or do_we_like == "y" or do_we_like == "":
+			options_to_insert = [["player", player], ["mpv_hardware_acceleration", mpv_hardware_acceleration], ["default_quality", default_quality], ["truncate_status_at", truncate_status_at], ["number_of_faves_displayed", number_of_faves_displayed], ["display_chat_for_multiple_twitch_streams", display_chat_for_multiple_twitch_streams]]
+
+			database = sqlite3.connect(database_path)
+			if special_occasion == "FirstRun":
+				database.execute("CREATE TABLE channels (id INTEGER PRIMARY KEY, Name TEXT, TimeWatched INTEGER, AltName TEXT)")
+				database.execute("CREATE TABLE games (id INTEGER PRIMARY KEY, Name TEXT, TimeWatched INTEGER, AltName TEXT)")
+				database.execute("CREATE TABLE miscellaneous (id INTEGER PRIMARY KEY, Name TEXT, Value TEXT)")
+				database.execute("CREATE TABLE options (id INTEGER PRIMARY KEY, Name TEXT, Value TEXT)")
+				for i in options_to_insert:
+					database.execute("INSERT INTO options (Name,Value) VALUES ('{0}','{1}')".format(i[0], str(i[1])))
+
+			elif special_occasion == "TheDudeAbides":
+				for i in options_to_insert:
+					database.execute("UPDATE options set Value = '{0}' WHERE Name = '{1}'".format(str(i[1]), i[0]))
+
+			database.commit()
+			database.close()
+		else:
+			raise
+	except:
+		final_decision = input(colors.OFFLINERED + " Do you wish to restart? [y/N]: " + colors.ENDC)
+		if final_decision == "Y" or final_decision == "yes" or final_decision == "y":
+			print()
+			configure_options(special_occasion)
+		else:
+			exit()
+
+
 # Stuff that isn't options. Or optional. Lel.
 """ Check for requirements """
 if which('livestreamer') is None:
 	print(colors.OFFLINERED + " livestreamer " + colors.ENDC + "is not installed. FeelsBadMan.")
 	exit()
-if which(player) is None:
-	print(colors.OFFLINERED + " " + player + colors.ENDC + " is not installed / doesn't exist. FeelsKappaMan.")
-	exit()
 
-""" Database related """
+""" Existential doubts go here """
 if not exists(database_path):
-	print(" First run. Creating db and exiting")
-	database = sqlite3.connect(database_path)
-	database.execute("CREATE TABLE channels (id INTEGER PRIMARY KEY, Name TEXT, TimeWatched INTEGER, AltName TEXT)")
-	database.execute("CREATE TABLE games (id INTEGER PRIMARY KEY, Name TEXT, TimeWatched INTEGER, AltName TEXT)")
-	database.execute("CREATE TABLE miscellaneous (id INTEGER PRIMARY KEY, Name TEXT, Value TEXT)")
-	database.close()
+	print(colors.GAMECYAN + " First run. Creating db and running configure." + colors.ENDC)
+	configure_options("FirstRun")
 	exit()
 database = sqlite3.connect(database_path)
 dbase = database.cursor()
+
+""" Not so existential ones here"""
+try:
+	options_from_database = dbase.execute("SELECT Value FROM options").fetchall()
+	""" Database options scheme:
+		0: player
+		1: mpv_hardware_acceleration
+		2: default_quality
+		3: truncate_status_at
+		4: number_of_faves_displayed
+		5: display_chat_for_multiple_twitch_streams """
+
+	player = options_from_database[0][0]
+	mpv_hardware_acceleration = literal_eval(options_from_database[1][0])
+	default_quality = options_from_database[2][0]
+	truncate_status_at = int(options_from_database[3][0])
+	number_of_faves_displayed = int(options_from_database[4][0])
+	display_chat_for_multiple_twitch_streams = literal_eval(options_from_database[5][0])
+except:
+	print(colors.OFFLINERED + " Error getting options. Please run --configure." + colors.ENDC)
+	exit()
+
 """ Set locale for comma placement """
 locale.setlocale(locale.LC_ALL, '')
 
@@ -637,6 +728,7 @@ def main():
 	parser.add_argument('-h', '--help', help='This helpful message', action='help')
 	parser.add_argument('-a', type=str, nargs='+', help='Add channel name(s) to database', metavar="", required=False)
 	parser.add_argument('-an', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Set/Unset alternate names', metavar="*searchstring*", required=False)
+	parser.add_argument('--configure', action='store_true', help='Configure options', required=False)
 	parser.add_argument('--conky', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Generate data for conky', metavar="np / tw / go", required=False)
 	parser.add_argument('-d', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Delete channel(s) from database', metavar="*searchstring*", required=False)
 	parser.add_argument('-f', action='store_true', help='Check if your favorite channels are online', required=False)
@@ -651,6 +743,8 @@ def main():
 		add_to_database(args.a)
 	elif args.an:
 		read_modify_deletefrom_database(args.an)
+	elif args.configure:
+		configure_options("TheDudeAbides")
 	elif args.conky:
 		firefly_needed_another_6_seasons(args.conky)
 	elif args.d:
