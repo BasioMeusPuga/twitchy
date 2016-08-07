@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer
-# rev = 21
+# rev = 22
 
 
 import requests
@@ -452,7 +452,7 @@ def playtime(final_selection, stream_quality, game_name, display_name):
 	print(" Now watching " + colors.TEXTWHITE + display_name + colors.ENDC + " | Quality: " + colors.TEXTWHITE + stream_quality + colors.ENDC)
 
 	options = get_options()
-	player_final = options[0] + " --title " + final_selection
+	player_final = options[0] + " --title " + display_name.replace(' ', '')
 
 	try:
 		webbrowser.get('chromium').open_new('--app=http://www.twitch.tv/%s/chat?popout=' % final_selection)
@@ -466,7 +466,7 @@ def playtime(final_selection, stream_quality, game_name, display_name):
 	print(" q / Ctrl + C to quit | m to identify music ")
 	while livestreamer_process.returncode is None:
 		""" returncode does nothing without polling
-		A delay in the while loop is introduced by the select function below """
+		A delay in the while loop is introduced by the select method below """
 		livestreamer_process.poll()
 		try:
 			keypress, o, e = select.select([sys.stdin], [], [], 0.8)
@@ -502,17 +502,23 @@ def time_tracking(channel_input, game_name, start_time, display_name):
 		all_seen = dbase.execute("SELECT TimeWatched,Name FROM channels WHERE TimeWatched > 0").fetchall()
 		all_seen.sort(reverse=True)
 		names_only = [el[1] for el in all_seen]
-		print(" Total time spent watching " + colors.TEXTWHITE + display_name + colors.ENDC + ": " + time_convert(total_time_watched) + " (" + str(names_only.index(channel_input) + 1) + ")")
+		rank = str(names_only.index(channel_input) + 1)
+		print(" Total time spent watching " + colors.TEXTWHITE + display_name + colors.ENDC + ": " + time_convert(total_time_watched) + " (" + rank + ")")
 
 	""" Update time watched for game. All game names will already be in the database. """
-	game_details = dbase.execute("SELECT TimeWatched,AltName FROM games WHERE Name = '%s'" % game_name).fetchone()
+	game_details = dbase.execute("SELECT TimeWatched,Name,AltName FROM games WHERE Name = '%s'" % game_name).fetchone()
 	total_time_watched = game_details[0] + time_watched
 	database.execute("UPDATE games set TimeWatched = '{0}' WHERE Name = '{1}'".format(total_time_watched, game_name))
 
 	all_seen = dbase.execute("SELECT TimeWatched,Name FROM games WHERE TimeWatched > 0").fetchall()
 	all_seen.sort(reverse=True)
 	names_only = [el[1] for el in all_seen]
-	print(" Total time spent watching " + colors.TEXTWHITE + game_details[1] + colors.ENDC + ": " + time_convert(total_time_watched) + " (" + str(names_only.index(game_name) + 1) + ")")
+	rank = str(names_only.index(game_name) + 1)
+	if game_details[2] is None:
+		game_display_name = game_details[1]
+	else:
+		game_display_name = game_details[2]
+	print(" Total time spent watching " + colors.TEXTWHITE + game_display_name + colors.ENDC + ": " + time_convert(total_time_watched) + " (" + rank + ")")
 
 	"""For conky output - Truncate table miscellaneous after stream ends """
 	database.execute("DELETE FROM miscellaneous")
@@ -527,20 +533,26 @@ def time_tracking(channel_input, game_name, start_time, display_name):
 def multi_twitch(channel_input):
 	print(" Now watching: ")
 	number_of_channels = len(channel_input)
-	player_final = get_options()[0]
+	""" channel_input list scheme:
+	0: Channel Name
+	1: Stream quality
+	2: Display Name """
 
-	for i in range(0, number_of_channels - 1):
-		stream_quality = channel_input[i][1]
-		print(" " + colors.TEXTWHITE + channel_input[i][2] + colors.ENDC + " - " + colors.TEXTWHITE + stream_quality + colors.ENDC)
-		args_to_subprocess = "livestreamer twitch.tv/'{0}' '{1}' --player '{2}' --hls-segment-threads 3".format(channel_input[i][0], stream_quality, player_final + " --title " + channel_input[i][0])
+	def zhu_li_do_the_thing(channel_name, stream_quality, display_name, current_channel):
+		player_final = get_options()[0]
+		player_final = player_final + " --title " + display_name.replace(' ', '')
+		print(" " + colors.TEXTWHITE + display_name + colors.ENDC + " - " + colors.TEXTWHITE + stream_quality + colors.ENDC)
+		args_to_subprocess = "livestreamer twitch.tv/'{0}' '{1}' --player '{2}' --hls-segment-threads 3".format(channel_name, stream_quality, player_final)
 		args_to_subprocess = shlex.split(args_to_subprocess)
-		subprocess.Popen(args_to_subprocess, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-	stream_quality = channel_input[number_of_channels - 1][1]
-	print(" " + colors.TEXTWHITE + channel_input[number_of_channels - 1][2] + colors.ENDC + " - " + colors.TEXTWHITE + stream_quality + colors.ENDC)
-	args_to_subprocess = "livestreamer twitch.tv/'{0}' '{1}' --player '{2}' --hls-segment-threads 3".format(channel_input[number_of_channels - 1][0], stream_quality, player_final + " --title " + channel_input[number_of_channels - 1][0])
-	args_to_subprocess = shlex.split(args_to_subprocess)
-	subprocess.run(args_to_subprocess, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+		if current_channel < (number_of_channels - 1):
+			subprocess.Popen(args_to_subprocess, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+		else:
+			subprocess.run(args_to_subprocess, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+	for i in range(0, number_of_channels):
+		zhu_li_do_the_thing(channel_input[i][0], channel_input[i][1], channel_input[i][2], i)
+
 	exit()
 
 
@@ -566,7 +578,7 @@ def update_script():
 		script_path = open(realpath(__file__), mode='w')
 		script_git = requests.get('https://raw.githubusercontent.com/BasioMeusPuga/twitchy/master/twitchy.py', stream=True)
 		script_path.write(script_git.text)
-		print(" " + colors.ONLINEGREEN + "Done." + colors.ENDC)
+		print(" " + colors.ONLINEGREEN + "Updated to Revision" + current_revision.split('=')[1] + colors.ENDC)
 
 	exit()
 
