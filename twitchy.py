@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer
-# rev = 22
+# rev = 23
 
 
 import requests
@@ -425,7 +425,6 @@ def watch(channel_input):
 		if len(final_selection) == 1:
 			playtime(final_selection[0][0], final_selection[0][1], stream_final[int(watch_input_final[0][0]) - 1][1], final_selection[0][2])
 		elif len(final_selection) > 1:
-			database.close()
 			multi_twitch(final_selection)
 		else:
 			random_stream = randrange(0, display_number - 1)
@@ -531,6 +530,8 @@ def time_tracking(channel_input, game_name, start_time, display_name):
 
 # Alleged Multi-Twitch.
 def multi_twitch(channel_input):
+	database.execute("INSERT INTO miscellaneous (Name,Value) VALUES ('Multiple420BlazeItChannels','0')")
+	database.commit()
 	print(" Now watching: ")
 	number_of_channels = len(channel_input)
 	""" channel_input list scheme:
@@ -553,6 +554,11 @@ def multi_twitch(channel_input):
 	for i in range(0, number_of_channels):
 		zhu_li_do_the_thing(channel_input[i][0], channel_input[i][1], channel_input[i][2], i)
 
+	database.execute("DELETE FROM miscellaneous")
+	database.execute("VACUUM")
+
+	database.commit()
+	database.close()
 	exit()
 
 
@@ -597,20 +603,20 @@ def firefly_needed_another_6_seasons(at_least):
 	if number_playing == 0:
 		exit(1)
 
-	current_time = int(time())
-	start_time = int(float(play_status[0][1]))
-
 	if number_playing == 1:
 		now_playing = play_status[0][0]
-		time_watched = time_convert(current_time - start_time)
-		if at_least == "np":
-			output = now_playing
-		elif at_least == "tw":
-			output = time_watched
+		if now_playing == "Multiple420BlazeItChannels":
+			output = "Multiple streams playing..."
 		else:
-			output = now_playing + " | " + time_watched
-	elif number_playing > 1:
-		output = "Multiple streams playing..."
+			current_time = int(time())
+			start_time = int(float(play_status[0][1]))
+			time_watched = time_convert(current_time - start_time)
+			if at_least == "np":
+				output = now_playing
+			elif at_least == "tw":
+				output = time_watched
+			else:
+				output = now_playing + " | " + time_watched
 
 	print(output)
 	exit()
