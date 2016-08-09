@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer
-# rev = 26
+# rev = 27
 
 
 import sys
@@ -356,7 +356,7 @@ def read_modify_deletefrom_database(channel_input):
 	exit()
 
 
-# Get list of VODS for a channel
+# Much VOD such wow
 def vod_watch(channel_input):
 	i_wanna_see = input(" Watch (b)roadcasts or (h)ighlights: ")
 
@@ -401,12 +401,19 @@ def vod_watch(channel_input):
 	vod_select = int(input(" VOD number: "))
 	video_final = vod_links[vod_select - 1][0]
 	player_final = get_options()[0] + " --title " + "\"" + display_name + " - " + vod_links[vod_select - 1][1] + "\""
-	print(player_final)
 
+	database.execute("INSERT INTO miscellaneous (Name,Value) VALUES ('%s','%s')" % (display_name + " - " + vod_links[vod_select - 1][1], "(VOD)"))
+	database.commit()
+
+	print(" Now watching " + colors.TEXTWHITE + display_name + " - " + vod_links[vod_select - 1][1] + colors.ENDC + " | Quality: " + colors.TEXTWHITE + default_quality + colors.ENDC)
 	args_to_subprocess = "livestreamer {0} {1} --player '{2}' --hls-segment-threads 3 --player-passthrough=hls".format(video_final, default_quality, player_final)
 	args_to_subprocess = shlex.split(args_to_subprocess)
 	subprocess.run(args_to_subprocess, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
+	database.execute("DELETE FROM miscellaneous")
+	database.execute("VACUUM")
+	
+	database.close()
 	exit()
 	
 	""" Requires extraction of a game_name; and checking of said name from the time_tracking function """
@@ -451,12 +458,6 @@ def watch(channel_input):
 		timewatched_list = dbase.execute("SELECT TimeWatched FROM channels WHERE TimeWatched > 0").fetchall()
 
 	else:
-		try:
-			if sys.argv[1] == "-s" or sys.argv[1] == "-v":
-				exit()
-		except:
-			pass
-
 		status_check_required = database.execute("SELECT Name FROM channels WHERE Name LIKE '{0}' or AltName LIKE '{1}'".format(('%' + channel_input + '%'), ('%' + channel_input + '%'))).fetchall()
 		altname_list = database.execute("SELECT AltName FROM channels WHERE Name LIKE '{0}' or AltName LIKE '{1}'".format(('%' + channel_input + '%'), ('%' + channel_input + '%'))).fetchall()
 
@@ -784,15 +785,19 @@ def firefly_needed_another_6_seasons(at_least):
 		if now_playing == "Multiple420BlazeItChannels":
 			output = "Multiple streams playing..."
 		else:
-			current_time = int(time())
-			start_time = int(float(play_status[0][1]))
-			time_watched = time_convert(current_time - start_time)
+			if play_status[0][1] != "(VOD)":
+				current_time = int(time())
+				start_time = int(float(play_status[0][1]))
+				time_watched = " | " + str(time_convert(current_time - start_time))
+			else:
+				time_watched = " (VOD)"
+
 			if at_least == "np":
 				output = now_playing
 			elif at_least == "tw":
 				output = time_watched
 			else:
-				output = now_playing + " | " + time_watched
+				output = now_playing + time_watched
 
 	print(output)
 	exit()
