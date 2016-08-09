@@ -8,6 +8,7 @@ This script hopefully fulfills the needs of the discerning git cloner who wants 
 Features:
 * Integration with your conky instance.
 * Tracking of most watched channels.
+* View VODs
 * Music identification (uses twitchecho.com)
 * Sync your followed accounts to a local sqlite database that does not judge you.
 * Stream as many... streams as you want at once.
@@ -29,6 +30,7 @@ Features:
     -f                              Check if your favorite channels are online
     -s <username>                   Sync followed channels from specified account
     --update                        Update to the latest git revision
+    -v <channel name>               Watch channel's recorded videos
     -w <channel name>               Watch specified channel(s)
     
     While playing:
