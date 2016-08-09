@@ -1,25 +1,25 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer
-# rev = 25
+# rev = 26
 
 
-import requests
-import json
-import sqlite3
 import sys
-import select
-import argparse
-import locale
-import subprocess
+import json
 import shlex
+import select
+import locale
+import sqlite3
+import requests
+import argparse
 import webbrowser
+import subprocess
 
-from multiprocessing.dummy import Pool as ThreadPool
-from os.path import expanduser, exists, realpath
-from random import randrange
 from time import time
 from shutil import which
+from random import randrange
 from ast import literal_eval
+from os.path import expanduser, exists, realpath
+from multiprocessing.dummy import Pool as ThreadPool
 
 
 # Color code declaration
@@ -197,6 +197,9 @@ def template_mapping(display_number, called_from):
 		first_column = 25
 		second_column = 20
 		third_column = 100
+	elif called_from == "vods":
+		first_column = 40
+		second_column = 60
 
 	template = "{0:%s}{1:%s}{2:%s}" % (first_column, second_column, third_column)
 	if display_number >= 10:
@@ -274,7 +277,7 @@ def add_to_database(channel_input):
 
 # Obscurely named function. Call with "-d", "-an" or "-n"
 def read_modify_deletefrom_database(channel_input):
-	table_wanted = input(" Change (s)treamer or (g)ame name? ")
+	table_wanted = input(" Modify (s)treamer or (g)ame name? ")
 	if table_wanted == "s":
 		table_wanted = "channels"
 	elif table_wanted == "g":
@@ -353,8 +356,74 @@ def read_modify_deletefrom_database(channel_input):
 	exit()
 
 
+# Get list of VODS for a channel
+def vod_watch(channel_input):
+	i_wanna_see = input(" Watch (b)roadcasts or (h)ighlights: ")
+
+	broadcast_string = ""
+	if i_wanna_see == "b":
+		broadcast_string = "?broadcasts=true"
+
+	r = requests.get('https://api.twitch.tv/kraken/channels/{0}/videos{1}'.format(channel_input[0], broadcast_string))
+	stream_data = json.loads(r.text)
+
+	try:
+		totalvids = str(stream_data['_total'])
+		if int(totalvids) == 0:
+			raise
+	except:
+		print(colors.OFFLINERED + " Channel does not exist or No VODs found." + colors.ENDC)
+		exit()
+
+	display_name = stream_data['videos'][0]['channel']['display_name']
+	if broadcast_string == "":
+		limit_string = "?limit=" + totalvids
+		print(colors.NUMBERYELLOW + " Highlights for " + display_name + colors.ENDC + ":")
+	else:
+		limit_string = "&limit=" + totalvids
+		print(colors.NUMBERYELLOW + " Past broadcasts for " + display_name + colors.ENDC + ":")
+
+	r = requests.get('https://api.twitch.tv/kraken/channels/{0}/videos{1}{2}'.format(channel_input[0], broadcast_string, limit_string))
+	stream_data = json.loads(r.text)
+
+	vod_links = []
+	display_number = 1
+	for i in stream_data['videos']:
+		template = template_mapping(display_number, "vods")
+		creation_time = i['created_at'].split('T')[0]
+		if i_wanna_see == "b":
+			print(" " + colors.NUMBERYELLOW + str(display_number) + colors.ENDC + " " + template.format(i['game'], i['title'], creation_time))
+		else:
+			print(" " + colors.NUMBERYELLOW + str(display_number) + colors.ENDC + " " + template.format(i['title'], creation_time, ""))
+		vod_links.append([i['url'], i['title']])
+		display_number = display_number + 1
+	
+	vod_select = int(input(" VOD number: "))
+	video_final = vod_links[vod_select - 1][0]
+	player_final = get_options()[0] + " --title " + "\"" + display_name + " - " + vod_links[vod_select - 1][1] + "\""
+	print(player_final)
+
+	args_to_subprocess = "livestreamer {0} {1} --player '{2}' --hls-segment-threads 3 --player-passthrough=hls".format(video_final, default_quality, player_final)
+	args_to_subprocess = shlex.split(args_to_subprocess)
+	subprocess.run(args_to_subprocess, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+	exit()
+	
+	""" Requires extraction of a game_name; and checking of said name from the time_tracking function """
+	""" I'm not even sure I want to """
+	"""if i_wanna_see == "b":
+		time_tracking(channel_input, game_name, start_time, display_name):"""
+
 # Generate stuff for livestreamer to agonize endless over. Is it fat? It's a program so no.
 def watch(channel_input):
+
+	try:
+		if sys.argv[1] == "-s" or sys.argv[1] == "-v":
+			print(colors.OFFLINERED + " Only one argument is permitted." + colors.ENDC)
+			exit()
+	except IndexError:
+	 	pass
+
 	database.row_factory = lambda cursor, row: row[0]
 	dbase = database.cursor()
 
@@ -382,6 +451,12 @@ def watch(channel_input):
 		timewatched_list = dbase.execute("SELECT TimeWatched FROM channels WHERE TimeWatched > 0").fetchall()
 
 	else:
+		try:
+			if sys.argv[1] == "-s" or sys.argv[1] == "-v":
+				exit()
+		except:
+			pass
+
 		status_check_required = database.execute("SELECT Name FROM channels WHERE Name LIKE '{0}' or AltName LIKE '{1}'".format(('%' + channel_input + '%'), ('%' + channel_input + '%'))).fetchall()
 		altname_list = database.execute("SELECT AltName FROM channels WHERE Name LIKE '{0}' or AltName LIKE '{1}'".format(('%' + channel_input + '%'), ('%' + channel_input + '%'))).fetchall()
 
@@ -411,7 +486,9 @@ def watch(channel_input):
 				if len(status_message) > truncate_status_at:
 					status_message = status_message[0:truncate_status_at - 3] + "..."
 
-				stream_status.append([stream_data['stream']['channel']['name'], str(stream_data['stream']['channel']['game']), status_message, stream_data['stream']['viewers'], alt_name, stream_data['stream']['channel']['partner'], timewatched])
+				game_name_formatted = str(stream_data['stream']['channel']['game']).replace("\'", "")
+
+				stream_status.append([stream_data['stream']['channel']['name'], game_name_formatted, status_message, stream_data['stream']['viewers'], alt_name, stream_data['stream']['channel']['partner'], timewatched])
 		""" List Scheme
 		0: Stream name
 		1: Game name
@@ -540,7 +617,7 @@ def playtime(final_selection, stream_quality, game_name, display_name):
 	database.commit()
 	database.close()
 
-	print(" Now watching " + colors.TEXTWHITE + display_name + colors.ENDC + " | Quality: " + colors.TEXTWHITE + stream_quality + colors.ENDC)
+	print(" Now watching " + colors.TEXTWHITE + display_name + colors.ENDC + " | Quality: " + colors.TEXTWHITE + stream_quality.title() + colors.ENDC)
 
 	options = get_options()
 	player_final = options[0] + " --title " + display_name.replace(' ', '')
@@ -634,7 +711,7 @@ def multi_twitch(channel_input):
 	def zhu_li_do_the_thing(channel_name, stream_quality, display_name, current_channel):
 		player_final = get_options()[0]
 		player_final = player_final + " --title " + display_name.replace(' ', '')
-		print(" " + colors.TEXTWHITE + display_name + colors.ENDC + " - " + colors.TEXTWHITE + stream_quality + colors.ENDC)
+		print(" " + colors.TEXTWHITE + display_name + colors.ENDC + " - " + colors.TEXTWHITE + stream_quality.title() + colors.ENDC)
 
 		display_chat = get_options()[4]
 		if display_chat is True:
@@ -734,6 +811,7 @@ def main():
 	parser.add_argument('-f', action='store_true', help='Check if your favorite channels are online', required=False)
 	parser.add_argument('-s', type=str, nargs=1, help='Sync username\'s followed accounts to local database', metavar="username", required=False)
 	parser.add_argument('--update', action='store_true', help='Update to git master', required=False)
+	parser.add_argument('-v', type=str, nargs=1, help='Watch VODs', metavar="", required=False)
 	parser.add_argument('-w', type=str, nargs='+', help='Watch specified channel(s)', metavar="", required=False)
 	args = parser.parse_args()
 
@@ -755,6 +833,8 @@ def main():
 		add_to_database(args.s)
 	elif args.update:
 		update_script()
+	elif args.v:
+		vod_watch(args.v)
 	elif args.w:
 		watch(args.w)
 	else:
