@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer
-# rev = 27
+# rev = 28
 
 
 import sys
@@ -27,6 +27,7 @@ class colors:
 	GAMECYAN = '\033[96m'
 	NUMBERYELLOW = '\033[93m'
 	ONLINEGREEN = '\033[92m'
+	ONLINEGREENNOTPARTNER = '\033[32m'
 	OFFLINERED = '\033[91m'
 	TEXTWHITE = '\033[97m'
 	ENDC = '\033[0m'
@@ -488,7 +489,6 @@ def watch(channel_input):
 					status_message = status_message[0:truncate_status_at - 3] + "..."
 
 				game_name_formatted = str(stream_data['stream']['channel']['game']).replace("\'", "")
-
 				stream_status.append([stream_data['stream']['channel']['name'], game_name_formatted, status_message, stream_data['stream']['viewers'], alt_name, stream_data['stream']['channel']['partner'], timewatched])
 		""" List Scheme
 		0: Stream name
@@ -496,7 +496,7 @@ def watch(channel_input):
 		2: Status message
 		3: Viewers
 		4: Display name
-		5: Partner status
+		5: Partner status - Boolean
 		6: Time Watched - Should be zero if not queried"""
 
 	pool = ThreadPool(30)
@@ -534,19 +534,32 @@ def watch(channel_input):
 	games_shown = []
 	display_number = 1
 
+	""" Get ranks to display for -f """
+	names_only = []
+	database2 = sqlite3.connect(database_path)
+	all_seen = database2.execute("SELECT TimeWatched,Name FROM channels WHERE TimeWatched > 0").fetchall()
+	database2.close()
+	all_seen.sort(reverse=True)
+	names_only = [el[1] for el in all_seen]
+
 	for i in stream_status:
 		display_name_game = dbase.execute("SELECT AltName FROM games WHERE Name = '%s'" % i[1]).fetchone()
 		if display_name_game is None:
 			display_name_game = i[1]
 
-		stream_final.insert(display_number - 1, [i[0], i[1], i[4]])
+		stream_final.insert(display_number - 1, [i[0], i[1], i[4], i[5]])
 		template = template_mapping(display_number, "watch")
 
 		""" We need special formatting in case of -f """
 		try:
 			if sys.argv[1] == "-f":
 				column_3_display = colors.GAMECYAN + display_name_game + colors.ONLINEGREEN + " - " + i[2]
-				print(" " + colors.NUMBERYELLOW + (str(display_number) + colors.ENDC) + " " + (colors.ONLINEGREEN + template.format(i[4], time_convert(i[6]).rjust(11), column_3_display) + colors.ENDC))
+				rank = str(names_only.index(i[0]) + 1)
+				""" Colors are slightly different in case the channel is not a Twitch Partner - Also default to source quality """
+				if i[5] is True:
+					print(" " + colors.NUMBERYELLOW + (str(display_number) + colors.ENDC) + " " + (colors.ONLINEGREEN + template.format(i[4] + " (" + rank + ")", time_convert(i[6]).rjust(11), column_3_display) + colors.ENDC))
+				else:
+					print(" " + colors.NUMBERYELLOW + (str(display_number) + colors.ENDC) + " " + (colors.ONLINEGREENNOTPARTNER + template.format(i[4] + " (" + rank + ")", time_convert(i[6]).rjust(11), column_3_display) + colors.ENDC))
 				display_number = display_number + 1
 				if display_number == number_of_faves_displayed + 1:
 					break
@@ -556,7 +569,10 @@ def watch(channel_input):
 			if display_name_game not in games_shown:
 				print(" " + colors.GAMECYAN + display_name_game + colors.ENDC)
 				games_shown.append(display_name_game)
-			print(" " + colors.NUMBERYELLOW + (str(display_number) + colors.ENDC) + " " + (colors.ONLINEGREEN + template.format(i[4], str(format(i[3], "n")).rjust(8), i[2]) + colors.ENDC))
+			if i[5] is True:
+				print(" " + colors.NUMBERYELLOW + (str(display_number) + colors.ENDC) + " " + (colors.ONLINEGREEN + template.format(i[4], str(format(i[3], "n")).rjust(8), i[2]) + colors.ENDC))
+			else:
+				print(" " + colors.NUMBERYELLOW + (str(display_number) + colors.ENDC) + " " + (colors.ONLINEGREENNOTPARTNER + template.format(i[4], str(format(i[3], "n")).rjust(8), i[2]) + colors.ENDC))
 			display_number = display_number + 1
 
 	""" Parse user input.
@@ -577,20 +593,24 @@ def watch(channel_input):
 			watch_input_final.append(a.split("-"))
 
 		for j in watch_input_final:
-			if len(j) == 1:
-				final_selection.append([stream_final[int(j[0]) - 1][0], default_quality, stream_final[int(j[0]) - 1][2]])
-			else:
-				if j[1] == "l":
-					custom_quality = "low"
-				elif j[1] == "m":
-					custom_quality = "medium"
-				elif j[1] == "h":
-					custom_quality = "high"
-				elif j[1] == "s":
-					custom_quality = "source"
+			ispartner = stream_final[int(j[0]) - 1][3]
+			if ispartner is True:
+				if len(j) == 1:
+					final_selection.append([stream_final[int(j[0]) - 1][0], default_quality, stream_final[int(j[0]) - 1][2]])
 				else:
-					custom_quality = default_quality
-				final_selection.append([stream_final[int(j[0]) - 1][0], custom_quality, stream_final[int(j[0]) - 1][2]])
+					if j[1] == "l":
+						custom_quality = "low"
+					elif j[1] == "m":
+						custom_quality = "medium"
+					elif j[1] == "h":
+						custom_quality = "high"
+					elif j[1] == "s":
+						custom_quality = "source"
+					else:
+						custom_quality = default_quality
+					final_selection.append([stream_final[int(j[0]) - 1][0], custom_quality, stream_final[int(j[0]) - 1][2]])
+			elif ispartner is False:
+					final_selection.append([stream_final[int(j[0]) - 1][0], "source", stream_final[int(j[0]) - 1][2]])
 
 		if len(final_selection) == 1:
 			playtime(final_selection[0][0], final_selection[0][1], stream_final[int(watch_input_final[0][0]) - 1][1], final_selection[0][2])
