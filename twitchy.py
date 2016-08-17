@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer
-# rev = 28
+# rev = 29
 
 
 import sys
@@ -398,7 +398,7 @@ def vod_watch(channel_input):
 			print(" " + colors.NUMBERYELLOW + str(display_number) + colors.ENDC + " " + template.format(i['title'], creation_time, ""))
 		vod_links.append([i['url'], i['title']])
 		display_number = display_number + 1
-	
+
 	vod_select = int(input(" VOD number: "))
 	video_final = vod_links[vod_select - 1][0]
 	player_final = get_options()[0] + " --title " + "\"" + display_name + " - " + vod_links[vod_select - 1][1] + "\""
@@ -413,14 +413,15 @@ def vod_watch(channel_input):
 
 	database.execute("DELETE FROM miscellaneous")
 	database.execute("VACUUM")
-	
+
 	database.close()
 	exit()
-	
+
 	""" Requires extraction of a game_name; and checking of said name from the time_tracking function """
 	""" I'm not even sure I want to """
 	"""if i_wanna_see == "b":
 		time_tracking(channel_input, game_name, start_time, display_name):"""
+
 
 # Generate stuff for livestreamer to agonize endless over. Is it fat? It's a program so no.
 def watch(channel_input):
@@ -430,7 +431,7 @@ def watch(channel_input):
 			print(colors.OFFLINERED + " Only one argument is permitted." + colors.ENDC)
 			exit()
 	except IndexError:
-	 	pass
+		pass
 
 	database.row_factory = lambda cursor, row: row[0]
 	dbase = database.cursor()
@@ -548,6 +549,11 @@ def watch(channel_input):
 			display_name_game = i[1]
 
 		stream_final.insert(display_number - 1, [i[0], i[1], i[4], i[5]])
+		""" List scheme
+		0: Channel Name
+		1: Game Name
+		2: Display Name
+		3: Partner status - Boolean """
 		template = template_mapping(display_number, "watch")
 
 		""" We need special formatting in case of -f """
@@ -619,7 +625,11 @@ def watch(channel_input):
 		else:
 			random_stream = randrange(0, display_number - 1)
 			final_selection = stream_final[random_stream][0]
-			playtime(final_selection, default_quality, stream_final[random_stream][1], stream_final[random_stream][2])
+			ispartner = stream_final[random_stream][3]
+			if ispartner is True:
+				playtime(final_selection, default_quality, stream_final[random_stream][1], stream_final[random_stream][2])
+			else:
+				playtime(final_selection, "source", stream_final[random_stream][1], stream_final[random_stream][2])
 	except (IndexError, ValueError):
 		print(colors.OFFLINERED + " Huh? Wut? Lel? Kappa?" + colors.ENDC)
 
@@ -673,7 +683,7 @@ def playtime(final_selection, stream_quality, game_name, display_name):
 
 
 # Currently a separate function because I might implement time tracking for multiple streams one day
-# And also because NO ONE FUNCTION SHOULD HAVE ALL THAT POWER!
+# And also because NO ONE FUNCTION SHOULD HAVE ALL THAT POWER
 def time_tracking(channel_input, game_name, start_time, display_name):
 	end_time = time()
 	time_watched = int(end_time - start_time)
@@ -683,7 +693,7 @@ def time_tracking(channel_input, game_name, start_time, display_name):
 
 	""" Update time watched for a channel that exists in the database (avoids exceptions due to -w) """
 	channel_record = dbase.execute("SELECT Name,TimeWatched FROM channels WHERE Name = '%s'" % channel_input).fetchone()
-	if channel_record[0] is not None:
+	if channel_record is not None:
 		total_time_watched = channel_record[1] + time_watched
 		database.execute("UPDATE channels set TimeWatched = '{0}' WHERE Name = '{1}'".format(total_time_watched, channel_input))
 
@@ -788,6 +798,7 @@ def update_script():
 
 # I hereby declare this the greatest declaration of ALL TIME (Also, generate data for conky)
 def firefly_needed_another_6_seasons(at_least):
+	output = "You're not supposed to see this"
 	if at_least == "go":
 		print(watch("BlankForAllIntensivePurposes"))
 		exit()
