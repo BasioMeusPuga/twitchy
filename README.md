@@ -9,6 +9,7 @@ Features:
 * Integration with your conky instance.
 * Tracking of most watched channels.
 * View VODs
+* Get notified when a channel you watch comes online
 * Music identification (uses twitchecho.com)
 * Sync your followed accounts to a local sqlite database that does not judge you.
 * Stream as many... streams as you want at once.
@@ -27,7 +28,8 @@ Features:
     --configure                     Configure options
     --conky [ np / tw / go ]        Generate data for conky
     -d                              Delete channel(s) from database
-    -f                              Check if your favorite channels are online
+    -f                              Check which of your favorite channels are online
+    -n                              Notify if a channel comes online
     -s <username>                   Sync followed channels from specified account
     --update                        Update to the latest git revision
     -v <channel name>               Watch channel's recorded videos
@@ -36,6 +38,10 @@ Features:
     While playing:
     <m> to attempt music identification with twitchecho
     <q> to quit
+    
+    Notification settings:
+    When a channel comes online, the script will play alarm.mp3 (in the same directory as itself).
+    While the path of the file is hardcoded, feel free to replace it with whatever you find (in)appropriate.
     
     Conky options. Execute script with:
     --conky np                      Get name of the currently playing stream
