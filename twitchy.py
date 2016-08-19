@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer
-# rev = 29
+# rev = 30
 
 
 import sys
@@ -14,11 +14,11 @@ import argparse
 import webbrowser
 import subprocess
 
-from time import time
+from time import time, sleep, strftime
 from shutil import which
 from random import randrange
 from ast import literal_eval
-from os.path import expanduser, exists, realpath
+from os.path import expanduser, exists, realpath, dirname
 from multiprocessing.dummy import Pool as ThreadPool
 
 
@@ -82,18 +82,25 @@ def configure_options(special_occasion):
 		else:
 			display_chat_for_multiple_twitch_streams = True
 
+		check_int = input(" Interval (seconds) in between channel status checks [60]: ")
+		if check_int == "":
+			check_interval = 60
+		else:
+			check_interval = int(check_int)
+
 		print("\n" + colors.GAMECYAN + " Current Settings:" + colors.ENDC)
 		penultimate_check = """ Media Player: {0}
  Default Quality: {1}
  Truncate status at: {2}
- Numer of faves: {3}
- Display chat for multiple streams: {4}""".format(colors.NUMBERYELLOW + player + colors.ENDC, colors.NUMBERYELLOW + default_quality + colors.ENDC, colors.NUMBERYELLOW + str(truncate_status_at) + colors.ENDC, colors.NUMBERYELLOW + str(number_of_faves_displayed) + colors.ENDC, colors.NUMBERYELLOW + str(display_chat_for_multiple_twitch_streams) + colors.ENDC)
+ Number of faves: {3}
+ Display chat for multiple streams: {4}
+ Check interval: {5}""".format(colors.NUMBERYELLOW + player + colors.ENDC, colors.NUMBERYELLOW + default_quality + colors.ENDC, colors.NUMBERYELLOW + str(truncate_status_at) + colors.ENDC, colors.NUMBERYELLOW + str(number_of_faves_displayed) + colors.ENDC, colors.NUMBERYELLOW + str(display_chat_for_multiple_twitch_streams) + colors.ENDC, colors.NUMBERYELLOW + str(check_interval) + colors.ENDC)
 
 		print(penultimate_check)
 
 		do_we_like = input(" Does this look correct to you? [Y/n]: ")
 		if do_we_like == "Y" or do_we_like == "yes" or do_we_like == "y" or do_we_like == "":
-			options_to_insert = [["player", player], ["mpv_hardware_acceleration", mpv_hardware_acceleration], ["default_quality", default_quality], ["truncate_status_at", truncate_status_at], ["number_of_faves_displayed", number_of_faves_displayed], ["display_chat_for_multiple_twitch_streams", display_chat_for_multiple_twitch_streams]]
+			options_to_insert = [["player", player], ["mpv_hardware_acceleration", mpv_hardware_acceleration], ["default_quality", default_quality], ["truncate_status_at", truncate_status_at], ["number_of_faves_displayed", number_of_faves_displayed], ["display_chat_for_multiple_twitch_streams", display_chat_for_multiple_twitch_streams], ["check_interval", check_interval]]
 
 			database = sqlite3.connect(database_path)
 			if special_occasion == "FirstRun":
@@ -144,7 +151,8 @@ try:
 		2: default_quality
 		3: truncate_status_at
 		4: number_of_faves_displayed
-		5: display_chat_for_multiple_twitch_streams """
+		5: display_chat_for_multiple_twitch_streams
+		6: check_interval """
 
 	player = options_from_database[0][0]
 	mpv_hardware_acceleration = literal_eval(options_from_database[1][0])
@@ -152,6 +160,7 @@ try:
 	truncate_status_at = int(options_from_database[3][0])
 	number_of_faves_displayed = int(options_from_database[4][0])
 	display_chat_for_multiple_twitch_streams = literal_eval(options_from_database[5][0])
+	check_interval = int(options_from_database[6][0])
 except:
 	print(colors.OFFLINERED + " Error getting options. Please run --configure." + colors.ENDC)
 	exit()
@@ -180,7 +189,7 @@ def get_options():
 def template_mapping(display_number, called_from):
 
 	third_column = 20
-	""" Preceding specificiation is mostly pointless as long as it's non zero """
+	""" Preceding specification is mostly pointless as long as it's non zero """
 
 	if called_from == "list":
 		first_column = 25
@@ -277,14 +286,17 @@ def add_to_database(channel_input):
 
 
 # Obscurely named function. Call with "-d", "-an" or "-n"
-def read_modify_deletefrom_database(channel_input):
-	table_wanted = input(" Modify (s)treamer or (g)ame name? ")
-	if table_wanted == "s":
+def read_modify_deletefrom_database(channel_input, whatireallywant_ireallyreallywant):
+	if whatireallywant_ireallyreallywant == "ItsHammerTime":
 		table_wanted = "channels"
-	elif table_wanted == "g":
-		table_wanted = "games"
 	else:
-		exit()
+		table_wanted = input(" Modify (s)treamer or (g)ame name? ")
+		if table_wanted == "s":
+			table_wanted = "channels"
+		elif table_wanted == "g":
+			table_wanted = "games"
+		else:
+			exit()
 
 	if channel_input == "BlankForAllIntensivePurposes":
 		relevant_list = dbase.execute('SELECT Name, TimeWatched, AltName FROM %s' % table_wanted).fetchall()
@@ -327,9 +339,10 @@ def read_modify_deletefrom_database(channel_input):
 				print(" " + colors.NUMBERYELLOW + str(display_number) + colors.ENDC + " " + template.format(i[0], str(i[2]), time_watched))
 		display_number = display_number + 1
 
+	final_selection = input(" Stream / Channel number(s)? ")
+
 	if sys.argv[1] == "-d":
 		try:
-			final_selection = input(" Stream / Channel number(s)? ")
 			print(" " + colors.NUMBERYELLOW + "Deleted from database:" + colors.ENDC)
 			entered_numbers = [int(i) for i in final_selection.split()]
 			for j in entered_numbers:
@@ -341,8 +354,7 @@ def read_modify_deletefrom_database(channel_input):
 
 	if sys.argv[1] == "-an":
 		try:
-			final_selection = int(input(" Stream / Channel number? "))
-			old_name = relevant_list[final_selection - 1][0]
+			old_name = relevant_list[int(final_selection) - 1][0]
 			new_name = input(" Replace " + old_name + " with? ")
 
 			if new_name == "":
@@ -350,10 +362,70 @@ def read_modify_deletefrom_database(channel_input):
 			else:
 				database.execute("UPDATE '{0}' SET AltName = '{1}' WHERE Name = '{2}'".format(table_wanted, new_name, old_name))
 			database.commit()
-		except:
+		except IndexError:
 			print(colors.OFFLINERED + " OH MY GOD WHAT IS THAT BEHIND YOU?" + colors.ENDC)
 
 	database.close()
+
+	if sys.argv[1] == "-n":
+		watch_list = []
+		try:
+			print(" " + colors.NUMBERYELLOW + "Now monitoring:" + colors.ENDC)
+			entered_numbers = [int(i) for i in final_selection.split()]
+			watch_list = [relevant_list[j - 1][0] for j in entered_numbers]
+		except:
+			print(colors.OFFLINERED + " Yerr a wizard, \'arry" + colors.ENDC)
+			exit()
+
+		watch_list = list(set(watch_list))
+		watch_list.sort()
+		waccha = ""
+		for youaskedforit in watch_list:
+			waccha = waccha + " " + colors.TEXTWHITE + youaskedforit + "," + colors.ENDC
+		print(waccha[:-5])
+		vigilo_confido(watch_list)
+
+
+# Watches channels into the night. Like a silent protector.
+def vigilo_confido(monitor_deez):
+	player = get_options()[0]
+
+	while len(monitor_deez) > 0:
+		channels_remaining = monitor_deez
+		sleep(check_interval)
+
+		for channel_name in channels_remaining:
+			r = requests.get('https://api.twitch.tv/kraken/streams/' + channel_name)
+			stream_data = json.loads(r.text)
+
+			try:
+				stream_data['error']
+			except:
+				if stream_data['stream'] is not None:  # Offline Channels return None
+					monitor_deez.remove(channel_name)
+					print(" " + colors.ONLINEGREEN + channel_name + colors.ENDC + " online @ " + strftime('%H:%M'), end='')
+
+					waccha = ""
+					for youaskedforit in monitor_deez:
+						waccha = waccha + " " + colors.TEXTWHITE + youaskedforit + "," + colors.ENDC
+					if waccha != "":
+						print(" | Waiting for:" + waccha[:-5])
+					else:
+						print()
+
+					if player == "vlc":
+						player = "cvlc"
+
+					if which('notify-send') is not None:
+						args_to_subprocess = "notify-send --urgency=critical -i \'dialog-information\' \'Twitchy\' \'{0} is online\'".format(channel_name)
+						args_to_subprocess = shlex.split(args_to_subprocess)
+						subprocess.Popen(args_to_subprocess, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+					script_dir = dirname(realpath(__file__))
+					args_to_subprocess = "{0} {1}/alarm.mp3".format(player, script_dir)
+					args_to_subprocess = shlex.split(args_to_subprocess)
+					subprocess.run(args_to_subprocess, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
 	exit()
 
 
@@ -416,11 +488,6 @@ def vod_watch(channel_input):
 
 	database.close()
 	exit()
-
-	""" Requires extraction of a game_name; and checking of said name from the time_tracking function """
-	""" I'm not even sure I want to """
-	"""if i_wanna_see == "b":
-		time_tracking(channel_input, game_name, start_time, display_name):"""
 
 
 # Generate stuff for livestreamer to agonize endless over. Is it fat? It's a program so no.
@@ -523,6 +590,14 @@ def watch(channel_input):
 			if sys.argv[1] == "-f":
 				""" The display list is now sorted in descending order """
 				stream_status = sorted(stream_status, key=lambda x: x[6], reverse=True)
+
+				""" Get ranks to display for -f """
+				names_only = []
+				database2 = sqlite3.connect(database_path)
+				all_seen = database2.execute("SELECT TimeWatched,Name FROM channels WHERE TimeWatched > 0").fetchall()
+				database2.close()
+				all_seen.sort(reverse=True)
+				names_only = [el[1] for el in all_seen]
 			else:
 				raise
 		except:
@@ -534,14 +609,6 @@ def watch(channel_input):
 	stream_final = []
 	games_shown = []
 	display_number = 1
-
-	""" Get ranks to display for -f """
-	names_only = []
-	database2 = sqlite3.connect(database_path)
-	all_seen = database2.execute("SELECT TimeWatched,Name FROM channels WHERE TimeWatched > 0").fetchall()
-	database2.close()
-	all_seen.sort(reverse=True)
-	names_only = [el[1] for el in all_seen]
 
 	for i in stream_status:
 		display_name_game = dbase.execute("SELECT AltName FROM games WHERE Name = '%s'" % i[1]).fetchone()
@@ -845,6 +912,7 @@ def main():
 	parser.add_argument('--conky', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Generate data for conky', metavar="np / tw / go", required=False)
 	parser.add_argument('-d', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Delete channel(s) from database', metavar="*searchstring*", required=False)
 	parser.add_argument('-f', action='store_true', help='Check if your favorite channels are online', required=False)
+	parser.add_argument('-n', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Notify when online', metavar="*searchstring*", required=False)
 	parser.add_argument('-s', type=str, nargs=1, help='Sync username\'s followed accounts to local database', metavar="username", required=False)
 	parser.add_argument('--update', action='store_true', help='Update to git master', required=False)
 	parser.add_argument('-v', type=str, nargs=1, help='Watch VODs', metavar="", required=False)
@@ -856,15 +924,17 @@ def main():
 	elif args.a:
 		add_to_database(args.a)
 	elif args.an:
-		read_modify_deletefrom_database(args.an)
+		read_modify_deletefrom_database(args.an, "CantTouchThis")
 	elif args.configure:
 		configure_options("TheDudeAbides")
 	elif args.conky:
 		firefly_needed_another_6_seasons(args.conky)
 	elif args.d:
-		read_modify_deletefrom_database(args.d)
+		read_modify_deletefrom_database(args.d, "CantTouchThis")
 	elif args.f:
 		watch("NotReallyNeededSoIHaveToAskYouIfYouCalledYourMotherToday")
+	elif args.n:
+		read_modify_deletefrom_database(args.n, "ItsHammerTime")
 	elif args.s:
 		add_to_database(args.s)
 	elif args.update:
