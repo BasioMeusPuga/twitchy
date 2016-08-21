@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer
-# rev = 30
+# rev = 31
 
 
 import sys
@@ -431,13 +431,14 @@ def vigilo_confido(monitor_deez):
 
 # Much VOD such wow
 def vod_watch(channel_input):
+	channel_input = channel_input[0]
 	i_wanna_see = input(" Watch (b)roadcasts or (h)ighlights: ")
 
 	broadcast_string = ""
 	if i_wanna_see == "b":
 		broadcast_string = "?broadcasts=true"
 
-	r = requests.get('https://api.twitch.tv/kraken/channels/{0}/videos{1}'.format(channel_input[0], broadcast_string))
+	r = requests.get('https://api.twitch.tv/kraken/channels/{0}/videos{1}'.format(channel_input, broadcast_string))
 	stream_data = json.loads(r.text)
 
 	try:
@@ -449,14 +450,23 @@ def vod_watch(channel_input):
 		exit()
 
 	display_name = stream_data['videos'][0]['channel']['display_name']
+
+	""" Default to source quality in case the channel is not a Twitch partner """
+	p = requests.get('https://api.twitch.tv/kraken/channels/' + channel_input)
+	stream_data_partner = json.loads(p.text)
+	ispartner = stream_data_partner['partner']
+	if ispartner is False:
+		default_quality = "source"
+		display_name_show = display_name + "*"
+
 	if broadcast_string == "":
 		limit_string = "?limit=" + totalvids
-		print(colors.NUMBERYELLOW + " Highlights for " + display_name + colors.ENDC + ":")
+		print(" Highlights for " + colors.NUMBERYELLOW + display_name_show + colors.ENDC + ":")
 	else:
 		limit_string = "&limit=" + totalvids
-		print(colors.NUMBERYELLOW + " Past broadcasts for " + display_name + colors.ENDC + ":")
+		print(" Past broadcasts for " + colors.NUMBERYELLOW + display_name_show + colors.ENDC + ":")
 
-	r = requests.get('https://api.twitch.tv/kraken/channels/{0}/videos{1}{2}'.format(channel_input[0], broadcast_string, limit_string))
+	r = requests.get('https://api.twitch.tv/kraken/channels/{0}/videos{1}{2}'.format(channel_input, broadcast_string, limit_string))
 	stream_data = json.loads(r.text)
 
 	vod_links = []
@@ -478,7 +488,7 @@ def vod_watch(channel_input):
 	database.execute("INSERT INTO miscellaneous (Name,Value) VALUES ('%s','%s')" % (display_name + " - " + vod_links[vod_select - 1][1], "(VOD)"))
 	database.commit()
 
-	print(" Now watching " + colors.TEXTWHITE + display_name + " - " + vod_links[vod_select - 1][1] + colors.ENDC + " | Quality: " + colors.TEXTWHITE + default_quality + colors.ENDC)
+	print(" Now watching " + colors.TEXTWHITE + display_name + " - " + vod_links[vod_select - 1][1] + colors.ENDC + " | Quality: " + colors.TEXTWHITE + default_quality.title() + colors.ENDC)
 	args_to_subprocess = "livestreamer {0} {1} --player '{2}' --hls-segment-threads 3 --player-passthrough=hls".format(video_final, default_quality, player_final)
 	args_to_subprocess = shlex.split(args_to_subprocess)
 	subprocess.run(args_to_subprocess, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -615,6 +625,11 @@ def watch(channel_input):
 		if display_name_game is None:
 			display_name_game = i[1]
 
+		if i[5] is True:
+			display_name_strimmer = i[4]
+		else:
+			display_name_strimmer = i[4] + "*"
+
 		stream_final.insert(display_number - 1, [i[0], i[1], i[4], i[5]])
 		""" List scheme
 		0: Channel Name
@@ -628,11 +643,7 @@ def watch(channel_input):
 			if sys.argv[1] == "-f":
 				column_3_display = colors.GAMECYAN + display_name_game + colors.ONLINEGREEN + " - " + i[2]
 				rank = str(names_only.index(i[0]) + 1)
-				""" Colors are slightly different in case the channel is not a Twitch Partner - Also default to source quality """
-				if i[5] is True:
-					print(" " + colors.NUMBERYELLOW + (str(display_number) + colors.ENDC) + " " + (colors.ONLINEGREEN + template.format(i[4] + " (" + rank + ")", time_convert(i[6]).rjust(11), column_3_display) + colors.ENDC))
-				else:
-					print(" " + colors.NUMBERYELLOW + (str(display_number) + colors.ENDC) + " " + (colors.ONLINEGREENNOTPARTNER + template.format(i[4] + " (" + rank + ")", time_convert(i[6]).rjust(11), column_3_display) + colors.ENDC))
+				print(" " + colors.NUMBERYELLOW + (str(display_number) + colors.ENDC) + " " + (colors.ONLINEGREEN + template.format(display_name_strimmer + " (" + rank + ")", time_convert(i[6]).rjust(11), column_3_display) + colors.ENDC))
 				display_number = display_number + 1
 				if display_number == number_of_faves_displayed + 1:
 					break
@@ -642,10 +653,7 @@ def watch(channel_input):
 			if display_name_game not in games_shown:
 				print(" " + colors.GAMECYAN + display_name_game + colors.ENDC)
 				games_shown.append(display_name_game)
-			if i[5] is True:
-				print(" " + colors.NUMBERYELLOW + (str(display_number) + colors.ENDC) + " " + (colors.ONLINEGREEN + template.format(i[4], str(format(i[3], "n")).rjust(8), i[2]) + colors.ENDC))
-			else:
-				print(" " + colors.NUMBERYELLOW + (str(display_number) + colors.ENDC) + " " + (colors.ONLINEGREENNOTPARTNER + template.format(i[4], str(format(i[3], "n")).rjust(8), i[2]) + colors.ENDC))
+			print(" " + colors.NUMBERYELLOW + (str(display_number) + colors.ENDC) + " " + (colors.ONLINEGREEN + template.format(display_name_strimmer, str(format(i[3], "n")).rjust(8), i[2]) + colors.ENDC))
 			display_number = display_number + 1
 
 	""" Parse user input.
