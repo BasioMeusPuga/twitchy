@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer
-# rev = 31
+# rev = 32
 
 
 import sys
@@ -19,7 +19,6 @@ from shutil import which
 from random import randrange
 from ast import literal_eval
 from os.path import expanduser, exists, realpath, dirname
-from multiprocessing.dummy import Pool as ThreadPool
 
 
 # Color code declaration
@@ -27,7 +26,6 @@ class colors:
 	GAMECYAN = '\033[96m'
 	NUMBERYELLOW = '\033[93m'
 	ONLINEGREEN = '\033[92m'
-	ONLINEGREENNOTPARTNER = '\033[32m'
 	OFFLINERED = '\033[91m'
 	TEXTWHITE = '\033[97m'
 	ENDC = '\033[0m'
@@ -349,6 +347,7 @@ def read_modify_deletefrom_database(channel_input, whatireallywant_ireallyreally
 				print(" " + relevant_list[j - 1][0])
 				database.execute("DELETE FROM '{0}' WHERE Name = '{1}'".format(table_wanted, relevant_list[j - 1][0]))
 			database.commit()
+			database.close()
 		except IndexError:
 			print(colors.OFFLINERED + " How can columns be real if our databases aren\'t real?" + colors.ENDC)
 
@@ -362,27 +361,25 @@ def read_modify_deletefrom_database(channel_input, whatireallywant_ireallyreally
 			else:
 				database.execute("UPDATE '{0}' SET AltName = '{1}' WHERE Name = '{2}'".format(table_wanted, new_name, old_name))
 			database.commit()
+			database.close()
 		except IndexError:
 			print(colors.OFFLINERED + " OH MY GOD WHAT IS THAT BEHIND YOU?" + colors.ENDC)
-
-	database.close()
 
 	if sys.argv[1] == "-n":
 		watch_list = []
 		try:
-			print(" " + colors.NUMBERYELLOW + "Now monitoring:" + colors.ENDC)
 			entered_numbers = [int(i) for i in final_selection.split()]
 			watch_list = [relevant_list[j - 1][0] for j in entered_numbers]
 		except:
 			print(colors.OFFLINERED + " Yerr a wizard, \'arry" + colors.ENDC)
 			exit()
 
+		if len(watch_list) == 0:
+			exit()
+		print(" " + colors.NUMBERYELLOW + "Now monitoring:" + colors.ENDC)
 		watch_list = list(set(watch_list))
 		watch_list.sort()
-		waccha = ""
-		for youaskedforit in watch_list:
-			waccha = waccha + " " + colors.TEXTWHITE + youaskedforit + "," + colors.ENDC
-		print(waccha[:-5])
+		print(colors.TEXTWHITE + ", ".join(watch_list) + colors.ENDC)
 		vigilo_confido(watch_list)
 
 
@@ -390,42 +387,53 @@ def read_modify_deletefrom_database(channel_input, whatireallywant_ireallyreally
 def vigilo_confido(monitor_deez):
 	player = get_options()[0]
 
-	while len(monitor_deez) > 0:
-		channels_remaining = monitor_deez
-		sleep(check_interval)
+	channel_list_conky = ", ".join(monitor_deez)
+	database.execute("INSERT INTO miscellaneous (Name,Value) VALUES ('%s','%s')" % ("BellatorInMachina", channel_list_conky))
+	database.commit()
 
-		for channel_name in channels_remaining:
-			r = requests.get('https://api.twitch.tv/kraken/streams/' + channel_name)
+	try:
+		while len(monitor_deez) > 0:
+			channel_list = ",".join(monitor_deez)
+			r = requests.get('https://api.twitch.tv/kraken/streams/' + "?limit=100" + "&channel=" + channel_list)
 			stream_data = json.loads(r.text)
+			total = stream_data['_total']
 
-			try:
-				stream_data['error']
-			except:
-				if stream_data['stream'] is not None:  # Offline Channels return None
-					monitor_deez.remove(channel_name)
-					print(" " + colors.ONLINEGREEN + channel_name + colors.ENDC + " online @ " + strftime('%H:%M'), end='')
+			for i in range(0, total):
+				channel_name = stream_data['streams'][i]['channel']['name']
+				print(" " + colors.ONLINEGREEN + channel_name + colors.ENDC + " online @ " + strftime('%H:%M'), end='')
+				monitor_deez.remove(channel_name)
 
-					waccha = ""
-					for youaskedforit in monitor_deez:
-						waccha = waccha + " " + colors.TEXTWHITE + youaskedforit + "," + colors.ENDC
-					if waccha != "":
-						print(" | Waiting for:" + waccha[:-5])
-					else:
-						print()
+				channel_list_conky = ", ".join(monitor_deez)
+				database.execute("UPDATE miscellaneous set Value = '%s' WHERE Name = 'BellatorInMachina'" % (channel_list_conky))
+				database.commit()
 
-					if player == "vlc":
+				if len(channel_list_conky) > 0:
+					print(" | Waiting for: " + colors.TEXTWHITE + channel_list_conky + colors.ENDC)
+				else:
+					print()
+
+				if player == "vlc":
 						player = "cvlc"
 
-					if which('notify-send') is not None:
-						args_to_subprocess = "notify-send --urgency=critical -i \'dialog-information\' \'Twitchy\' \'{0} is online\'".format(channel_name)
-						args_to_subprocess = shlex.split(args_to_subprocess)
-						subprocess.Popen(args_to_subprocess, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-					script_dir = dirname(realpath(__file__))
-					args_to_subprocess = "{0} {1}/alarm.mp3".format(player, script_dir)
+				if which('notify-send') is not None:
+					args_to_subprocess = "notify-send --urgency=critical -i \'dialog-information\' \'Twitchy\' \'{0} is online\'".format(channel_name)
 					args_to_subprocess = shlex.split(args_to_subprocess)
-					subprocess.run(args_to_subprocess, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+					subprocess.Popen(args_to_subprocess, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
+				script_dir = dirname(realpath(__file__))
+				args_to_subprocess = "{0} {1}/alarm.mp3".format(player, script_dir)
+				args_to_subprocess = shlex.split(args_to_subprocess)
+				subprocess.run(args_to_subprocess, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+			sleep(check_interval)
+
+		database.execute("DELETE FROM miscellaneous")
+		database.execute("VACUUM")
+	except KeyboardInterrupt:
+		database.execute("DELETE FROM miscellaneous")
+		database.execute("VACUUM")
+
+	database.close()
 	exit()
 
 
@@ -542,45 +550,46 @@ def watch(channel_input):
 
 	stream_status = []
 
-	def get_status(channel_name):
-		r = requests.get('https://api.twitch.tv/kraken/streams/' + channel_name)
+	def get_status(status_check_required):
+		number_of_checks = len(status_check_required)
+
+		channel_list = ",".join(status_check_required)
+		r = requests.get('https://api.twitch.tv/kraken/streams/' + "?limit=" + str(number_of_checks) + "&channel=" + channel_list)
 		stream_data = json.loads(r.text)
+		total = stream_data['_total']
 
-		try:
-			stream_data['error']
-		except:
-			if stream_data['stream'] is not None:  # Offline Channels return None
-				alt_name = altname_list[status_check_required.index(channel_name)]
-				if alt_name is None:
-					alt_name = stream_data['stream']['channel']['display_name']
+		for i in range(0, total):
+			channel_name = stream_data['streams'][i]['channel']['name']
 
-				timewatched = 0
-				try:
-					if sys.argv[1] == "-f":
-						timewatched = timewatched_list[status_check_required.index(channel_name)]
-				except:
-					pass
+			game_name_formatted = str(stream_data['streams'][i]['channel']['game']).replace("\'", "")
 
-				truncate_status_at = get_options()[3]
-				status_message = str(stream_data['stream']['channel']['status'])
-				if len(status_message) > truncate_status_at:
-					status_message = status_message[0:truncate_status_at - 3] + "..."
+			truncate_status_at = get_options()[3]
+			status_message = str(stream_data['streams'][i]['channel']['status'])
+			if len(status_message) > truncate_status_at:
+				status_message = status_message[0:truncate_status_at - 3] + "..."
 
-				game_name_formatted = str(stream_data['stream']['channel']['game']).replace("\'", "")
-				stream_status.append([stream_data['stream']['channel']['name'], game_name_formatted, status_message, stream_data['stream']['viewers'], alt_name, stream_data['stream']['channel']['partner'], timewatched])
-		""" List Scheme
-		0: Stream name
-		1: Game name
-		2: Status message
-		3: Viewers
-		4: Display name
-		5: Partner status - Boolean
-		6: Time Watched - Should be zero if not queried"""
+			alt_name = altname_list[status_check_required.index(channel_name)]
+			if alt_name is None:
+				alt_name = stream_data['streams'][i]['channel']['display_name']
 
-	pool = ThreadPool(30)
-	pool.map(get_status, status_check_required)
-	pool.close()
-	pool.join()
+			timewatched = 0
+			try:
+				if sys.argv[1] == "-f":
+					timewatched = timewatched_list[status_check_required.index(channel_name)]
+			except:
+				pass
+
+			stream_status.append([channel_name, game_name_formatted, status_message, stream_data['streams'][i]['viewers'], alt_name, stream_data['streams'][i]['channel']['partner'], timewatched])
+			""" List Scheme
+			0: Channel name
+			1: Game name
+			2: Status message
+			3: Viewers
+			4: Display name
+			5: Partner status - Boolean
+			6: Time Watched - Should be zero if not explicitly queried"""
+
+	get_status(status_check_required)
 
 	""" Return online channels for conky
 	Terminate the watch() function """
@@ -613,7 +622,7 @@ def watch(channel_input):
 		except:
 			stream_status = sorted(stream_status, key=lambda x: (x[1], -x[3]))
 	else:
-		print(" All channels offline")
+		print(colors.OFFLINERED + " All channels offline" + colors.ENDC)
 		exit()
 
 	stream_final = []
@@ -871,7 +880,7 @@ def update_script():
 	exit()
 
 
-# I hereby declare this the greatest declaration of ALL TIME (Also, generate data for conky)
+# I hereby declare this the greatest declaration of ALL TIME
 def firefly_needed_another_6_seasons(at_least):
 	output = "You're not supposed to see this"
 	if at_least == "go":
@@ -890,20 +899,22 @@ def firefly_needed_another_6_seasons(at_least):
 		now_playing = play_status[0][0]
 		if now_playing == "Multiple420BlazeItChannels":
 			output = "Multiple streams playing..."
+		elif now_playing == "BellatorInMachina":
+			output = "(M) " + play_status[0][1]
 		else:
 			if play_status[0][1] != "(VOD)":
 				current_time = int(time())
 				start_time = int(float(play_status[0][1]))
-				time_watched = " | " + str(time_convert(current_time - start_time))
+				time_watched = str(time_convert(current_time - start_time))
 			else:
-				time_watched = " (VOD)"
+				time_watched = "(VOD)"
 
 			if at_least == "np":
 				output = now_playing
 			elif at_least == "tw":
 				output = time_watched
 			else:
-				output = now_playing + time_watched
+				output = now_playing + " | " + time_watched
 
 	print(output)
 	exit()
