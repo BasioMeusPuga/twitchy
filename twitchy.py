@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer
-# rev = 32
+# rev = 33
 
 
 import sys
@@ -31,7 +31,7 @@ class colors:
 	ENDC = '\033[0m'
 
 
-# Mostly just to avoid shenanigans
+# Shenanigan avoidance
 database_path = expanduser("~") + '/.twitchy.db'
 
 
@@ -234,6 +234,28 @@ def time_convert(seconds):
 		time_converted = "%ds" % s
 
 	return time_converted
+
+
+# Emotes - Kappa? Kappa.
+def emote(whatzisface):
+	kappa = (
+		" ░░░░░░░░░░░░░░░░░░░░\n"
+		" ░░░░▄▀▀▀▀▀█▀▄▄▄▄░░░░\n"
+		" ░░▄▀▒▓▒▓▓▒▓▒▒▓▒▓▀▄░░\n"
+		" ▄▀▒▒▓▒▓▒▒▓▒▓▒▓▓▒▒▓█░\n"
+		" █▓▒▓▒▓▒▓▓▓░░░░░░▓▓█░\n"
+		" █▓▓▓▓▓▒▓▒░░░░░░░░▓█░\n"
+		" ▓▓▓▓▓▒░░░░░░░░░░░░█░\n"
+		" ▓▓▓▓░░░░▄▄▄▄░░░▄█▄▀░\n"
+		" ░▀▄▓░░▒▀▓▓▒▒░░█▓▒▒░░\n"
+		" ▀▄░░░░░░░░░░░░▀▄▒▒█░\n"
+		" ░▀░▀░░░░░▒▒▀▄▄▒▀▒▒█░\n"
+		" ░░▀░░░░░░▒▄▄▒▄▄▄▒▒█░\n"
+		" ░░░▀▄▄▒▒░░░░▀▀▒▒▄▀░░\n"
+		" ░░░░░▀█▄▒▒░░░░▒▄▀░░░\n"
+		" ░░░░░░░░▀▀█▄▄▄▄▀░░░░\n")
+
+	print("\n" + kappa)
 
 
 # Add to database. Call with "-a" or "-s". Haha I said ass.
@@ -597,8 +619,12 @@ def watch(channel_input):
 		if sys.argv[1] == "--conky":
 			output = ""
 			for i in stream_status:
-				output = output + ", " + i[4]
-			output = output[2:]
+				if sys.argv[2] == "go":
+					output = i[4] + ", " + output
+				else:
+					""" The omission of the space is intentional """
+					output = i[0] + "," + output
+			output = output.strip()[:-1]
 			return output
 	except:
 		pass
@@ -707,6 +733,8 @@ def watch(channel_input):
 		elif len(final_selection) > 1:
 			multi_twitch(final_selection)
 		else:
+			""" Random selection - In case only enter is pressed """
+			emote("Kappa")
 			random_stream = randrange(0, display_number - 1)
 			final_selection = stream_final[random_stream][0]
 			ispartner = stream_final[random_stream][3]
@@ -882,8 +910,8 @@ def update_script():
 
 # I hereby declare this the greatest declaration of ALL TIME
 def firefly_needed_another_6_seasons(at_least):
-	output = "You're not supposed to see this"
-	if at_least == "go":
+	output = "Something has gone horribly, horribly wrong."
+	if at_least == "go" or at_least == "gone":
 		print(watch("BlankForAllIntensivePurposes"))
 		exit()
 
@@ -928,7 +956,7 @@ def main():
 	parser.add_argument('-a', type=str, nargs='+', help='Add channel name(s) to database', metavar="", required=False)
 	parser.add_argument('-an', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Set/Unset alternate names', metavar="*searchstring*", required=False)
 	parser.add_argument('--configure', action='store_true', help='Configure options', required=False)
-	parser.add_argument('--conky', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Generate data for conky', metavar="np / tw / go", required=False)
+	parser.add_argument('--conky', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Generate data for conky', metavar="np / tw / go / gone", required=False)
 	parser.add_argument('-d', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Delete channel(s) from database', metavar="*searchstring*", required=False)
 	parser.add_argument('-f', action='store_true', help='Check if your favorite channels are online', required=False)
 	parser.add_argument('-n', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Notify when online', metavar="*searchstring*", required=False)
