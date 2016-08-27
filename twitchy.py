@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer
-# rev = 33
+# rev = 34
 
 
 import sys
@@ -488,6 +488,8 @@ def vod_watch(channel_input):
 	if ispartner is False:
 		default_quality = "source"
 		display_name_show = display_name + "*"
+	else:
+		display_name_show = display_name
 
 	if broadcast_string == "":
 		limit_string = "?limit=" + totalvids
@@ -504,10 +506,13 @@ def vod_watch(channel_input):
 	for i in stream_data['videos']:
 		template = template_mapping(display_number, "vods")
 		creation_time = i['created_at'].split('T')[0]
+		video_title = i['title']
+		if len(video_title) > 55:
+			video_title = i['title'][:55] + "..."
 		if i_wanna_see == "b":
-			print(" " + colors.NUMBERYELLOW + str(display_number) + colors.ENDC + " " + template.format(i['game'], i['title'], creation_time))
+			print(" " + colors.NUMBERYELLOW + str(display_number) + colors.ENDC + " " + template.format(i['game'], video_title, creation_time))
 		else:
-			print(" " + colors.NUMBERYELLOW + str(display_number) + colors.ENDC + " " + template.format(i['title'], creation_time, ""))
+			print(" " + colors.NUMBERYELLOW + str(display_number) + colors.ENDC + " " + template.format(video_title, creation_time, ""))
 		vod_links.append([i['url'], i['title']])
 		display_number = display_number + 1
 
