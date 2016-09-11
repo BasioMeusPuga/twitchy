@@ -269,10 +269,10 @@ def add_to_database(channel_input):
 		something_added = False
 		print(" " + colors.NUMBERYELLOW + "Additions to database:" + colors.ENDC)
 		for channel_name in final_addition_input:
-			does_it_exist = dbase.execute("SELECT Name FROM channels WHERE Name = '%s'" % channel_name).fetchone()
+			does_it_exist = dbase.execute("SELECT Name FROM channels WHERE Name = '%s'" % channel_name.lower()).fetchone()
 			if does_it_exist is None:
 				something_added = True
-				database.execute("INSERT INTO channels (Name,TimeWatched) VALUES ('%s',0)" % channel_name)
+				database.execute("INSERT INTO channels (Name,TimeWatched) VALUES ('%s',0)" % channel_name.lower())
 				print(" " + channel_name)
 		database.commit()
 		if something_added is False:
