@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer
-# rev = 34
+# rev = 35
 
 
 import sys
@@ -49,7 +49,7 @@ def configure_options(special_occasion):
 
 		mpv_hardware_acceleration = True
 		if player == "mpv":
-			mpv_option = input(" Use hardware acceleration with mpv [Y/n]: ")
+			mpv_option = input(" Use hardware acceleration (vaapi) with mpv [Y/n]: ")
 			if mpv_option == "yes" or mpv_option == "Y" or mpv_option == "y" or mpv_option == "":
 				mpv_hardware_acceleration = True
 			else:
@@ -110,8 +110,10 @@ def configure_options(special_occasion):
 					database.execute("INSERT INTO options (Name,Value) VALUES ('{0}','{1}')".format(i[0], str(i[1])))
 
 			elif special_occasion == "TheDudeAbides":
+				database.execute("DELETE FROM options")
+				database.execute("VACUUM")
 				for i in options_to_insert:
-					database.execute("UPDATE options set Value = '{0}' WHERE Name = '{1}'".format(str(i[1]), i[0]))
+					database.execute("INSERT INTO options (Name,Value) VALUES ('{0}','{1}')".format(i[0], str(i[1])))
 
 			database.commit()
 			database.close()
@@ -160,7 +162,8 @@ try:
 	display_chat_for_multiple_twitch_streams = literal_eval(options_from_database[5][0])
 	check_interval = int(options_from_database[6][0])
 except:
-	print(colors.OFFLINERED + " Error getting options. Please run --configure." + colors.ENDC)
+	print(colors.OFFLINERED + " Error getting options. Running --configure" + colors.ENDC)
+	configure_options("TheDudeAbides")
 	exit()
 
 """ Set locale for comma placement """
@@ -401,7 +404,7 @@ def read_modify_deletefrom_database(channel_input, whatireallywant_ireallyreally
 		print(" " + colors.NUMBERYELLOW + "Now monitoring:" + colors.ENDC)
 		watch_list = list(set(watch_list))
 		watch_list.sort()
-		print(colors.TEXTWHITE + ", ".join(watch_list) + colors.ENDC)
+		print(colors.TEXTWHITE + " " + ", ".join(watch_list) + colors.ENDC)
 		vigilo_confido(watch_list)
 
 
@@ -447,7 +450,8 @@ def vigilo_confido(monitor_deez):
 				args_to_subprocess = shlex.split(args_to_subprocess)
 				subprocess.run(args_to_subprocess, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-			sleep(check_interval)
+			if len(monitor_deez) > 0:
+				sleep(check_interval)
 
 		database.execute("DELETE FROM miscellaneous")
 		database.execute("VACUUM")
