@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer
-# rev = 35
+# rev = 36
 
 
 import sys
@@ -18,6 +18,7 @@ from time import time, sleep, strftime
 from shutil import which
 from random import randrange
 from ast import literal_eval
+from os import remove
 from os.path import expanduser, exists, realpath, dirname
 
 
@@ -33,6 +34,8 @@ class colors:
 
 # Shenanigan avoidance
 database_path = expanduser("~") + '/.twitchy.db'
+global http_header
+http_header = {'Client-ID': 'guulhcvqo9djhuyhb2vi56wqnglc351'}
 
 
 # Options
@@ -106,15 +109,13 @@ def configure_options(special_occasion):
 				database.execute("CREATE TABLE games (id INTEGER PRIMARY KEY, Name TEXT, TimeWatched INTEGER, AltName TEXT)")
 				database.execute("CREATE TABLE miscellaneous (id INTEGER PRIMARY KEY, Name TEXT, Value TEXT)")
 				database.execute("CREATE TABLE options (id INTEGER PRIMARY KEY, Name TEXT, Value TEXT)")
-				for i in options_to_insert:
-					database.execute("INSERT INTO options (Name,Value) VALUES ('{0}','{1}')".format(i[0], str(i[1])))
 
 			elif special_occasion == "TheDudeAbides":
 				database.execute("DELETE FROM options")
 				database.execute("VACUUM")
-				for i in options_to_insert:
-					database.execute("INSERT INTO options (Name,Value) VALUES ('{0}','{1}')".format(i[0], str(i[1])))
 
+			for i in options_to_insert:
+				database.execute("INSERT INTO options (Name,Value) VALUES ('{0}','{1}')".format(i[0], str(i[1])))
 			database.commit()
 			database.close()
 		else:
@@ -162,7 +163,7 @@ try:
 	display_chat_for_multiple_twitch_streams = literal_eval(options_from_database[5][0])
 	check_interval = int(options_from_database[6][0])
 except:
-	print(colors.OFFLINERED + " Error getting options. Running --configure" + colors.ENDC)
+	print(colors.OFFLINERED + " Error getting options. Running --configure:" + colors.ENDC)
 	configure_options("TheDudeAbides")
 	exit()
 
@@ -171,7 +172,6 @@ locale.setlocale(locale.LC_ALL, '')
 
 
 # Functions
-# I'm told global variables are literally Hitler
 def get_options():
 	if player == "mpv" and mpv_hardware_acceleration is True:
 		player_final = "mpv --hwdec=vaapi --vo=vaapi --cache 8192"
@@ -280,12 +280,12 @@ def add_to_database(channel_input):
 
 	if sys.argv[1] == "-s":
 		username = channel_input[0]
-		r = requests.get('https://api.twitch.tv/kraken/users/%s/follows/channels' % username)
+		r = requests.get('https://api.twitch.tv/kraken/users/%s/follows/channels' % username, headers=http_header)
 		stream_data = json.loads(r.text)
 
 		try:
 			total_followed = stream_data['_total']
-			r = requests.get('https://api.twitch.tv/kraken/users/%s/follows/channels?limit=%s' % (username, str(total_followed)))
+			r = requests.get('https://api.twitch.tv/kraken/users/%s/follows/channels?limit=%s' % (username, str(total_followed)), headers=http_header)
 			stream_data = json.loads(r.text)
 			for i in range(0, total_followed):
 				final_addition_streams.append(stream_data['follows'][i]['channel']['name'].lower())
@@ -295,7 +295,7 @@ def add_to_database(channel_input):
 
 	if sys.argv[1] == "-a":
 		for names_for_addition in channel_input:
-			r = requests.get('https://api.twitch.tv/kraken/streams/' + names_for_addition)
+			r = requests.get('https://api.twitch.tv/kraken/streams/' + names_for_addition, headers=http_header)
 			stream_data = json.loads(r.text)
 			try:
 				stream_data['error']
@@ -419,7 +419,7 @@ def vigilo_confido(monitor_deez):
 	try:
 		while len(monitor_deez) > 0:
 			channel_list = ",".join(monitor_deez)
-			r = requests.get('https://api.twitch.tv/kraken/streams/' + "?limit=100" + "&channel=" + channel_list)
+			r = requests.get('https://api.twitch.tv/kraken/streams/' + "?limit=100" + "&channel=" + channel_list, headers=http_header)
 			stream_data = json.loads(r.text)
 			total = stream_data['_total']
 
@@ -472,7 +472,7 @@ def vod_watch(channel_input):
 	if i_wanna_see == "b":
 		broadcast_string = "?broadcasts=true"
 
-	r = requests.get('https://api.twitch.tv/kraken/channels/{0}/videos{1}'.format(channel_input, broadcast_string))
+	r = requests.get('https://api.twitch.tv/kraken/channels/{0}/videos{1}'.format(channel_input, broadcast_string), headers=http_header)
 	stream_data = json.loads(r.text)
 
 	try:
@@ -486,13 +486,14 @@ def vod_watch(channel_input):
 	display_name = stream_data['videos'][0]['channel']['display_name']
 
 	""" Default to source quality in case the channel is not a Twitch partner """
-	p = requests.get('https://api.twitch.tv/kraken/channels/' + channel_input)
+	p = requests.get('https://api.twitch.tv/kraken/channels/' + channel_input, headers=http_header)
 	stream_data_partner = json.loads(p.text)
 	ispartner = stream_data_partner['partner']
 	if ispartner is False:
 		default_quality = "source"
 		display_name_show = display_name + "*"
 	else:
+		default_quality = get_options()[2]
 		display_name_show = display_name
 
 	if broadcast_string == "":
@@ -502,7 +503,7 @@ def vod_watch(channel_input):
 		limit_string = "&limit=" + totalvids
 		print(" Past broadcasts for " + colors.NUMBERYELLOW + display_name_show + colors.ENDC + ":")
 
-	r = requests.get('https://api.twitch.tv/kraken/channels/{0}/videos{1}{2}'.format(channel_input, broadcast_string, limit_string))
+	r = requests.get('https://api.twitch.tv/kraken/channels/{0}/videos{1}{2}'.format(channel_input, broadcast_string, limit_string), headers=http_header)
 	stream_data = json.loads(r.text)
 
 	vod_links = []
@@ -528,7 +529,7 @@ def vod_watch(channel_input):
 	database.commit()
 
 	print(" Now watching " + colors.TEXTWHITE + display_name + " - " + vod_links[vod_select - 1][1] + colors.ENDC + " | Quality: " + colors.TEXTWHITE + default_quality.title() + colors.ENDC)
-	args_to_subprocess = "livestreamer {0} {1} --player '{2}' --hls-segment-threads 3 --player-passthrough=hls".format(video_final, default_quality, player_final)
+	args_to_subprocess = "livestreamer {0} {1} --player '{2}' --hls-segment-threads 3 --player-passthrough=hls --http-header Client-ID=guulhcvqo9djhuyhb2vi56wqnglc351".format(video_final, default_quality, player_final)
 	args_to_subprocess = shlex.split(args_to_subprocess)
 	subprocess.run(args_to_subprocess, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
@@ -585,7 +586,7 @@ def watch(channel_input):
 		number_of_checks = len(status_check_required)
 
 		channel_list = ",".join(status_check_required)
-		r = requests.get('https://api.twitch.tv/kraken/streams/' + "?limit=" + str(number_of_checks) + "&channel=" + channel_list)
+		r = requests.get('https://api.twitch.tv/kraken/streams/' + "?limit=" + str(number_of_checks) + "&channel=" + channel_list, headers=http_header)
 		stream_data = json.loads(r.text)
 		total = stream_data['_total']
 
@@ -779,7 +780,7 @@ def playtime(final_selection, stream_quality, game_name, display_name):
 	except:
 		webbrowser.open_new('http://www.twitch.tv/%s/chat?popout=' % final_selection)
 
-	args_to_subprocess = "livestreamer twitch.tv/'{0}' '{1}' --player '{2}' --hls-segment-threads 3".format(final_selection, stream_quality, player_final)
+	args_to_subprocess = "livestreamer twitch.tv/'{0}' '{1}' --player '{2}' --hls-segment-threads 3 --http-header Client-ID=guulhcvqo9djhuyhb2vi56wqnglc351".format(final_selection, stream_quality, player_final)
 	args_to_subprocess = shlex.split(args_to_subprocess)
 	livestreamer_process = subprocess.Popen(args_to_subprocess, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
@@ -872,7 +873,7 @@ def multi_twitch(channel_input):
 			except:
 				webbrowser.open_new('http://www.twitch.tv/%s/chat?popout=' % channel_name)
 
-		args_to_subprocess = "livestreamer twitch.tv/'{0}' '{1}' --player '{2}' --hls-segment-threads 3".format(channel_name, stream_quality, player_final)
+		args_to_subprocess = "livestreamer twitch.tv/'{0}' '{1}' --player '{2}' --hls-segment-threads 3 --http-header Client-ID=guulhcvqo9djhuyhb2vi56wqnglc351".format(channel_name, stream_quality, player_final)
 		args_to_subprocess = shlex.split(args_to_subprocess)
 		if current_channel < (number_of_channels - 1):
 			subprocess.Popen(args_to_subprocess, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -957,6 +958,14 @@ def firefly_needed_another_6_seasons(at_least):
 	exit()
 
 
+# Ok. So maybe this one is it.
+def nuke_it_from_orbit():
+	print("Are you sure you want to remove the database and start over?")
+	confirm = input('Please type ' + colors.OFFLINERED + 'KappaKeepoPogChamp' + colors.ENDC + ' to continue: ')
+	if confirm == 'KappaKeepoPogChamp':
+		remove(database_path)
+
+
 # Parse CLI input
 def main():
 	parser = argparse.ArgumentParser(description='Watch twitch.tv from your terminal. IT\'S THE FUTURE.', add_help=False)
@@ -969,6 +978,7 @@ def main():
 	parser.add_argument('-d', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Delete channel(s) from database', metavar="*searchstring*", required=False)
 	parser.add_argument('-f', action='store_true', help='Check if your favorite channels are online', required=False)
 	parser.add_argument('-n', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Notify when online', metavar="*searchstring*", required=False)
+	parser.add_argument('--reset', action='store_true', help='Start over', required=False)
 	parser.add_argument('-s', type=str, nargs=1, help='Sync username\'s followed accounts to local database', metavar="username", required=False)
 	parser.add_argument('--update', action='store_true', help='Update to git master', required=False)
 	parser.add_argument('-v', type=str, nargs=1, help='Watch VODs', metavar="", required=False)
@@ -991,6 +1001,8 @@ def main():
 		watch("NotReallyNeededSoIHaveToAskYouIfYouCalledYourMotherToday")
 	elif args.n:
 		read_modify_deletefrom_database(args.n, "ItsHammerTime")
+	elif args.reset:
+		nuke_it_from_orbit()
 	elif args.s:
 		add_to_database(args.s)
 	elif args.update:
