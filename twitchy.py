@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer
-# rev = 37
+# rev = 39
 
 
 import sys
@@ -32,9 +32,20 @@ class colors:
 	ENDC = '\033[0m'
 
 
-# Shenanigan avoidance
-database_path = expanduser("~") + '/.twitchy.db'
-http_header = {'Client-ID': 'guulhcvqo9djhuyhb2vi56wqnglc351'}
+# Fondle the Twitch API gently
+class GetMe():
+	def __init__(self, url):
+		self.url = url
+
+	def this(self):
+		http_header = {'Client-ID': 'guulhcvqo9djhuyhb2vi56wqnglc351'}
+		try:
+			r = requests.get(self.url, headers=http_header)
+			stream_data = json.loads(r.text)
+			return stream_data
+		except requests.exceptions.ConnectionError:
+			print(colors.OFFLINERED + ' Unable to connect to Twitch.' + colors.ENDC)
+			exit()
 
 
 # Options
@@ -133,6 +144,7 @@ if which('livestreamer') is None:
 	exit()
 
 """ Existential doubts go here """
+database_path = expanduser("~") + '/.twitchy.db'
 if not exists(database_path):
 	print(colors.GAMECYAN + " First run. Creating db and running configure." + colors.ENDC)
 	configure_options("FirstRun")
@@ -277,17 +289,14 @@ def add_to_database(channel_input):
 
 	if sys.argv[1] == "-s":
 		username = channel_input[0]
-		try:
-			r = requests.get('https://api.twitch.tv/kraken/users/%s/follows/channels' % username, headers=http_header)
-			stream_data = json.loads(r.text)
-		except requests.exceptions.ConnectionError:
-			print(colors.OFFLINERED + ' Unable to connect to Twitch.' + colors.ENDC)
-			exit()
+
+		api_request = GetMe('https://api.twitch.tv/kraken/users/%s/follows/channels' % username)
+		stream_data = api_request.this()
 
 		try:
 			total_followed = stream_data['_total']
-			r = requests.get('https://api.twitch.tv/kraken/users/%s/follows/channels?limit=%s' % (username, str(total_followed)), headers=http_header)
-			stream_data = json.loads(r.text)
+			api_request = GetMe('https://api.twitch.tv/kraken/users/%s/follows/channels?limit=%s' % (username, str(total_followed)))
+			stream_data = api_request.this()
 			for i in range(0, total_followed):
 				final_addition_streams.append(stream_data['follows'][i]['channel']['name'].lower())
 			final_addition(final_addition_streams)
@@ -296,12 +305,8 @@ def add_to_database(channel_input):
 
 	if sys.argv[1] == "-a":
 		for names_for_addition in channel_input:
-			try:
-				r = requests.get('https://api.twitch.tv/kraken/streams/' + names_for_addition, headers=http_header)
-				stream_data = json.loads(r.text)
-			except requests.exceptions.ConnectionError:
-				print(colors.OFFLINERED + ' Unable to connect to Twitch.' + colors.ENDC)
-				exit()
+			api_request = GetMe('https://api.twitch.tv/kraken/streams/' + names_for_addition)
+			stream_data = api_request.this()
 
 			try:
 				stream_data['error']
@@ -393,7 +398,7 @@ def read_modify_deletefrom_database(channel_input, whatireallywant_ireallyreally
 				database.execute("UPDATE '{0}' SET AltName = '{1}' WHERE Name = '{2}'".format(table_wanted, new_name, old_name))
 			database.commit()
 			database.close()
-		except IndexError:
+		except:
 			print(colors.OFFLINERED + " OH MY GOD WHAT IS THAT BEHIND YOU?" + colors.ENDC)
 
 	if sys.argv[1] == "-n":
@@ -425,13 +430,10 @@ def vigilo_confido(monitor_deez):
 	try:
 		while len(monitor_deez) > 0:
 			channel_list = ",".join(monitor_deez)
-			try:
-				r = requests.get('https://api.twitch.tv/kraken/streams/' + "?limit=100" + "&channel=" + channel_list, headers=http_header)
-				stream_data = json.loads(r.text)
-				total = stream_data['_total']
-			except requests.exceptions.ConnectionError:
-				print(colors.OFFLINERED + ' Unable to connect to Twitch.' + colors.ENDC)
-				exit()
+
+			api_request = GetMe('https://api.twitch.tv/kraken/streams/' + "?limit=100" + "&channel=" + channel_list)
+			stream_data = api_request.this()
+			total = stream_data['_total']
 
 			for i in range(0, total):
 				channel_name = stream_data['streams'][i]['channel']['name']
@@ -482,12 +484,8 @@ def vod_watch(channel_input):
 	if i_wanna_see == "b":
 		broadcast_string = "?broadcasts=true"
 
-	try:
-		r = requests.get('https://api.twitch.tv/kraken/channels/{0}/videos{1}'.format(channel_input, broadcast_string), headers=http_header)
-		stream_data = json.loads(r.text)
-	except requests.exceptions.ConnectionError:
-		print(colors.OFFLINERED + ' Unable to connect to Twitch.' + colors.ENDC)
-		exit()
+	api_request = GetMe('https://api.twitch.tv/kraken/channels/{0}/videos{1}'.format(channel_input, broadcast_string))
+	stream_data = api_request.this()
 
 	try:
 		totalvids = str(stream_data['_total'])
@@ -500,8 +498,9 @@ def vod_watch(channel_input):
 	display_name = stream_data['videos'][0]['channel']['display_name']
 
 	""" Default to source quality in case the channel is not a Twitch partner """
-	p = requests.get('https://api.twitch.tv/kraken/channels/' + channel_input, headers=http_header)
-	stream_data_partner = json.loads(p.text)
+	api_request = GetMe('https://api.twitch.tv/kraken/channels/' + channel_input)
+	stream_data_partner = api_request.this()
+
 	ispartner = stream_data_partner['partner']
 	if ispartner is False:
 		default_quality = "source"
@@ -517,12 +516,8 @@ def vod_watch(channel_input):
 		limit_string = "&limit=" + totalvids
 		print(" Past broadcasts for " + colors.NUMBERYELLOW + display_name_show + colors.ENDC + ":")
 
-	try:
-		r = requests.get('https://api.twitch.tv/kraken/channels/{0}/videos{1}{2}'.format(channel_input, broadcast_string, limit_string), headers=http_header)
-		stream_data = json.loads(r.text)
-	except requests.exceptions.ConnectionError:
-		print(colors.OFFLINERED + ' Unable to connect to Twitch.' + colors.ENDC)
-		exit()
+	api_request = GetMe('https://api.twitch.tv/kraken/channels/{0}/videos{1}{2}'.format(channel_input, broadcast_string, limit_string))
+	stream_data = api_request.this()
 
 	vod_links = []
 	display_number = 1
@@ -568,7 +563,6 @@ def watch(channel_input):
 	except IndexError:
 		pass
 
-	database.row_factory = lambda cursor, row: row[0]
 	dbase = database.cursor()
 
 	try:
@@ -580,68 +574,67 @@ def watch(channel_input):
 		print(" " + colors.NUMBERYELLOW + "Checking channels..." + colors.ENDC)
 
 	if channel_input == "BlankForAllIntensivePurposes":
-		status_check_required = dbase.execute('SELECT Name FROM channels').fetchall()
-		altname_list = dbase.execute('SELECT AltName FROM channels').fetchall()
+		status_check_required = dbase.execute('SELECT Name,AltName FROM channels').fetchall()
 
 	elif sys.argv[1] == "-w":
-		status_check_required = channel_input
-		altname_list = []
+		status_check_required = []
 		for j in channel_input:
-			altname_list.append(dbase.execute("SELECT AltName FROM channels WHERE Name = '%s'" % j).fetchone())
+			status_check_required.append((j, dbase.execute("SELECT AltName FROM channels WHERE Name = '%s'" % j).fetchone()[0]))
 
 	elif sys.argv[1] == "-f":
-		status_check_required = dbase.execute("SELECT Name FROM channels WHERE TimeWatched > 0").fetchall()
-		altname_list = dbase.execute("SELECT AltName FROM channels WHERE TimeWatched > 0").fetchall()
-		timewatched_list = dbase.execute("SELECT TimeWatched FROM channels WHERE TimeWatched > 0").fetchall()
+		status_check_required = dbase.execute("SELECT Name,AltName,TimeWatched FROM channels WHERE TimeWatched > 0").fetchall()
 
 	else:
-		status_check_required = database.execute("SELECT Name FROM channels WHERE Name LIKE '{0}' or AltName LIKE '{1}'".format(('%' + channel_input + '%'), ('%' + channel_input + '%'))).fetchall()
-		altname_list = database.execute("SELECT AltName FROM channels WHERE Name LIKE '{0}' or AltName LIKE '{1}'".format(('%' + channel_input + '%'), ('%' + channel_input + '%'))).fetchall()
+		status_check_required = database.execute("SELECT Name,AltName FROM channels WHERE Name LIKE '{0}' or AltName LIKE '{1}'".format(('%' + channel_input + '%'), ('%' + channel_input + '%'))).fetchall()
 
 	stream_status = []
 
 	def get_status(status_check_required):
-		number_of_checks = len(status_check_required)
-
-		channel_list = ",".join(status_check_required)
-		try:
-			r = requests.get('https://api.twitch.tv/kraken/streams/' + "?limit=" + str(number_of_checks) + "&channel=" + channel_list, headers=http_header)
-			stream_data = json.loads(r.text)
-			total = stream_data['_total']
-		except requests.exceptions.ConnectionError:
-			print(colors.OFFLINERED + ' Unable to connect to Twitch.' + colors.ENDC)
-			exit()
-
-		for i in range(0, total):
-			channel_name = stream_data['streams'][i]['channel']['name']
-
-			game_name_formatted = str(stream_data['streams'][i]['channel']['game']).replace("\'", "")
-
-			truncate_status_at = get_options()[3]
-			status_message = str(stream_data['streams'][i]['channel']['status'])
-			if len(status_message) > truncate_status_at:
-				status_message = status_message[0:truncate_status_at - 3] + "..."
-
-			alt_name = altname_list[status_check_required.index(channel_name)]
-			if alt_name is None:
-				alt_name = stream_data['streams'][i]['channel']['display_name']
-
-			timewatched = 0
+		""" Queries to the Twitch API are limited to 100 results at a time
+		Hence the dwindling """
+		dwindler = [names[0] for names in status_check_required]
+		while len(dwindler) > 0:
 			try:
-				if sys.argv[1] == "-f":
-					timewatched = timewatched_list[status_check_required.index(channel_name)]
+				channel_list = ",".join(dwindler[:100])
+				del dwindler[:100]
 			except:
-				pass
+				len_dwindler = len(dwindler)
+				channel_list = ",".join(dwindler[:len_dwindler])
+				del dwindler[:len_dwindler]
 
-			stream_status.append([channel_name, game_name_formatted, status_message, stream_data['streams'][i]['viewers'], alt_name, stream_data['streams'][i]['channel']['partner'], timewatched])
-			""" List Scheme
-			0: Channel name
-			1: Game name
-			2: Status message
-			3: Viewers
-			4: Display name
-			5: Partner status - Boolean
-			6: Time Watched - Should be zero if not explicitly queried"""
+			api_request = GetMe('https://api.twitch.tv/kraken/streams/' + "?limit=100&channel=" + channel_list)
+			stream_data = api_request.this()
+			total = stream_data['_total']
+
+			for i in range(0, total):
+				channel_name = stream_data['streams'][i]['channel']['name']
+				game_name_formatted = str(stream_data['streams'][i]['channel']['game']).replace("\'", "")
+
+				truncate_status_at = get_options()[3]
+				status_message = str(stream_data['streams'][i]['channel']['status'])
+				if len(status_message) > truncate_status_at:
+					status_message = status_message[0:truncate_status_at - 3] + "..."
+
+				alt_name = [v[1] for i, v in enumerate(status_check_required) if v[0] == channel_name][0]
+				if alt_name is None:
+					alt_name = stream_data['streams'][i]['channel']['display_name']
+
+				timewatched = 0
+				try:
+					if sys.argv[1] == "-f":
+						timewatched = [v[2] for i, v in enumerate(status_check_required) if v[0] == channel_name][0]
+				except:
+					pass
+
+				stream_status.append([channel_name, game_name_formatted, status_message, stream_data['streams'][i]['viewers'], alt_name, stream_data['streams'][i]['channel']['partner'], timewatched])
+		""" List Scheme
+		0: Channel name
+		1: Game name
+		2: Status message
+		3: Viewers
+		4: Display name
+		5: Partner status - Boolean
+		6: Time Watched - Should be zero if not explicitly queried"""
 
 	get_status(status_check_required)
 
@@ -688,8 +681,9 @@ def watch(channel_input):
 	display_number = 1
 
 	for i in stream_status:
-		display_name_game = dbase.execute("SELECT AltName FROM games WHERE Name = '%s'" % i[1]).fetchone()
-		if display_name_game is None:
+		try:
+			display_name_game = dbase.execute("SELECT AltName FROM games WHERE Name = '%s'" % i[1]).fetchone()[0]
+		except:
 			display_name_game = i[1]
 
 		if i[5] is True:
@@ -708,7 +702,7 @@ def watch(channel_input):
 		""" We need special formatting in case of -f """
 		try:
 			if sys.argv[1] == "-f":
-				column_3_display = colors.GAMECYAN + display_name_game + colors.ONLINEGREEN + " - " + i[2]
+				column_3_display = colors.GAMECYAN + str(display_name_game) + colors.ONLINEGREEN + " - " + i[2]
 				rank = str(names_only.index(i[0]) + 1)
 				print(" " + colors.NUMBERYELLOW + (str(display_number) + colors.ENDC) + " " + (colors.ONLINEGREEN + template.format(display_name_strimmer + " (" + rank + ")", time_convert(i[6]).rjust(11), column_3_display) + colors.ENDC))
 				display_number = display_number + 1
@@ -718,7 +712,7 @@ def watch(channel_input):
 				raise
 		except:
 			if display_name_game not in games_shown:
-				print(" " + colors.GAMECYAN + display_name_game + colors.ENDC)
+				print(" " + colors.GAMECYAN + str(display_name_game) + colors.ENDC)
 				games_shown.append(display_name_game)
 			print(" " + colors.NUMBERYELLOW + (str(display_number) + colors.ENDC) + " " + (colors.ONLINEGREEN + template.format(display_name_strimmer, str(format(i[3], "n")).rjust(8), i[2]) + colors.ENDC))
 			display_number = display_number + 1
