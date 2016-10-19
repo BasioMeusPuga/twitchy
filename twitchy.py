@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer
-# rev = 36
+# rev = 37
 
 
 import sys
@@ -34,7 +34,6 @@ class colors:
 
 # Shenanigan avoidance
 database_path = expanduser("~") + '/.twitchy.db'
-global http_header
 http_header = {'Client-ID': 'guulhcvqo9djhuyhb2vi56wqnglc351'}
 
 
@@ -50,13 +49,11 @@ def configure_options(special_occasion):
 				print(colors.OFFLINERED + " " + player + colors.ENDC + " is not in $PATH. Please check if this is what you want.")
 				raise
 
-		mpv_hardware_acceleration = True
-		if player == "mpv":
-			mpv_option = input(" Use hardware acceleration (vaapi) with mpv [Y/n]: ")
-			if mpv_option == "yes" or mpv_option == "Y" or mpv_option == "y" or mpv_option == "":
+		mpv_hardware_acceleration = False
+		if player == "mpv" and sys.platform == 'linux':
+			mpv_option = input(" Use hardware acceleration (vaapi) with mpv [y/N]: ")
+			if mpv_option == "yes" or mpv_option == "Y" or mpv_option == "y":
 				mpv_hardware_acceleration = True
-			else:
-				mpv_hardware_acceleration = False
 
 		default_quality = input(" Default stream quality [low/medium/HIGH/source]: ")
 		if default_quality == "" or (default_quality != "low" and default_quality != "medium" and default_quality != "source"):
@@ -280,8 +277,12 @@ def add_to_database(channel_input):
 
 	if sys.argv[1] == "-s":
 		username = channel_input[0]
-		r = requests.get('https://api.twitch.tv/kraken/users/%s/follows/channels' % username, headers=http_header)
-		stream_data = json.loads(r.text)
+		try:
+			r = requests.get('https://api.twitch.tv/kraken/users/%s/follows/channels' % username, headers=http_header)
+			stream_data = json.loads(r.text)
+		except requests.exceptions.ConnectionError:
+			print(colors.OFFLINERED + ' Unable to connect to Twitch.' + colors.ENDC)
+			exit()
 
 		try:
 			total_followed = stream_data['_total']
@@ -295,8 +296,13 @@ def add_to_database(channel_input):
 
 	if sys.argv[1] == "-a":
 		for names_for_addition in channel_input:
-			r = requests.get('https://api.twitch.tv/kraken/streams/' + names_for_addition, headers=http_header)
-			stream_data = json.loads(r.text)
+			try:
+				r = requests.get('https://api.twitch.tv/kraken/streams/' + names_for_addition, headers=http_header)
+				stream_data = json.loads(r.text)
+			except requests.exceptions.ConnectionError:
+				print(colors.OFFLINERED + ' Unable to connect to Twitch.' + colors.ENDC)
+				exit()
+
 			try:
 				stream_data['error']
 				print(" " + names_for_addition + " doesn't exist")
@@ -419,9 +425,13 @@ def vigilo_confido(monitor_deez):
 	try:
 		while len(monitor_deez) > 0:
 			channel_list = ",".join(monitor_deez)
-			r = requests.get('https://api.twitch.tv/kraken/streams/' + "?limit=100" + "&channel=" + channel_list, headers=http_header)
-			stream_data = json.loads(r.text)
-			total = stream_data['_total']
+			try:
+				r = requests.get('https://api.twitch.tv/kraken/streams/' + "?limit=100" + "&channel=" + channel_list, headers=http_header)
+				stream_data = json.loads(r.text)
+				total = stream_data['_total']
+			except requests.exceptions.ConnectionError:
+				print(colors.OFFLINERED + ' Unable to connect to Twitch.' + colors.ENDC)
+				exit()
 
 			for i in range(0, total):
 				channel_name = stream_data['streams'][i]['channel']['name']
@@ -472,8 +482,12 @@ def vod_watch(channel_input):
 	if i_wanna_see == "b":
 		broadcast_string = "?broadcasts=true"
 
-	r = requests.get('https://api.twitch.tv/kraken/channels/{0}/videos{1}'.format(channel_input, broadcast_string), headers=http_header)
-	stream_data = json.loads(r.text)
+	try:
+		r = requests.get('https://api.twitch.tv/kraken/channels/{0}/videos{1}'.format(channel_input, broadcast_string), headers=http_header)
+		stream_data = json.loads(r.text)
+	except requests.exceptions.ConnectionError:
+		print(colors.OFFLINERED + ' Unable to connect to Twitch.' + colors.ENDC)
+		exit()
 
 	try:
 		totalvids = str(stream_data['_total'])
@@ -503,8 +517,12 @@ def vod_watch(channel_input):
 		limit_string = "&limit=" + totalvids
 		print(" Past broadcasts for " + colors.NUMBERYELLOW + display_name_show + colors.ENDC + ":")
 
-	r = requests.get('https://api.twitch.tv/kraken/channels/{0}/videos{1}{2}'.format(channel_input, broadcast_string, limit_string), headers=http_header)
-	stream_data = json.loads(r.text)
+	try:
+		r = requests.get('https://api.twitch.tv/kraken/channels/{0}/videos{1}{2}'.format(channel_input, broadcast_string, limit_string), headers=http_header)
+		stream_data = json.loads(r.text)
+	except requests.exceptions.ConnectionError:
+		print(colors.OFFLINERED + ' Unable to connect to Twitch.' + colors.ENDC)
+		exit()
 
 	vod_links = []
 	display_number = 1
@@ -586,9 +604,13 @@ def watch(channel_input):
 		number_of_checks = len(status_check_required)
 
 		channel_list = ",".join(status_check_required)
-		r = requests.get('https://api.twitch.tv/kraken/streams/' + "?limit=" + str(number_of_checks) + "&channel=" + channel_list, headers=http_header)
-		stream_data = json.loads(r.text)
-		total = stream_data['_total']
+		try:
+			r = requests.get('https://api.twitch.tv/kraken/streams/' + "?limit=" + str(number_of_checks) + "&channel=" + channel_list, headers=http_header)
+			stream_data = json.loads(r.text)
+			total = stream_data['_total']
+		except requests.exceptions.ConnectionError:
+			print(colors.OFFLINERED + ' Unable to connect to Twitch.' + colors.ENDC)
+			exit()
 
 		for i in range(0, total):
 			channel_name = stream_data['streams'][i]['channel']['name']
