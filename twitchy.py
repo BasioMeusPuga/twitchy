@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer
-# rev = 42
+# rev = 43
 
 
 import sys
@@ -459,7 +459,7 @@ def vigilo_confido(monitor_deez):
 
 # Much VOD such wow
 def vod_watch(channel_input):
-	channel_input = channel_input[0]
+	channel_input = channel_input[0].lower()
 	i_wanna_see = input(' Watch (b)roadcasts or (h)ighlights: ')
 
 	broadcast_string = ''
@@ -476,7 +476,10 @@ def vod_watch(channel_input):
 		print(Colors.RED + ' Channel does not exist or No VODs found.' + Colors.ENDC)
 		exit()
 
-	display_name = stream_data['videos'][0]['channel']['display_name']
+	try:
+		display_name = dbase.execute("SELECT AltName FROM channels WHERE Name = '%s'" % channel_input).fetchone()[0]
+	except TypeError:
+		display_name = stream_data['videos'][0]['channel']['display_name']
 
 	""" Default to source quality in case the channel is not a Twitch partner """
 	stream_data_partner = api_request('https://api.twitch.tv/kraken/channels/' + channel_input)
@@ -510,26 +513,15 @@ def vod_watch(channel_input):
 			print(' ' + Colors.YELLOW + str(display_number) + Colors.ENDC + ' ' + template.format(i['game'], video_title, creation_time))
 		else:
 			print(' ' + Colors.YELLOW + str(display_number) + Colors.ENDC + ' ' + template.format(video_title, creation_time, ''))
-		vod_links.append([i['url'], i['title']])
+		vod_links.append([i['url'], i['game'], video_title])
 		display_number = display_number + 1
 
 	vod_select = int(input(' VOD number: '))
 	video_final = vod_links[vod_select - 1][0]
-	player_final = Options.player_final + ' --title ' + '\'' + display_name + ' - ' + vod_links[vod_select - 1][1] + '\''
+	game_name = vod_links[vod_select - 1][1]
+	title_final = vod_links[vod_select - 1][2]
 
-	database.execute("INSERT INTO miscellaneous (Name,Value) VALUES ('%s','%s')" % (display_name + " - " + vod_links[vod_select - 1][1], "(VOD)"))
-	database.commit()
-
-	print(' Now watching ' + Colors.WHITE + display_name + ' - ' + vod_links[vod_select - 1][1] + Colors.ENDC + ' | Quality: ' + Colors.WHITE + default_quality.title() + Colors.ENDC)
-	args_to_subprocess = "livestreamer {0} {1} --player '{2}' --hls-segment-threads 3 --player-passthrough=hls --http-header Client-ID=guulhcvqo9djhuyhb2vi56wqnglc351".format(video_final, default_quality, player_final)
-	args_to_subprocess = shlex.split(args_to_subprocess)
-	subprocess.run(args_to_subprocess, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-	database.execute("DELETE FROM miscellaneous")
-	database.execute("VACUUM")
-
-	database.close()
-	exit()
+	playtime_instances([[video_final, default_quality, display_name, game_name, [channel_input, title_final]]])
 
 
 # Generate stuff for livestreamer to agonize endless over. Is it fat? It's a program so no.
@@ -710,7 +702,7 @@ def watch(channel_input):
 			ispartner = stream_final[int(j[0]) - 1][3]
 			if ispartner is True:
 				if len(j) == 1:
-					final_selection.append([stream_final[int(j[0]) - 1][0], default_quality, stream_final[int(j[0]) - 1][2], stream_final[int(j[0]) - 1][1]])
+					final_selection.append([stream_final[int(j[0]) - 1][0], default_quality, stream_final[int(j[0]) - 1][2], stream_final[int(j[0]) - 1][1], None])
 				else:
 					if j[1] == 'l':
 						custom_quality = 'low'
@@ -722,9 +714,9 @@ def watch(channel_input):
 						custom_quality = 'source'
 					else:
 						custom_quality = default_quality
-					final_selection.append([stream_final[int(j[0]) - 1][0], custom_quality, stream_final[int(j[0]) - 1][2], stream_final[int(j[0]) - 1][1]])
+					final_selection.append([stream_final[int(j[0]) - 1][0], custom_quality, stream_final[int(j[0]) - 1][2], stream_final[int(j[0]) - 1][1], None])
 			elif ispartner is False:
-					final_selection.append([stream_final[int(j[0]) - 1][0], 'source', stream_final[int(j[0]) - 1][2], stream_final[int(j[0]) - 1][1]])
+					final_selection.append([stream_final[int(j[0]) - 1][0], 'source', stream_final[int(j[0]) - 1][2], stream_final[int(j[0]) - 1][1], None])
 
 		playtime_instances(final_selection)
 	except (IndexError, ValueError):
@@ -733,12 +725,17 @@ def watch(channel_input):
 
 # Takes care of the livestreamer process(es) as well as time tracking
 class Playtime:
-	def __init__(self, final_selection, stream_quality, display_name, game_name, show_chat):
+	def __init__(self, final_selection, stream_quality, display_name, game_name, show_chat, channel_name_if_vod):
 		self.final_selection = final_selection
 		self.stream_quality = stream_quality
 		self.display_name = display_name
 		self.game_name = game_name
 		self.show_chat = show_chat
+		if channel_name_if_vod is not None:
+			self.channel_name_if_vod = channel_name_if_vod[0]
+			self.video_title_if_vod = channel_name_if_vod[1]
+		else:
+			self.channel_name_if_vod = None
 
 	def play(self):
 		self.start_time = time()
@@ -752,17 +749,21 @@ class Playtime:
 		database.execute("INSERT INTO miscellaneous (Name,Value) VALUES ('%s','%s')" % (self.display_name, self.start_time))
 		database.commit()
 
-		print(' ' + Colors.WHITE + self.display_name + Colors.ENDC + ' | ' + Colors.WHITE + self.stream_quality.title() + Colors.ENDC)
-
-		player_final = Options.player_final + ' --title ' + self.display_name.replace(' ', '')
-
 		if self.show_chat is True:
 			try:
 				webbrowser.get('chromium').open_new('--app=http://www.twitch.tv/%s/chat?popout=' % self.final_selection)
 			except:
 				webbrowser.open_new('http://www.twitch.tv/%s/chat?popout=' % self.final_selection)
 
-		args_to_subprocess = "livestreamer twitch.tv/'{0}' '{1}' --player '{2}' --hls-segment-threads 3 --http-header Client-ID=guulhcvqo9djhuyhb2vi56wqnglc351".format(self.final_selection, self.stream_quality, player_final)
+		if self.channel_name_if_vod is None:
+			print(' ' + Colors.WHITE + self.display_name + Colors.ENDC + ' | ' + Colors.WHITE + self.stream_quality.title() + Colors.ENDC)
+			player_final = Options.player_final + ' --title ' + self.display_name.replace(' ', '')
+			args_to_subprocess = "livestreamer twitch.tv/'{0}' '{1}' --player '{2}' --hls-segment-threads 3 --http-header Client-ID=guulhcvqo9djhuyhb2vi56wqnglc351".format(self.final_selection, self.stream_quality, player_final)
+		else:
+			print(' ' + Colors.WHITE + self.display_name + ': ' + self.video_title_if_vod + Colors.ENDC + ' | ' + Colors.WHITE + self.stream_quality.title() + Colors.ENDC)
+			player_final = Options.player_final + ' --title ' + self.display_name
+			args_to_subprocess = "livestreamer '{0}' '{1}' --player '{2}' --hls-segment-threads 3 --player-passthrough=hls --http-header Client-ID=guulhcvqo9djhuyhb2vi56wqnglc351".format(self.final_selection, self.stream_quality, player_final)
+
 		args_to_subprocess = shlex.split(args_to_subprocess)
 		self.livestreamer_process = subprocess.Popen(args_to_subprocess, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 
@@ -772,6 +773,10 @@ class Playtime:
 
 		database = sqlite3.connect(database_path)
 		dbase = database.cursor()
+
+		""" Set name for VODs to enable time tracking """
+		if self.channel_name_if_vod is not None:
+			self.final_selection = self.channel_name_if_vod
 
 		""" Update time watched for a channel that exists in the database (avoids exceptions due to -w) """
 		channel_record = dbase.execute("SELECT Name,TimeWatched FROM channels WHERE Name = '%s'" % self.final_selection).fetchone()
@@ -813,22 +818,26 @@ def playtime_instances(final_selection):
 	0: Channel Name
 	1: Quality
 	2: Display Name
-	3: Game Name """
+	3: Game Name
+	4: VOD title (None if not required) """
 
 	playtime_instance = {}
 	total_streams = len(final_selection)
 
-	show_chat = True
-	if total_streams > 1:
+	show_chat = False
+	if total_streams == 1:
+		channel_name_if_vod = final_selection[0][4]
+		if channel_name_if_vod is None:
+			show_chat = True
+			print(' q / Ctrl + C to quit | m to identify music ')
+	elif total_streams > 1:
 		print(' q / Ctrl + C to quit ')
-		if Options.display_chat_for_multiple_twitch_streams is False:
-			show_chat = False
-	elif total_streams == 1:
-		print(' q / Ctrl + C to quit | m to identify music ')
+		if Options.display_chat_for_multiple_twitch_streams is True:
+			show_chat = True
 
 	print(' Now watching:')
 	for count, i in enumerate(final_selection):
-		playtime_instance[count] = Playtime(i[0], i[1], i[2], i[3], show_chat)
+		playtime_instance[count] = Playtime(i[0], i[1], i[2], i[3], show_chat, i[4])
 		playtime_instance[count].play()
 
 	playing_streams = [[count, playtime_instance[j].livestreamer_process] for count, j in enumerate(range(total_streams))]
@@ -904,9 +913,6 @@ def firefly_needed_another_6_seasons(at_least):
 		if play_status[0][0] == 'BellatorInMachina':
 			# Monitor
 			print('(M) ' + play_status[0][1])
-		elif play_status[0][1] == '(VOD)':
-			# VOD
-			print(play_status[0][0] + ' (VOD)')
 		else:
 			# Any channels being watched
 			for i in play_status:
