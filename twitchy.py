@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer
-# rev = 41
+# rev = 42
 
 
 import sys
@@ -432,7 +432,7 @@ def vigilo_confido(monitor_deez):
 					print()
 
 				if player == 'vlc':
-						player = 'cvlc'
+					player = 'cvlc'
 
 				if which('notify-send') is not None:
 					args_to_subprocess = 'notify-send --urgency=critical -i \'dialog-information\' \'Twitchy\' \'{0} is online\''.format(channel_name)
@@ -534,14 +534,6 @@ def vod_watch(channel_input):
 
 # Generate stuff for livestreamer to agonize endless over. Is it fat? It's a program so no.
 def watch(channel_input):
-
-	try:
-		if sys.argv[1] == '-s' or sys.argv[1] == '-v':
-			print(Colors.RED + ' Only one argument is permitted.' + Colors.ENDC)
-			exit()
-	except IndexError:
-		pass
-
 	dbase = database.cursor()
 
 	try:
@@ -552,9 +544,9 @@ def watch(channel_input):
 	except:
 		print(' ' + Colors.YELLOW + 'Checking channels...' + Colors.ENDC)
 
+	# Generate list of channels to be checked
 	if channel_input == 'BlankForAllIntensivePurposes':
 		status_check_required = dbase.execute("SELECT Name,AltName FROM channels").fetchall()
-
 	elif sys.argv[1] == '-w':
 		status_check_required = []
 		for j in channel_input:
@@ -562,10 +554,8 @@ def watch(channel_input):
 				status_check_required.append((j, dbase.execute("SELECT AltName FROM channels WHERE Name = '%s'" % j).fetchone()[0]))
 			except:
 				status_check_required.append((j, None))
-
 	elif sys.argv[1] == '-f':
 		status_check_required = dbase.execute("SELECT Name,AltName,TimeWatched FROM channels WHERE TimeWatched > 0").fetchall()
-
 	else:
 		status_check_required = database.execute("SELECT Name,AltName FROM channels WHERE Name LIKE '{0}' or AltName LIKE '{1}'".format(('%' + channel_input + '%'), ('%' + channel_input + '%'))).fetchall()
 
@@ -774,7 +764,7 @@ class Playtime:
 
 		args_to_subprocess = "livestreamer twitch.tv/'{0}' '{1}' --player '{2}' --hls-segment-threads 3 --http-header Client-ID=guulhcvqo9djhuyhb2vi56wqnglc351".format(self.final_selection, self.stream_quality, player_final)
 		args_to_subprocess = shlex.split(args_to_subprocess)
-		self.livestreamer_process = subprocess.Popen(args_to_subprocess, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+		self.livestreamer_process = subprocess.Popen(args_to_subprocess, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 
 	def time_tracking(self):
 		end_time = time()
@@ -829,52 +819,44 @@ def playtime_instances(final_selection):
 	total_streams = len(final_selection)
 
 	show_chat = True
-	if total_streams > 1 and Options.display_chat_for_multiple_twitch_streams is False:
-		show_chat = False
+	if total_streams > 1:
+		print(' q / Ctrl + C to quit ')
+		if Options.display_chat_for_multiple_twitch_streams is False:
+			show_chat = False
+	elif total_streams == 1:
+		print(' q / Ctrl + C to quit | m to identify music ')
 
 	print(' Now watching:')
 	for count, i in enumerate(final_selection):
 		playtime_instance[count] = Playtime(i[0], i[1], i[2], i[3], show_chat)
 		playtime_instance[count].play()
 
-	if total_streams == 1:
-		print(' q / Ctrl + C to quit | m to identify music ')
-		while playtime_instance[0].livestreamer_process.returncode is None:
+	playing_streams = [[count, playtime_instance[j].livestreamer_process] for count, j in enumerate(range(total_streams))]
+	while playing_streams != []:
+		for k in playing_streams:
+			k[1].poll()
 			""" returncode does nothing without polling
 			A delay in the while loop is introduced by the select method below """
-			playtime_instance[0].livestreamer_process.poll()
-			try:
-				keypress, o, e = select.select([sys.stdin], [], [], 0.8)
-				if (keypress):
-					keypress_made = sys.stdin.readline().strip()
-					if keypress_made == "q":
-						playtime_instance[0].livestreamer_process.terminate()
-					elif keypress_made == "m":
-						webbrowser.open('http://www.twitchecho.com/%s' % playtime_instance[0].final_selection)
-			except KeyboardInterrupt:
-				playtime_instance[0].livestreamer_process.terminate()
-				break
-		playtime_instance[0].time_tracking()
-	else:
-		print(' q / Ctrl + C to quit ')
-		playing_streams = [[count, playtime_instance[j].livestreamer_process] for count, j in enumerate(range(total_streams))]
-		while playing_streams != []:
+			if k[1].returncode is not None:
+				if k[1].returncode == 1:
+					stream_error = k[1].stdout.read().decode('utf-8').split('\n')[1]
+					print(' ' + Colors.RED + playtime_instance[k[0]].display_name + Colors.ENDC + ' (' + stream_error + ')')
+				else:
+					playtime_instance[k[0]].time_tracking()
+				playing_streams.remove(k)
+		try:
+			keypress, o, e = select.select([sys.stdin], [], [], 0.8)
+			if (keypress):
+				keypress_made = sys.stdin.readline().strip()
+				if keypress_made == "q":
+					raise KeyboardInterrupt
+				elif keypress_made == "m" and total_streams == 1:
+					webbrowser.open('http://www.twitchecho.com/%s' % playtime_instance[0].final_selection)
+		except KeyboardInterrupt:
 			for k in playing_streams:
-				k[1].poll()
-				if k[1].returncode is not None:
-					playtime_instance[k[0]].time_tracking()
-					playing_streams.remove(k)
-			try:
-				keypress, o, e = select.select([sys.stdin], [], [], 0.8)
-				if (keypress):
-					keypress_made = sys.stdin.readline().strip()
-					if keypress_made == "q":
-						raise KeyboardInterrupt
-			except KeyboardInterrupt:
-				for k in playing_streams:
-					playtime_instance[k[0]].time_tracking()
-					k[1].terminate()
-				playing_streams.clear()
+				playtime_instance[k[0]].time_tracking()
+				k[1].terminate()
+			playing_streams.clear()
 
 
 # Update the script to the latest git revision
@@ -948,23 +930,25 @@ def main():
 	parser = argparse.ArgumentParser(description='Watch twitch.tv from your terminal. IT\'S THE FUTURE.', add_help=False)
 	parser.add_argument('searchfor', type=str, nargs='?', help='Search for channel name in database', metavar='*searchstring*')
 	parser.add_argument('-h', '--help', help='This helpful message', action='help')
-	parser.add_argument('-a', type=str, nargs='+', help='Add channel name(s) to database', metavar='', required=False)
-	parser.add_argument('-an', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Set/Unset alternate names', metavar='*searchstring*', required=False)
-	parser.add_argument('--configure', action='store_true', help='Configure options', required=False)
-	parser.add_argument('--conky', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Generate data for conky', metavar='np / go / gone', required=False)
-	parser.add_argument('-d', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Delete channel(s) from database', metavar='*searchstring*', required=False)
-	parser.add_argument('-f', action='store_true', help='Check if your favorite channels are online', required=False)
-	parser.add_argument('-n', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Notify when online', metavar='*searchstring*', required=False)
-	parser.add_argument('--reset', action='store_true', help='Start over', required=False)
-	parser.add_argument('-s', type=str, nargs=1, help='Sync username\'s followed accounts to local database', metavar='username', required=False)
-	parser.add_argument('--update', action='store_true', help='Update to git master', required=False)
-	parser.add_argument('-v', type=str, nargs=1, help='Watch VODs', metavar='', required=False)
-	parser.add_argument('-w', type=str, nargs='+', help='Watch specified channel(s)', metavar='', required=False)
+	parser.add_argument('-a', type=str, nargs='+', help='Add channel name(s) to database', metavar='')
+	parser.add_argument('-an', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Set/Unset alternate names', metavar='*searchstring*')
+	parser.add_argument('--configure', action='store_true', help='Configure options')
+	parser.add_argument('--conky', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Generate data for conky', metavar='np / go / gone')
+	parser.add_argument('-d', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Delete channel(s) from database', metavar='*searchstring*')
+	parser.add_argument('-f', action='store_true', help='Check if your favorite channels are online')
+	parser.add_argument('-n', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Notify when online', metavar='*searchstring*')
+	parser.add_argument('--reset', action='store_true', help='Start over')
+	parser.add_argument('-s', type=str, nargs=1, help='Sync username\'s followed accounts to local database', metavar='username')
+	parser.add_argument('--update', action='store_true', help='Update to git master')
+	parser.add_argument('-v', type=str, nargs=1, help='Watch VODs', metavar='')
+	parser.add_argument('-w', type=str, nargs='+', help='Watch specified channel(s)', metavar='')
 	args = parser.parse_args()
 
-	if args.searchfor:
-		watch(args.searchfor)
-	elif args.a:
+	if (args.s or args.v) and args.searchfor:
+		parser.error('Only one argument allowed with -s and -v')
+		exit()
+
+	if args.a:
 		add_to_database(args.a)
 	elif args.an:
 		read_modify_deletefrom_database(args.an, 'CantTouchThis')
@@ -988,6 +972,8 @@ def main():
 		vod_watch(args.v)
 	elif args.w:
 		watch(args.w)
+	elif args.searchfor:
+		watch(args.searchfor)
 	else:
 		watch('BlankForAllIntensivePurposes')
 
