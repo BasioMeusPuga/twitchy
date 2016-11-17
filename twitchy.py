@@ -802,12 +802,9 @@ class Playtime:
 		final_game = Colors.WHITE + game_display_name + Colors.ENDC + ': ' + time_convert(total_time_watched) + ' (' + rank + ')'
 		print(' ' + final_name + ' | ' + final_game)
 
-		self.database_clean()
-
-		def database_clean(self):
-			database.execute("DELETE FROM miscellaneous WHERE Name = '{0}'".format(self.display_name))
-			database.execute("VACUUM")
-			database.commit()
+		database.execute("DELETE FROM miscellaneous WHERE Name = '{0}'".format(self.display_name))
+		database.execute("VACUUM")
+		database.commit()
 
 
 # Instantiate classes according to selection(s)
@@ -848,7 +845,9 @@ def playtime_instances(final_selection):
 				if playtime_instance[k].livestreamer_process.returncode == 1:
 					stream_error = playtime_instance[k].livestreamer_process.stdout.read().decode('utf-8').split('\n')[1]
 					print(' ' + Colors.RED + playtime_instance[k].display_name + Colors.ENDC + ' (' + stream_error + ')')
-					playtime_instance[k].database_clean()
+					database.execute("DELETE FROM miscellaneous WHERE Name = '{0}'".format(playtime_instance[k].display_name))
+					database.execute("VACUUM")
+					database.commit()
 				else:
 					playtime_instance[k].time_tracking()
 				playing_streams.remove(k)
