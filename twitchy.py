@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer
-# rev = 43
+# rev = 44
 
 
 import sys
@@ -256,8 +256,8 @@ def emote(whatzisface):
 	print('\n' + kappa)
 
 
-# Add to database. Call with '-a' or '-s'. Haha I said ass.
-def add_to_database(channel_input):
+# Add to database. Call with '-a' or '-s'
+def add_to_database(channel_input, argument):
 	final_addition_streams = []
 
 	def final_addition(final_addition_input):
@@ -273,7 +273,7 @@ def add_to_database(channel_input):
 		if something_added is False:
 			print(' ' + Colors.RED + 'None' + Colors.ENDC)
 
-	if sys.argv[1] == '-s':
+	if argument == 's':
 		username = channel_input[0]
 
 		stream_data = api_request('https://api.twitch.tv/kraken/users/%s/follows/channels' % username)
@@ -287,7 +287,7 @@ def add_to_database(channel_input):
 		except:
 			print(' ' + username + ' doesn\'t exist')
 
-	if sys.argv[1] == '-a':
+	if argument == 'a':
 		for names_for_addition in channel_input:
 			stream_data = api_request('https://api.twitch.tv/kraken/streams/' + names_for_addition)
 
@@ -303,7 +303,7 @@ def add_to_database(channel_input):
 
 
 # Obscurely named function. Call with '-d', '-an' or '-n'
-def read_modify_deletefrom_database(channel_input, whatireallywant_ireallyreallywant):
+def read_modify_deletefrom_database(channel_input, whatireallywant_ireallyreallywant, argument):
 	if whatireallywant_ireallyreallywant == 'ItsHammerTime':
 		table_wanted = 'channels'
 	else:
@@ -358,7 +358,7 @@ def read_modify_deletefrom_database(channel_input, whatireallywant_ireallyreally
 
 	final_selection = input(' Stream / Channel number(s)? ')
 
-	if sys.argv[1] == '-d':
+	if argument == 'd':
 		try:
 			print(' ' + Colors.YELLOW + 'Deleted from database:' + Colors.ENDC)
 			entered_numbers = [int(i) for i in final_selection.split()]
@@ -370,7 +370,7 @@ def read_modify_deletefrom_database(channel_input, whatireallywant_ireallyreally
 		except IndexError:
 			print(Colors.RED + ' How can columns be real if our databases aren\'t real?' + Colors.ENDC)
 
-	if sys.argv[1] == '-an':
+	if argument == 'an':
 		try:
 			old_name = relevant_list[int(final_selection) - 1][0]
 			new_name = input(' Replace ' + old_name + ' with? ')
@@ -384,7 +384,7 @@ def read_modify_deletefrom_database(channel_input, whatireallywant_ireallyreally
 		except:
 			print(Colors.RED + ' OH MY GOD WHAT IS THAT BEHIND YOU?' + Colors.ENDC)
 
-	if sys.argv[1] == '-n':
+	if argument == 'n':
 		watch_list = []
 		try:
 			entered_numbers = [int(i) for i in final_selection.split()]
@@ -407,7 +407,7 @@ def vigilo_confido(monitor_deez):
 	player = Options.player_final
 
 	channel_list_conky = ", ".join(monitor_deez)
-	database.execute("INSERT INTO miscellaneous (Name,Value) VALUES ('%s','%s')" % ("BellatorInMachina", channel_list_conky))
+	database.execute("INSERT INTO miscellaneous (Name,Value) VALUES ('%s','%s')" % ('BellatorInMachina', channel_list_conky))
 	database.commit()
 
 	try:
@@ -525,30 +525,25 @@ def vod_watch(channel_input):
 
 
 # Generate stuff for livestreamer to agonize endless over. Is it fat? It's a program so no.
-def watch(channel_input):
+def watch(channel_input, argument):
 	dbase = database.cursor()
 
-	try:
-		if sys.argv[1] == '--conky':
-			pass
-		else:
-			raise
-	except:
+	if argument[:5] != 'conky':
 		print(' ' + Colors.YELLOW + 'Checking channels...' + Colors.ENDC)
 
 	# Generate list of channels to be checked
-	if channel_input == 'BlankForAllIntensivePurposes':
+	if argument == '' or argument[:5] == 'conky':
 		status_check_required = dbase.execute("SELECT Name,AltName FROM channels").fetchall()
-	elif sys.argv[1] == '-w':
+	elif argument == 'w':
 		status_check_required = []
 		for j in channel_input:
 			try:
 				status_check_required.append((j, dbase.execute("SELECT AltName FROM channels WHERE Name = '%s'" % j).fetchone()[0]))
 			except:
 				status_check_required.append((j, None))
-	elif sys.argv[1] == '-f':
+	elif argument == 'f':
 		status_check_required = dbase.execute("SELECT Name,AltName,TimeWatched FROM channels WHERE TimeWatched > 0").fetchall()
-	else:
+	elif argument == 'search':
 		status_check_required = database.execute("SELECT Name,AltName FROM channels WHERE Name LIKE '{0}' or AltName LIKE '{1}'".format(('%' + channel_input + '%'), ('%' + channel_input + '%'))).fetchall()
 
 	stream_status = []
@@ -584,7 +579,7 @@ def watch(channel_input):
 
 				timewatched = 0
 				try:
-					if sys.argv[1] == '-f':
+					if argument == 'f':
 						timewatched = [v[2] for i, v in enumerate(status_check_required) if v[0] == channel_name][0]
 				except:
 					pass
@@ -604,14 +599,14 @@ def watch(channel_input):
 	""" Return online channels for conky
 	Terminate the watch() function """
 	try:
-		if sys.argv[1] == '--conky':
-			output = ""
+		if argument[:5] == 'conky':
+			output = ''
 			for i in stream_status:
-				if sys.argv[2] == 'go':
-					output = i[4] + ", " + output
-				else:
+				if argument == 'conky_go':
+					output = i[4] + ', ' + output
+				elif argument == 'conky_csv':
 					""" The omission of the space is intentional """
-					output = i[0] + "," + output
+					output = i[0] + ',' + output
 			output = output.strip()[:-1]
 			return output
 	except:
@@ -620,7 +615,7 @@ def watch(channel_input):
 	""" Continuation of the standard watch() function """
 	if len(stream_status) > 0:
 		try:
-			if sys.argv[1] == '-f':
+			if argument == 'f':
 				""" The display list is now sorted in descending order """
 				stream_status = sorted(stream_status, key=lambda x: x[6], reverse=True)
 
@@ -662,11 +657,11 @@ def watch(channel_input):
 		1: Game Name
 		2: Display Name
 		3: Partner status - Boolean """
-		template = template_mapping(display_number, "watch")
+		template = template_mapping(display_number, 'watch')
 
 		""" We need special formatting in case of -f """
 		try:
-			if sys.argv[1] == '-f':
+			if argument == 'f':
 				column_3_display = Colors.CYAN + str(display_name_game) + Colors.GREEN + ' - ' + i[2]
 				rank = str(names_only.index(i[0]) + 1)
 				print(' ' + Colors.YELLOW + (str(display_number) + Colors.ENDC) + ' ' + (Colors.GREEN + template.format(display_name_strimmer + ' (' + rank + ')', time_convert(i[6]).rjust(11), column_3_display) + Colors.ENDC))
@@ -807,9 +802,12 @@ class Playtime:
 		final_game = Colors.WHITE + game_display_name + Colors.ENDC + ': ' + time_convert(total_time_watched) + ' (' + rank + ')'
 		print(' ' + final_name + ' | ' + final_game)
 
-		database.execute("DELETE FROM miscellaneous WHERE Name = '{0}'".format(self.display_name))
-		database.execute("VACUUM")
-		database.commit()
+		self.database_clean()
+
+		def database_clean(self):
+			database.execute("DELETE FROM miscellaneous WHERE Name = '{0}'".format(self.display_name))
+			database.execute("VACUUM")
+			database.commit()
 
 
 # Instantiate classes according to selection(s)
@@ -840,18 +838,19 @@ def playtime_instances(final_selection):
 		playtime_instance[count] = Playtime(i[0], i[1], i[2], i[3], show_chat, i[4])
 		playtime_instance[count].play()
 
-	playing_streams = [[count, playtime_instance[j].livestreamer_process] for count, j in enumerate(range(total_streams))]
+	playing_streams = [j for j in range(total_streams)]
 	while playing_streams != []:
 		for k in playing_streams:
-			k[1].poll()
+			playtime_instance[k].livestreamer_process.poll()
 			""" returncode does nothing without polling
 			A delay in the while loop is introduced by the select method below """
-			if k[1].returncode is not None:
-				if k[1].returncode == 1:
-					stream_error = k[1].stdout.read().decode('utf-8').split('\n')[1]
-					print(' ' + Colors.RED + playtime_instance[k[0]].display_name + Colors.ENDC + ' (' + stream_error + ')')
+			if playtime_instance[k].livestreamer_process.returncode is not None:
+				if playtime_instance[k].livestreamer_process.returncode == 1:
+					stream_error = playtime_instance[k].livestreamer_process.stdout.read().decode('utf-8').split('\n')[1]
+					print(' ' + Colors.RED + playtime_instance[k].display_name + Colors.ENDC + ' (' + stream_error + ')')
+					playtime_instance[k].database_clean()
 				else:
-					playtime_instance[k[0]].time_tracking()
+					playtime_instance[k].time_tracking()
 				playing_streams.remove(k)
 		try:
 			keypress, o, e = select.select([sys.stdin], [], [], 0.8)
@@ -863,8 +862,8 @@ def playtime_instances(final_selection):
 					webbrowser.open('http://www.twitchecho.com/%s' % playtime_instance[0].final_selection)
 		except KeyboardInterrupt:
 			for k in playing_streams:
-				playtime_instance[k[0]].time_tracking()
-				k[1].terminate()
+				playtime_instance[k].time_tracking()
+				playtime_instance[k].livestreamer_process.terminate()
 			playing_streams.clear()
 
 
@@ -895,11 +894,14 @@ def update_script():
 	exit()
 
 
-# I hereby declare this the greatest declaration of ALL TIME
+# Get output for a conky instance
 def firefly_needed_another_6_seasons(at_least):
 	output = []
-	if at_least == 'go' or at_least == 'gone':
-		print(watch('BlankForAllIntensivePurposes'))
+	if at_least == 'go':
+		print(watch(None, 'conky_go'))
+		exit()
+	elif at_least == 'csvnames':
+		print(watch(None, 'conky_csv'))
 		exit()
 
 	database = sqlite3.connect(database_path)
@@ -911,10 +913,10 @@ def firefly_needed_another_6_seasons(at_least):
 		exit(1)
 	else:
 		if play_status[0][0] == 'BellatorInMachina':
-			# Monitor
+			""" Monitor """
 			print('(M) ' + play_status[0][1])
 		else:
-			# Any channels being watched
+			""" Any channels being watched """
 			for i in play_status:
 				current_time = time()
 				start_time = float(play_status[0][1])
@@ -939,7 +941,7 @@ def main():
 	parser.add_argument('-a', type=str, nargs='+', help='Add channel name(s) to database', metavar='')
 	parser.add_argument('-an', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Set/Unset alternate names', metavar='*searchstring*')
 	parser.add_argument('--configure', action='store_true', help='Configure options')
-	parser.add_argument('--conky', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Generate data for conky', metavar='np / go / gone')
+	parser.add_argument('--conky', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Generate data for conky', metavar='<none> / go / csvnames')
 	parser.add_argument('-d', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Delete channel(s) from database', metavar='*searchstring*')
 	parser.add_argument('-f', action='store_true', help='Check if your favorite channels are online')
 	parser.add_argument('-n', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Notify when online', metavar='*searchstring*')
@@ -955,33 +957,33 @@ def main():
 		exit()
 
 	if args.a:
-		add_to_database(args.a)
+		add_to_database(args.a, 'a')
 	elif args.an:
-		read_modify_deletefrom_database(args.an, 'CantTouchThis')
+		read_modify_deletefrom_database(args.an, 'CantTouchThis', 'an')
 	elif args.configure:
 		configure_options('TheDudeAbides')
 	elif args.conky:
 		firefly_needed_another_6_seasons(args.conky)
 	elif args.d:
-		read_modify_deletefrom_database(args.d, 'CantTouchThis')
+		read_modify_deletefrom_database(args.d, 'CantTouchThis', 'd')
 	elif args.f:
-		watch('NotReallyNeededSoIHaveToAskYouIfYouCalledYourMotherToday')
+		watch(None, 'f')
 	elif args.n:
-		read_modify_deletefrom_database(args.n, 'ItsHammerTime')
+		read_modify_deletefrom_database(args.n, 'ItsHammerTime', 'n')
 	elif args.reset:
 		nuke_it_from_orbit()
 	elif args.s:
-		add_to_database(args.s)
+		add_to_database(args.s, 's')
 	elif args.update:
 		update_script()
 	elif args.v:
 		vod_watch(args.v)
 	elif args.w:
-		watch(args.w)
+		watch(args.w, 'w')
 	elif args.searchfor:
-		watch(args.searchfor)
+		watch(args.searchfor, 'search')
 	else:
-		watch('BlankForAllIntensivePurposes')
+		watch(None, '')
 
 
 if __name__ == '__main__':
