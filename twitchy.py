@@ -1,11 +1,12 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer
-# rev = 44
+# rev = 45
 
 
 import sys
 import json
 import shlex
+import atexit
 import select
 import locale
 import sqlite3
@@ -109,7 +110,6 @@ def configure_options(special_occasion):
 			for i in options_to_insert:
 				database.execute("INSERT INTO options (Name,Value) VALUES ('{0}','{1}')".format(i[0], str(i[1])))
 			database.commit()
-			database.close()
 		else:
 			raise
 	except:
@@ -298,9 +298,6 @@ def add_to_database(channel_input, argument):
 				final_addition_streams.append(names_for_addition)
 		final_addition(final_addition_streams)
 
-	database.close()
-	exit()
-
 
 # Obscurely named function. Call with '-d', '-an' or '-n'
 def read_modify_deletefrom_database(channel_input, whatireallywant_ireallyreallywant, argument):
@@ -354,7 +351,7 @@ def read_modify_deletefrom_database(channel_input, whatireallywant_ireallyreally
 			else:
 				time_watched = time_convert(i[1]).rjust(11)
 				print(' ' + Colors.YELLOW + str(display_number) + Colors.ENDC + ' ' + template.format(i[0], str(i[2]), time_watched))
-		display_number = display_number + 1
+		display_number += 1
 
 	final_selection = input(' Stream / Channel number(s)? ')
 
@@ -366,7 +363,6 @@ def read_modify_deletefrom_database(channel_input, whatireallywant_ireallyreally
 				print(' ' + relevant_list[j - 1][0])
 				database.execute("DELETE FROM '{0}' WHERE Name = '{1}'".format(table_wanted, relevant_list[j - 1][0]))
 			database.commit()
-			database.close()
 		except IndexError:
 			print(Colors.RED + ' How can columns be real if our databases aren\'t real?' + Colors.ENDC)
 
@@ -380,7 +376,6 @@ def read_modify_deletefrom_database(channel_input, whatireallywant_ireallyreally
 			else:
 				database.execute("UPDATE '{0}' SET AltName = '{1}' WHERE Name = '{2}'".format(table_wanted, new_name, old_name))
 			database.commit()
-			database.close()
 		except:
 			print(Colors.RED + ' OH MY GOD WHAT IS THAT BEHIND YOU?' + Colors.ENDC)
 
@@ -410,51 +405,41 @@ def vigilo_confido(monitor_deez):
 	database.execute("INSERT INTO miscellaneous (Name,Value) VALUES ('%s','%s')" % ('BellatorInMachina', channel_list_conky))
 	database.commit()
 
-	try:
-		while len(monitor_deez) > 0:
-			channel_list = ','.join(monitor_deez)
+	while len(monitor_deez) > 0:
+		channel_list = ','.join(monitor_deez)
 
-			stream_data = api_request('https://api.twitch.tv/kraken/streams/' + '?limit=100' + '&channel=' + channel_list)
-			total = stream_data['_total']
+		stream_data = api_request('https://api.twitch.tv/kraken/streams/' + '?limit=100' + '&channel=' + channel_list)
+		total = stream_data['_total']
 
-			for i in range(0, total):
-				channel_name = stream_data['streams'][i]['channel']['name']
-				print(' ' + Colors.GREEN + channel_name + Colors.ENDC + ' online @ ' + strftime('%H:%M'), end='')
-				monitor_deez.remove(channel_name)
+		for i in range(0, total):
+			channel_name = stream_data['streams'][i]['channel']['name']
+			print(' ' + Colors.GREEN + channel_name + Colors.ENDC + ' online @ ' + strftime('%H:%M'), end='')
+			monitor_deez.remove(channel_name)
 
-				channel_list_conky = ", ".join(monitor_deez)
-				database.execute("UPDATE miscellaneous set Value = '%s' WHERE Name = 'BellatorInMachina'" % (channel_list_conky))
-				database.commit()
+			channel_list_conky = ", ".join(monitor_deez)
+			database.execute("UPDATE miscellaneous set Value = '%s' WHERE Name = 'BellatorInMachina'" % (channel_list_conky))
+			database.commit()
 
-				if len(channel_list_conky) > 0:
-					print(' | Waiting for: ' + Colors.WHITE + channel_list_conky + Colors.ENDC)
-				else:
-					print()
+			if len(channel_list_conky) > 0:
+				print(' | Waiting for: ' + Colors.WHITE + channel_list_conky + Colors.ENDC)
+			else:
+				print()
 
-				if player == 'vlc':
-					player = 'cvlc'
+			if player == 'vlc':
+				player = 'cvlc'
 
-				if which('notify-send') is not None:
-					args_to_subprocess = 'notify-send --urgency=critical -i \'dialog-information\' \'Twitchy\' \'{0} is online\''.format(channel_name)
-					args_to_subprocess = shlex.split(args_to_subprocess)
-					subprocess.Popen(args_to_subprocess, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-				script_dir = dirname(realpath(__file__))
-				args_to_subprocess = '{0} {1}/alarm.mp3'.format(player, script_dir)
+			if which('notify-send') is not None:
+				args_to_subprocess = 'notify-send --urgency=critical -i \'dialog-information\' \'Twitchy\' \'{0} is online\''.format(channel_name)
 				args_to_subprocess = shlex.split(args_to_subprocess)
-				subprocess.run(args_to_subprocess, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+				subprocess.Popen(args_to_subprocess, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-			if len(monitor_deez) > 0:
-				sleep(Options.check_interval)
+			script_dir = dirname(realpath(__file__))
+			args_to_subprocess = '{0} {1}/alarm.mp3'.format(player, script_dir)
+			args_to_subprocess = shlex.split(args_to_subprocess)
+			subprocess.run(args_to_subprocess, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-		database.execute("DELETE FROM miscellaneous")
-		database.execute("VACUUM")
-	except KeyboardInterrupt:
-		database.execute("DELETE FROM miscellaneous")
-		database.execute("VACUUM")
-
-	database.close()
-	exit()
+		if len(monitor_deez) > 0:
+			sleep(Options.check_interval)
 
 
 # Much VOD such wow
@@ -502,19 +487,17 @@ def vod_watch(channel_input):
 	stream_data = api_request('https://api.twitch.tv/kraken/channels/{0}/videos{1}{2}'.format(channel_input, broadcast_string, limit_string))
 
 	vod_links = []
-	display_number = 1
-	for i in stream_data['videos']:
-		template = template_mapping(display_number, 'vods')
+	for display_number, i in enumerate(stream_data['videos']):
+		template = template_mapping(display_number + 1, 'vods')
 		creation_time = i['created_at'].split('T')[0]
 		video_title = i['title']
 		if len(video_title) > 55:
 			video_title = i['title'][:55] + '...'
 		if i_wanna_see == 'b':
-			print(' ' + Colors.YELLOW + str(display_number) + Colors.ENDC + ' ' + template.format(i['game'], video_title, creation_time))
+			print(' ' + Colors.YELLOW + str(display_number + 1) + Colors.ENDC + ' ' + template.format(i['game'], video_title, creation_time))
 		else:
-			print(' ' + Colors.YELLOW + str(display_number) + Colors.ENDC + ' ' + template.format(video_title, creation_time, ''))
+			print(' ' + Colors.YELLOW + str(display_number + 1) + Colors.ENDC + ' ' + template.format(video_title, creation_time, ''))
 		vod_links.append([i['url'], i['game'], video_title])
-		display_number = display_number + 1
 
 	vod_select = int(input(' VOD number: '))
 	video_final = vod_links[vod_select - 1][0]
@@ -621,9 +604,7 @@ def watch(channel_input, argument):
 
 				""" Get ranks to display for -f """
 				names_only = []
-				database2 = sqlite3.connect(database_path)
-				all_seen = database2.execute("SELECT TimeWatched,Name FROM channels WHERE TimeWatched > 0").fetchall()
-				database2.close()
+				all_seen = database.execute("SELECT TimeWatched,Name FROM channels WHERE TimeWatched > 0").fetchall()
 				all_seen.sort(reverse=True)
 				names_only = [el[1] for el in all_seen]
 			else:
@@ -636,9 +617,8 @@ def watch(channel_input, argument):
 
 	stream_final = []
 	games_shown = []
-	display_number = 1
 
-	for i in stream_status:
+	for display_number, i in enumerate(stream_status):
 		try:
 			display_name_game = dbase.execute("SELECT AltName FROM games WHERE Name = '%s'" % i[1]).fetchone()[0]
 			if display_name_game is None:
@@ -651,22 +631,21 @@ def watch(channel_input, argument):
 		else:
 			display_name_strimmer = i[4] + '*'
 
-		stream_final.insert(display_number - 1, [i[0], i[1], i[4], i[5]])
+		stream_final.insert(display_number, [i[0], i[1], i[4], i[5]])
 		""" List scheme
 		0: Channel Name
 		1: Game Name
 		2: Display Name
 		3: Partner status - Boolean """
-		template = template_mapping(display_number, 'watch')
+		template = template_mapping(display_number + 1, 'watch')
 
 		""" We need special formatting in case of -f """
 		try:
 			if argument == 'f':
 				column_3_display = Colors.CYAN + str(display_name_game) + Colors.GREEN + ' - ' + i[2]
 				rank = str(names_only.index(i[0]) + 1)
-				print(' ' + Colors.YELLOW + (str(display_number) + Colors.ENDC) + ' ' + (Colors.GREEN + template.format(display_name_strimmer + ' (' + rank + ')', time_convert(i[6]).rjust(11), column_3_display) + Colors.ENDC))
-				display_number = display_number + 1
-				if display_number == Options.number_of_faves_displayed + 1:
+				print(' ' + Colors.YELLOW + (str(display_number + 1) + Colors.ENDC) + ' ' + (Colors.GREEN + template.format(display_name_strimmer + ' (' + rank + ')', time_convert(i[6]).rjust(11), column_3_display) + Colors.ENDC))
+				if display_number == Options.number_of_faves_displayed - 1:
 					break
 			else:
 				raise
@@ -674,8 +653,7 @@ def watch(channel_input, argument):
 			if display_name_game not in games_shown:
 				print(' ' + Colors.CYAN + str(display_name_game) + Colors.ENDC)
 				games_shown.append(display_name_game)
-			print(' ' + Colors.YELLOW + (str(display_number) + Colors.ENDC) + ' ' + (Colors.GREEN + template.format(display_name_strimmer, str(format(i[3], 'n')).rjust(8), i[2]) + Colors.ENDC))
-			display_number = display_number + 1
+			print(' ' + Colors.YELLOW + (str(display_number + 1) + Colors.ENDC) + ' ' + (Colors.GREEN + template.format(display_name_strimmer, str(format(i[3], 'n')).rjust(8), i[2]) + Colors.ENDC))
 
 	# Parse user input
 	try:
@@ -932,8 +910,21 @@ def nuke_it_from_orbit():
 		remove(database_path)
 
 
+# On Exit
+def thatsallfolks():
+	try:
+		database.execute("DELETE FROM miscellaneous")
+		database.execute("VACUUM")
+		database.commit()
+		database.close()
+	except:
+		pass
+
+
 # Parse CLI input
 def main():
+	atexit.register(thatsallfolks)
+
 	parser = argparse.ArgumentParser(description='Watch twitch.tv from your terminal. IT\'S THE FUTURE.', add_help=False)
 	parser.add_argument('searchfor', type=str, nargs='?', help='Search for channel name in database', metavar='*searchstring*')
 	parser.add_argument('-h', '--help', help='This helpful message', action='help')
@@ -989,5 +980,4 @@ if __name__ == '__main__':
 	try:
 		main()
 	except KeyboardInterrupt:
-		database.close()
-		exit()
+		thatsallfolks()
