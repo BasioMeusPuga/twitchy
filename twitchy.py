@@ -165,6 +165,9 @@ class Options:
 		number_of_faves_displayed = int(options_from_database[4][0])
 		display_chat_for_multiple_twitch_streams = literal_eval(options_from_database[5][0])
 		check_interval = int(options_from_database[6][0])
+
+		""" Run time option """
+		conky_run = False
 	except:
 		print(Colors.RED + ' Error getting options. Running --configure:' + Colors.ENDC)
 		configure_options('TheDudeAbides')
@@ -667,7 +670,7 @@ def watch(channel_input, argument):
 		if entered_numbers == []:
 			# Select a random channel in case input is a blank line
 			emote('Kappa')
-			entered_numbers.append(str(randrange(0, display_number - 1)))
+			entered_numbers.append(str(randrange(0, display_number + 1)))
 		for a in entered_numbers:
 			watch_input_final.append(a.split('-'))
 
@@ -868,11 +871,11 @@ def update_script():
 		script_path.write(script_git.text)
 		print(' ' + Colors.GREEN + 'Updated to Revision' + git_revision.split('=')[1] + Colors.ENDC)
 
-	exit()
-
 
 # Get output for a conky instance
 def firefly_needed_another_6_seasons(at_least):
+	Options.conky_run = True
+
 	output = []
 	if at_least == 'go':
 		print(watch(None, 'conky_go'))
@@ -912,13 +915,14 @@ def nuke_it_from_orbit():
 
 # On Exit
 def thatsallfolks():
-	try:
-		database.execute("DELETE FROM miscellaneous")
-		database.execute("VACUUM")
-		database.commit()
-		database.close()
-	except:
-		pass
+	if Options.conky_run is False:
+		try:
+			database.execute("DELETE FROM miscellaneous")
+			database.execute("VACUUM")
+			database.commit()
+			database.close()
+		except:
+			pass
 
 
 # Parse CLI input
