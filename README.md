@@ -44,9 +44,9 @@ Features:
     While the path of the file is hardcoded, feel free to replace it with whatever you find (in)appropriate.
     
     Conky options. Execute script with:
-    --conky np                      Get name of the currently playing stream
-    --conky tw                      Time spent Watching the currently playing stream
-    --conky go                      Get comma separated list of Online channels
+    --conky                         Now playing
+    --conky go                      Get comma separated list of alternate and formatted channel names
+    --conky csvnames                Get comma separated list of channel names from database
     The script will exit with exit code 1 in case either np or tw is used while nothing is playing.
     
 ## Examples
