@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer
-# rev = 45
+# rev = 46
 
 
 import sys
@@ -824,8 +824,9 @@ def playtime_instances(final_selection):
 			A delay in the while loop is introduced by the select method below """
 			if playtime_instance[k].livestreamer_process.returncode is not None:
 				if playtime_instance[k].livestreamer_process.returncode == 1:
-					stream_error = playtime_instance[k].livestreamer_process.stdout.read().decode('utf-8').split('\n')[1]
-					print(' ' + Colors.RED + playtime_instance[k].display_name + Colors.ENDC + ' (' + stream_error + ')')
+					stream_error = playtime_instance[k].livestreamer_process.stdout.read().decode('utf-8').split('\n')
+					error_message = [er for er in stream_error if 'error:' in er]
+					print(' ' + Colors.RED + playtime_instance[k].display_name + Colors.ENDC + ' (' + error_message[0] + ')')
 					database.execute("DELETE FROM miscellaneous WHERE Name = '{0}'".format(playtime_instance[k].display_name))
 					database.execute("VACUUM")
 					database.commit()
