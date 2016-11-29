@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer
-# rev = 46
+# rev = 47
 
 
 import sys
@@ -145,13 +145,13 @@ class Options:
 	try:
 		options_from_database = dbase.execute("SELECT Value FROM options").fetchall()
 		""" Database options scheme:
-			0: player
-			1: mpv_hardware_acceleration
-			2: default_quality
-			3: truncate_status_at
-			4: number_of_faves_displayed
-			5: display_chat_for_multiple_twitch_streams
-			6: check_interval """
+		0: player
+		1: mpv_hardware_acceleration
+		2: default_quality
+		3: truncate_status_at
+		4: number_of_faves_displayed
+		5: display_chat_for_multiple_twitch_streams
+		6: check_interval """
 
 		player = options_from_database[0][0]
 		mpv_hardware_acceleration = literal_eval(options_from_database[1][0])
@@ -464,9 +464,12 @@ def vod_watch(channel_input):
 		print(Colors.RED + ' Channel does not exist or No VODs found.' + Colors.ENDC)
 		exit()
 
+	display_name = dbase.execute("SELECT AltName FROM channels WHERE Name = '%s'" % channel_input).fetchone()
 	try:
-		display_name = dbase.execute("SELECT AltName FROM channels WHERE Name = '%s'" % channel_input).fetchone()[0]
-	except TypeError:
+		display_name = display_name[0]
+		if display_name is None:
+			raise
+	except:
 		display_name = stream_data['videos'][0]['channel']['display_name']
 
 	""" Default to source quality in case the channel is not a Twitch partner """
@@ -571,14 +574,14 @@ def watch(channel_input, argument):
 					pass
 
 				stream_status.append([channel_name, game_name_formatted, status_message, stream_data['streams'][i]['viewers'], alt_name, stream_data['streams'][i]['channel']['partner'], timewatched])
-		""" List Scheme
-		0: Channel name
-		1: Game name
-		2: Status message
-		3: Viewers
-		4: Display name
-		5: Partner status - Boolean
-		6: Time Watched - Should be zero if not explicitly queried"""
+				""" List Scheme
+				0: Channel name
+				1: Game name
+				2: Status message
+				3: Viewers
+				4: Display name
+				5: Partner status - Boolean
+				6: Time Watched - Should be zero if not explicitly queried"""
 
 	get_status(status_check_required)
 
