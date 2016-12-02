@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer
-# rev = 47
+# rev = 48
 
 
 import sys
@@ -206,15 +206,13 @@ def template_mapping(display_number, called_from):
 		second_column = 46
 	elif called_from == 'watch':
 		first_column = 25
-		second_column = 20
+		second_column = 15
 		third_column = 100
 	elif called_from == 'vods':
 		first_column = 40
 		second_column = 60
 
-	digits = len(str(display_number)) - 1
-	template = '{0:%s}{1:%s}{2:%s}' % (first_column - digits, second_column, third_column)
-
+	template = '{0:%s}{1:%s}{2:%s}' % (first_column, second_column, third_column)
 	return template
 
 
@@ -567,11 +565,8 @@ def watch(channel_input, argument):
 					alt_name = stream_data['streams'][i]['channel']['display_name']
 
 				timewatched = 0
-				try:
-					if argument == 'f':
-						timewatched = [v[2] for i, v in enumerate(status_check_required) if v[0] == channel_name][0]
-				except:
-					pass
+				if argument == 'f':
+					timewatched = [v[2] for i, v in enumerate(status_check_required) if v[0] == channel_name][0]
 
 				stream_status.append([channel_name, game_name_formatted, status_message, stream_data['streams'][i]['viewers'], alt_name, stream_data['streams'][i]['channel']['partner'], timewatched])
 				""" List Scheme
@@ -587,35 +582,29 @@ def watch(channel_input, argument):
 
 	""" Return online channels for conky
 	Terminate the watch() function """
-	try:
-		if argument[:5] == 'conky':
-			output = ''
-			for i in stream_status:
-				if argument == 'conky_go':
-					output = i[4] + ', ' + output
-				elif argument == 'conky_csv':
-					""" The omission of the space is intentional """
-					output = i[0] + ',' + output
-			output = output.strip()[:-1]
-			return output
-	except:
-		pass
+	if argument[:5] == 'conky':
+		output = ''
+		for i in stream_status:
+			if argument == 'conky_go':
+				output = i[4] + ', ' + output
+			elif argument == 'conky_csv':
+				""" The omission of the space is intentional """
+				output = i[0] + ',' + output
+		output = output.strip()[:-1]
+		return output
 
 	""" Continuation of the standard watch() function """
 	if len(stream_status) > 0:
-		try:
-			if argument == 'f':
-				""" The display list is now sorted in descending order """
-				stream_status = sorted(stream_status, key=lambda x: x[6], reverse=True)
+		if argument == 'f':
+			""" The display list is now sorted in descending order """
+			stream_status = sorted(stream_status, key=lambda x: x[6], reverse=True)
 
-				""" Get ranks to display for -f """
-				names_only = []
-				all_seen = database.execute("SELECT TimeWatched,Name FROM channels WHERE TimeWatched > 0").fetchall()
-				all_seen.sort(reverse=True)
-				names_only = [el[1] for el in all_seen]
-			else:
-				raise
-		except:
+			""" Get ranks to display for -f """
+			names_only = []
+			all_seen = database.execute("SELECT TimeWatched,Name FROM channels WHERE TimeWatched > 0").fetchall()
+			all_seen.sort(reverse=True)
+			names_only = [el[1] for el in all_seen]
+		else:
 			stream_status = sorted(stream_status, key=lambda x: (x[1], -x[3]))
 	else:
 		print(Colors.RED + ' All channels offline' + Colors.ENDC)
@@ -624,11 +613,13 @@ def watch(channel_input, argument):
 	stream_final = []
 	games_shown = []
 
+	# Display table of online channels
+	total_streams_digits = len(str(len(stream_status)))
 	for display_number, i in enumerate(stream_status):
 		try:
 			display_name_game = dbase.execute("SELECT AltName FROM games WHERE Name = '%s'" % i[1]).fetchone()[0]
 			if display_name_game is None:
-				display_name_game = i[1]
+				raise
 		except:
 			display_name_game = i[1]
 
@@ -646,20 +637,17 @@ def watch(channel_input, argument):
 		template = template_mapping(display_number + 1, 'watch')
 
 		""" We need special formatting in case of -f """
-		try:
-			if argument == 'f':
-				column_3_display = Colors.CYAN + str(display_name_game) + Colors.GREEN + ' - ' + i[2]
-				rank = str(names_only.index(i[0]) + 1)
-				print(' ' + Colors.YELLOW + (str(display_number + 1) + Colors.ENDC) + ' ' + (Colors.GREEN + template.format(display_name_strimmer + ' (' + rank + ')', time_convert(i[6]).rjust(11), column_3_display) + Colors.ENDC))
-				if display_number == Options.number_of_faves_displayed - 1:
-					break
-			else:
-				raise
-		except:
+		if argument == 'f':
+			column_3_display = Colors.CYAN + str(display_name_game) + Colors.GREEN + ' - ' + i[2]
+			rank = str(names_only.index(i[0]) + 1)
+			print(' ' + Colors.YELLOW + (str(display_number + 1).rjust(total_streams_digits) + Colors.ENDC) + ' ' + (Colors.GREEN + template.format(display_name_strimmer + ' (' + rank + ')', time_convert(i[6]).rjust(11), column_3_display) + Colors.ENDC))
+			if display_number == Options.number_of_faves_displayed - 1:
+				break
+		else:
 			if display_name_game not in games_shown:
-				print(' ' + Colors.CYAN + str(display_name_game) + Colors.ENDC)
+				print(' ' * total_streams_digits + Colors.CYAN + str(display_name_game) + Colors.ENDC)
 				games_shown.append(display_name_game)
-			print(' ' + Colors.YELLOW + (str(display_number + 1) + Colors.ENDC) + ' ' + (Colors.GREEN + template.format(display_name_strimmer, str(format(i[3], 'n')).rjust(8), i[2]) + Colors.ENDC))
+			print(' ' + Colors.YELLOW + (str(display_number + 1).rjust(total_streams_digits) + Colors.ENDC) + ' ' + (Colors.GREEN + template.format(display_name_strimmer, str(format(i[3], 'n')).rjust(8), i[2]) + Colors.ENDC))
 
 	# Parse user input
 	try:
@@ -737,14 +725,14 @@ class Playtime:
 		if self.channel_name_if_vod is None:
 			print(' ' + Colors.WHITE + self.display_name + Colors.ENDC + ' | ' + Colors.WHITE + self.stream_quality.title() + Colors.ENDC)
 			player_final = Options.player_final + ' --title ' + self.display_name.replace(' ', '')
-			args_to_subprocess = "livestreamer twitch.tv/'{0}' '{1}' --player '{2}' --hls-segment-threads 3 --http-header Client-ID=guulhcvqo9djhuyhb2vi56wqnglc351".format(self.final_selection, self.stream_quality, player_final)
+			self.args_to_subprocess = "livestreamer twitch.tv/'{0}' '{1}' --player '{2}' --hls-segment-threads 3 --http-header Client-ID=guulhcvqo9djhuyhb2vi56wqnglc351".format(self.final_selection, self.stream_quality, player_final)
 		else:
 			print(' ' + Colors.WHITE + self.display_name + ': ' + self.video_title_if_vod + Colors.ENDC + ' | ' + Colors.WHITE + self.stream_quality.title() + Colors.ENDC)
 			player_final = Options.player_final + ' --title ' + self.display_name
-			args_to_subprocess = "livestreamer '{0}' '{1}' --player '{2}' --hls-segment-threads 3 --player-passthrough=hls --http-header Client-ID=guulhcvqo9djhuyhb2vi56wqnglc351".format(self.final_selection, self.stream_quality, player_final)
+			self.args_to_subprocess = "livestreamer '{0}' '{1}' --player '{2}' --hls-segment-threads 3 --player-passthrough=hls --http-header Client-ID=guulhcvqo9djhuyhb2vi56wqnglc351".format(self.final_selection, self.stream_quality, player_final)
 
-		args_to_subprocess = shlex.split(args_to_subprocess)
-		self.livestreamer_process = subprocess.Popen(args_to_subprocess, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+		self.args_to_subprocess = shlex.split(self.args_to_subprocess)
+		self.livestreamer_process = subprocess.Popen(self.args_to_subprocess, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 
 	def time_tracking(self):
 		end_time = time()
@@ -830,6 +818,7 @@ def playtime_instances(final_selection):
 					stream_error = playtime_instance[k].livestreamer_process.stdout.read().decode('utf-8').split('\n')
 					error_message = [er for er in stream_error if 'error:' in er]
 					print(' ' + Colors.RED + playtime_instance[k].display_name + Colors.ENDC + ' (' + error_message[0] + ')')
+					# print(' ' + Colors.RED + playtime_instance[k].display_name + Colors.ENDC + ' (' + ' '.join(playtime_instance[k].args_to_subprocess) + ')')
 					database.execute("DELETE FROM miscellaneous WHERE Name = '{0}'".format(playtime_instance[k].display_name))
 					database.execute("VACUUM")
 					database.commit()
