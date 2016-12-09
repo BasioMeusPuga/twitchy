@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer
-# rev = 48
+# rev = 49
 
 
 import sys
@@ -16,7 +16,7 @@ import webbrowser
 import subprocess
 
 from time import time, sleep, strftime
-from shutil import which
+from shutil import which, get_terminal_size
 from random import randrange
 from ast import literal_eval
 from os import remove
@@ -55,9 +55,9 @@ def configure_options(special_occasion):
 		if default_quality == '' or (default_quality != 'low' and default_quality != 'medium' and default_quality != 'source'):
 			default_quality = 'high'
 
-		truncate_status_at = input(' Truncate stream status at [100]: ')
+		truncate_status_at = input(' Truncate stream status at [AUTO]: ')
 		if truncate_status_at == '':
-			truncate_status_at = 100
+			truncate_status_at = 'Auto'
 		else:
 			truncate_status_at = int(truncate_status_at)
 
@@ -161,7 +161,7 @@ class Options:
 			player_final = 'mpv --cache 8192'
 
 		default_quality = options_from_database[2][0]
-		truncate_status_at = int(options_from_database[3][0])
+		truncate_status_at = options_from_database[3][0]
 		number_of_faves_displayed = int(options_from_database[4][0])
 		display_chat_for_multiple_twitch_streams = literal_eval(options_from_database[5][0])
 		check_interval = int(options_from_database[6][0])
@@ -555,7 +555,10 @@ def watch(channel_input, argument):
 				channel_name = stream_data['streams'][i]['channel']['name']
 				game_name_formatted = str(stream_data['streams'][i]['channel']['game']).replace('\'', '')
 
-				truncate_status_at = Options.truncate_status_at
+				if Options.truncate_status_at == 'Auto':
+					truncate_status_at = get_terminal_size().columns - 44
+				else:
+					truncate_status_at = int(Options.truncate_status_at)
 				status_message = str(stream_data['streams'][i]['channel']['status'])
 				if len(status_message) > truncate_status_at:
 					status_message = status_message[0:truncate_status_at - 3] + '...'
@@ -639,6 +642,8 @@ def watch(channel_input, argument):
 		""" We need special formatting in case of -f """
 		if argument == 'f':
 			column_3_display = Colors.CYAN + str(display_name_game) + Colors.GREEN + ' - ' + i[2]
+			if len(column_3_display) + 45 >= get_terminal_size().columns:
+				column_3_display = column_3_display[0:get_terminal_size().columns - 40] + '...'
 			rank = str(names_only.index(i[0]) + 1)
 			print(' ' + Colors.YELLOW + (str(display_number + 1).rjust(total_streams_digits) + Colors.ENDC) + ' ' + (Colors.GREEN + template.format(display_name_strimmer + ' (' + rank + ')', time_convert(i[6]).rjust(11), column_3_display) + Colors.ENDC))
 			if display_number == Options.number_of_faves_displayed - 1:
@@ -747,6 +752,7 @@ class Playtime:
 
 		""" Update time watched for a channel that exists in the database (avoids exceptions due to -w) """
 		channel_record = dbase.execute("SELECT Name,TimeWatched FROM channels WHERE Name = '%s'" % self.final_selection).fetchone()
+		final_name = None
 		if channel_record is not None:
 			total_time_watched = channel_record[1] + time_watched
 			database.execute("UPDATE channels set TimeWatched = '{0}' WHERE Name = '{1}'".format(total_time_watched, self.final_selection))
@@ -772,7 +778,11 @@ class Playtime:
 		else:
 			game_display_name = game_details[2]
 		final_game = Colors.WHITE + game_display_name + Colors.ENDC + ': ' + time_convert(total_time_watched) + ' (' + rank + ')'
-		print(' ' + final_name + ' | ' + final_game)
+
+		if final_name is None:
+			print(' ' + final_game)
+		else:
+			print(' ' + final_name + ' | ' + final_game)
 
 		database.execute("DELETE FROM miscellaneous WHERE Name = '{0}'".format(self.display_name))
 		database.execute("VACUUM")
