@@ -1,6 +1,6 @@
 #!/usr/bin/python3
-# Requires: python3, livestreamer
-# rev = 49
+# Requires: python3, livestreamer, requests
+# rev = 50
 
 
 import sys
@@ -187,7 +187,7 @@ def api_request(url):
 
 
 # Display template mapping for extra spicy output
-def template_mapping(display_number, called_from):
+def template_mapping(called_from):
 
 	third_column = 20
 	""" Preceding specification is mostly pointless as long as it's non zero """
@@ -236,7 +236,7 @@ def time_convert(seconds):
 
 
 # Emotes - Kappa? Kappa.
-def emote(whatzisface):
+def emote():
 	kappa = (
 		' ░░░░░░░░░░░░░░░░░░░░\n'
 		' ░░░░▄▀▀▀▀▀█▀▄▄▄▄░░░░\n'
@@ -329,29 +329,30 @@ def read_modify_deletefrom_database(channel_input, whatireallywant_ireallyreally
 	2: AltName """
 
 	display_number = 1
+	total_streams_digits = len(str(len(relevant_list)))
 	for i in relevant_list:
 		if i[2] is not None:
 			if table_wanted == 'channels':
-				template = template_mapping(display_number, 'list')
+				template = template_mapping('list')
 			elif table_wanted == 'games':
-				template = template_mapping(display_number, 'gameslist')
+				template = template_mapping('gameslist')
 
 			if i[1] == 0:
-				print(' ' + Colors.YELLOW + str(display_number) + Colors.ENDC + ' ' + template.format(i[0], Colors.CYAN + str(i[2]) + Colors.RED, '  Unwatched' + Colors.ENDC))
+				print(' ' + Colors.YELLOW + str(display_number).rjust(total_streams_digits) + Colors.ENDC + ' ' + template.format(i[0], Colors.CYAN + str(i[2]) + Colors.RED, '  Unwatched' + Colors.ENDC))
 			else:
 				time_watched = time_convert(i[1]).rjust(11)
-				print(' ' + Colors.YELLOW + str(display_number) + Colors.ENDC + ' ' + template.format(i[0], Colors.CYAN + str(i[2]) + Colors.ENDC, time_watched))
+				print(' ' + Colors.YELLOW + str(display_number).rjust(total_streams_digits) + Colors.ENDC + ' ' + template.format(i[0], Colors.CYAN + str(i[2]) + Colors.ENDC, time_watched))
 		else:
 			if table_wanted == 'channels':
-				template = template_mapping(display_number, 'listnocolor')
+				template = template_mapping('listnocolor')
 			elif table_wanted == 'games':
-				template = template_mapping(display_number, 'gameslistnocolor')
+				template = template_mapping('gameslistnocolor')
 
 			if i[1] == 0:
-				print(' ' + Colors.YELLOW + str(display_number) + Colors.RED + ' ' + template.format(i[0], str(i[2]), '  Unwatched') + Colors.ENDC)
+				print(' ' + Colors.YELLOW + str(display_number).rjust(total_streams_digits) + Colors.RED + ' ' + template.format(i[0], str(i[2]), '  Unwatched') + Colors.ENDC)
 			else:
 				time_watched = time_convert(i[1]).rjust(11)
-				print(' ' + Colors.YELLOW + str(display_number) + Colors.ENDC + ' ' + template.format(i[0], str(i[2]), time_watched))
+				print(' ' + Colors.YELLOW + str(display_number).rjust(total_streams_digits) + Colors.ENDC + ' ' + template.format(i[0], str(i[2]), time_watched))
 		display_number += 1
 
 	final_selection = input(' Stream / Channel number(s)? ')
@@ -434,8 +435,13 @@ def vigilo_confido(monitor_deez):
 				args_to_subprocess = shlex.split(args_to_subprocess)
 				subprocess.Popen(args_to_subprocess, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
+			# Account for the possibility of being installed as well as being cloned
 			script_dir = dirname(realpath(__file__))
-			args_to_subprocess = '{0} {1}/alarm.mp3'.format(player, script_dir)
+			if exists(script_dir + '/alarm.mp3'):
+				sound_dir = script_dir
+			else:
+				sound_dir = '/usr/share/twitchy'
+			args_to_subprocess = '{0} {1}/alarm.mp3'.format(player, sound_dir)
 			args_to_subprocess = shlex.split(args_to_subprocess)
 			subprocess.run(args_to_subprocess, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
@@ -491,16 +497,17 @@ def vod_watch(channel_input):
 	stream_data = api_request('https://api.twitch.tv/kraken/channels/{0}/videos{1}{2}'.format(channel_input, broadcast_string, limit_string))
 
 	vod_links = []
+	total_streams_digits = len(str(len(stream_data['videos'])))
 	for display_number, i in enumerate(stream_data['videos']):
-		template = template_mapping(display_number + 1, 'vods')
+		template = template_mapping('vods')
 		creation_time = i['created_at'].split('T')[0]
 		video_title = i['title']
 		if len(video_title) > 55:
 			video_title = i['title'][:55] + '...'
 		if i_wanna_see == 'b':
-			print(' ' + Colors.YELLOW + str(display_number + 1) + Colors.ENDC + ' ' + template.format(i['game'], video_title, creation_time))
+			print(' ' + Colors.YELLOW + str(display_number + 1).rjust(total_streams_digits) + Colors.ENDC + ' ' + template.format(i['game'], video_title, creation_time))
 		else:
-			print(' ' + Colors.YELLOW + str(display_number + 1) + Colors.ENDC + ' ' + template.format(video_title, creation_time, ''))
+			print(' ' + Colors.YELLOW + str(display_number + 1).rjust(total_streams_digits) + Colors.ENDC + ' ' + template.format(video_title, creation_time, ''))
 		vod_links.append([i['url'], i['game'], video_title])
 
 	vod_select = int(input(' VOD number: '))
@@ -603,7 +610,6 @@ def watch(channel_input, argument):
 			stream_status = sorted(stream_status, key=lambda x: x[6], reverse=True)
 
 			""" Get ranks to display for -f """
-			names_only = []
 			all_seen = database.execute("SELECT TimeWatched,Name FROM channels WHERE TimeWatched > 0").fetchall()
 			all_seen.sort(reverse=True)
 			names_only = [el[1] for el in all_seen]
@@ -637,7 +643,7 @@ def watch(channel_input, argument):
 		1: Game Name
 		2: Display Name
 		3: Partner status - Boolean """
-		template = template_mapping(display_number + 1, 'watch')
+		template = template_mapping('watch')
 
 		""" We need special formatting in case of -f """
 		if argument == 'f':
@@ -663,9 +669,9 @@ def watch(channel_input, argument):
 		default_quality = Options.default_quality
 
 		entered_numbers = stream_select.split()
-		if entered_numbers == []:
+		if not entered_numbers:
 			# Select a random channel in case input is a blank line
-			emote('Kappa')
+			emote()
 			entered_numbers.append(str(randrange(0, display_number + 1)))
 		for a in entered_numbers:
 			watch_input_final.append(a.split('-'))
@@ -757,7 +763,6 @@ class Playtime:
 			total_time_watched = channel_record[1] + time_watched
 			database.execute("UPDATE channels set TimeWatched = '{0}' WHERE Name = '{1}'".format(total_time_watched, self.final_selection))
 
-			names_only = []
 			all_seen = dbase.execute("SELECT TimeWatched,Name FROM channels WHERE TimeWatched > 0").fetchall()
 			all_seen.sort(reverse=True)
 			names_only = [el[1] for el in all_seen]
@@ -818,7 +823,7 @@ def playtime_instances(final_selection):
 		playtime_instance[count].play()
 
 	playing_streams = [j for j in range(total_streams)]
-	while playing_streams != []:
+	while playing_streams:
 		for k in playing_streams:
 			playtime_instance[k].livestreamer_process.poll()
 			""" returncode does nothing without polling
@@ -837,7 +842,7 @@ def playtime_instances(final_selection):
 				playing_streams.remove(k)
 		try:
 			keypress, o, e = select.select([sys.stdin], [], [], 0.8)
-			if (keypress):
+			if keypress:
 				keypress_made = sys.stdin.readline().strip()
 				if keypress_made == "q":
 					raise KeyboardInterrupt
