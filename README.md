@@ -15,6 +15,14 @@ Features:
 * Stream as many... streams as you want at once.
 * The ability to display alternate names for games / streamers. If your happiness is somehow contingent upon displaying "Hearthstone: Heroes of Warcraft" as "Wizard Poker", well, you've come to the right place.
 
+## Installation
+1. Clone the repository
+2. Move twitchy.py to $PATH
+3. alarm.mp3 should be in the same directory as twitchy.py
+
+Alternatively, use the AUR package:
+https://aur.archlinux.org/packages/twitchy-git
+
 ## Usage
 
     $ twitchy [ARGUMENT] [OPTIONS]
@@ -26,7 +34,7 @@ Features:
     -a <channel name>               Add channel(s)
     -an                             Set/unset alternate names
     --configure                     Configure options
-    --conky [ np / tw / go ]        Generate data for conky
+    --conky [ go / csvnames ]       Generate data for conky
     -d                              Delete channel(s) from database
     -f                              Check which of your favorite channels are online
     -n                              Notify if a channel comes online
@@ -52,7 +60,7 @@ Features:
 ## Examples
 
 Using no argument while launching the script will check the status of every channel in the local database:
-![alt tag](https://imgur.com/cwdHy7L.png)
+![alt tag](https://i.imgur.com/1Id6J7G.png)
     
 Add "bobross" to local database:
 
