@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer, requests
-# rev = 50
+# rev = 51
 
 
 import sys
@@ -105,7 +105,6 @@ def configure_options(special_occasion):
 
 			elif special_occasion == 'TheDudeAbides':
 				database.execute("DELETE FROM options")
-				database.execute("VACUUM")
 
 			for i in options_to_insert:
 				database.execute("INSERT INTO options (Name,Value) VALUES ('{0}','{1}')".format(i[0], str(i[1])))
@@ -134,7 +133,6 @@ if not exists(database_path):
 	configure_options('FirstRun')
 	exit()
 database = sqlite3.connect(database_path)
-dbase = database.cursor()
 
 """ Set locale for comma placement """
 locale.setlocale(locale.LC_ALL, '')
@@ -143,7 +141,7 @@ locale.setlocale(locale.LC_ALL, '')
 # The classy choice
 class Options:
 	try:
-		options_from_database = dbase.execute("SELECT Value FROM options").fetchall()
+		options_from_database = database.execute("SELECT Value FROM options").fetchall()
 		""" Database options scheme:
 		0: player
 		1: mpv_hardware_acceleration
@@ -265,7 +263,7 @@ def add_to_database(channel_input, argument):
 		something_added = False
 		print(' ' + Colors.YELLOW + 'Additions to database:' + Colors.ENDC)
 		for channel_name in final_addition_input:
-			does_it_exist = dbase.execute("SELECT Name FROM channels WHERE Name = '%s'" % channel_name.lower()).fetchone()
+			does_it_exist = database.execute("SELECT Name FROM channels WHERE Name = '%s'" % channel_name.lower()).fetchone()
 			if does_it_exist is None:
 				something_added = True
 				database.execute("INSERT INTO channels (Name,TimeWatched) VALUES ('%s',0)" % channel_name.lower())
@@ -314,9 +312,9 @@ def read_modify_deletefrom_database(channel_input, whatireallywant_ireallyreally
 			exit()
 
 	if channel_input == 'BlankForAllIntensivePurposes':
-		relevant_list = dbase.execute("SELECT Name, TimeWatched, AltName FROM %s" % table_wanted).fetchall()
+		relevant_list = database.execute("SELECT Name, TimeWatched, AltName FROM %s" % table_wanted).fetchall()
 	else:
-		relevant_list = dbase.execute("SELECT Name, TimeWatched, AltName FROM '{0}' WHERE Name LIKE '{1}'".format(table_wanted, ('%' + channel_input + '%'))).fetchall()
+		relevant_list = database.execute("SELECT Name, TimeWatched, AltName FROM '{0}' WHERE Name LIKE '{1}'".format(table_wanted, ('%' + channel_input + '%'))).fetchall()
 
 	if len(relevant_list) == 0:
 		print(Colors.RED + ' Database query returned nothing.' + Colors.ENDC)
@@ -468,7 +466,7 @@ def vod_watch(channel_input):
 		print(Colors.RED + ' Channel does not exist or No VODs found.' + Colors.ENDC)
 		exit()
 
-	display_name = dbase.execute("SELECT AltName FROM channels WHERE Name = '%s'" % channel_input).fetchone()
+	display_name = database.execute("SELECT AltName FROM channels WHERE Name = '%s'" % channel_input).fetchone()
 	try:
 		display_name = display_name[0]
 		if display_name is None:
@@ -520,25 +518,28 @@ def vod_watch(channel_input):
 
 # Generate stuff for livestreamer to agonize endless over. Is it fat? It's a program so no.
 def watch(channel_input, argument):
-	dbase = database.cursor()
-
-	if argument[:5] != 'conky':
-		print(' ' + Colors.YELLOW + 'Checking channels...' + Colors.ENDC)
+	database_status = database.execute("SELECT Name,AltName FROM channels").fetchall()
+	if not database_status:
+		print(Colors.RED + ' Database is currently empty: Please run with -a or -s' + Colors.ENDC)
+		exit()
 
 	# Generate list of channels to be checked
 	if argument == '' or argument[:5] == 'conky':
-		status_check_required = dbase.execute("SELECT Name,AltName FROM channels").fetchall()
+		status_check_required = database_status
 	elif argument == 'w':
 		status_check_required = []
 		for j in channel_input:
 			try:
-				status_check_required.append((j, dbase.execute("SELECT AltName FROM channels WHERE Name = '%s'" % j).fetchone()[0]))
+				status_check_required.append((j, database.execute("SELECT AltName FROM channels WHERE Name = '%s'" % j).fetchone()[0]))
 			except:
 				status_check_required.append((j, None))
 	elif argument == 'f':
-		status_check_required = dbase.execute("SELECT Name,AltName,TimeWatched FROM channels WHERE TimeWatched > 0").fetchall()
+		status_check_required = database.execute("SELECT Name,AltName,TimeWatched FROM channels WHERE TimeWatched > 0").fetchall()
 	elif argument == 'search':
 		status_check_required = database.execute("SELECT Name,AltName FROM channels WHERE Name LIKE '{0}' or AltName LIKE '{1}'".format(('%' + channel_input + '%'), ('%' + channel_input + '%'))).fetchall()
+
+	if argument[:5] != 'conky':
+		print(' ' + Colors.YELLOW + 'Checking {0} channel(s)...'.format(len(status_check_required)) + Colors.ENDC)
 
 	stream_status = []
 
@@ -626,7 +627,7 @@ def watch(channel_input, argument):
 	total_streams_digits = len(str(len(stream_status)))
 	for display_number, i in enumerate(stream_status):
 		try:
-			display_name_game = dbase.execute("SELECT AltName FROM games WHERE Name = '%s'" % i[1]).fetchone()[0]
+			display_name_game = database.execute("SELECT AltName FROM games WHERE Name = '%s'" % i[1]).fetchone()[0]
 			if display_name_game is None:
 				raise
 		except:
@@ -719,7 +720,7 @@ class Playtime:
 		self.start_time = time()
 
 		""" Add game name to database after it's been started at least once """
-		does_it_exist = dbase.execute("SELECT Name FROM games WHERE Name = '%s'" % self.game_name).fetchone()
+		does_it_exist = database.execute("SELECT Name FROM games WHERE Name = '%s'" % self.game_name).fetchone()
 		if does_it_exist is None:
 			database.execute("INSERT INTO games (Name,Timewatched,AltName) VALUES ('%s',0,NULL)" % self.game_name)
 
@@ -750,31 +751,30 @@ class Playtime:
 		time_watched = int(end_time - self.start_time)
 
 		database = sqlite3.connect(database_path)
-		dbase = database.cursor()
 
 		""" Set name for VODs to enable time tracking """
 		if self.channel_name_if_vod is not None:
 			self.final_selection = self.channel_name_if_vod
 
 		""" Update time watched for a channel that exists in the database (avoids exceptions due to -w) """
-		channel_record = dbase.execute("SELECT Name,TimeWatched FROM channels WHERE Name = '%s'" % self.final_selection).fetchone()
+		channel_record = database.execute("SELECT Name,TimeWatched FROM channels WHERE Name = '%s'" % self.final_selection).fetchone()
 		final_name = None
 		if channel_record is not None:
 			total_time_watched = channel_record[1] + time_watched
 			database.execute("UPDATE channels set TimeWatched = '{0}' WHERE Name = '{1}'".format(total_time_watched, self.final_selection))
 
-			all_seen = dbase.execute("SELECT TimeWatched,Name FROM channels WHERE TimeWatched > 0").fetchall()
+			all_seen = database.execute("SELECT TimeWatched,Name FROM channels WHERE TimeWatched > 0").fetchall()
 			all_seen.sort(reverse=True)
 			names_only = [el[1] for el in all_seen]
 			rank = str(names_only.index(self.final_selection) + 1)
 			final_name = Colors.WHITE + self.display_name + Colors.ENDC + ': ' + time_convert(total_time_watched) + ' (' + rank + ')'
 
 		""" Update time watched for game. All game names will already be in the database. """
-		game_details = dbase.execute("SELECT TimeWatched,Name,AltName FROM games WHERE Name = '%s'" % self.game_name).fetchone()
+		game_details = database.execute("SELECT TimeWatched,Name,AltName FROM games WHERE Name = '%s'" % self.game_name).fetchone()
 		total_time_watched = game_details[0] + time_watched
 		database.execute("UPDATE games set TimeWatched = '{0}' WHERE Name = '{1}'".format(total_time_watched, self.game_name))
 
-		all_seen = dbase.execute("SELECT TimeWatched,Name FROM games WHERE TimeWatched > 0").fetchall()
+		all_seen = database.execute("SELECT TimeWatched,Name FROM games WHERE TimeWatched > 0").fetchall()
 		all_seen.sort(reverse=True)
 		names_only = [el[1] for el in all_seen]
 		rank = str(names_only.index(self.game_name) + 1)
@@ -790,7 +790,6 @@ class Playtime:
 			print(' ' + final_name + ' | ' + final_game)
 
 		database.execute("DELETE FROM miscellaneous WHERE Name = '{0}'".format(self.display_name))
-		database.execute("VACUUM")
 		database.commit()
 
 
@@ -835,7 +834,6 @@ def playtime_instances(final_selection):
 					print(' ' + Colors.RED + playtime_instance[k].display_name + Colors.ENDC + ' (' + error_message[0] + ')')
 					# print(' ' + Colors.RED + playtime_instance[k].display_name + Colors.ENDC + ' (' + ' '.join(playtime_instance[k].args_to_subprocess) + ')')
 					database.execute("DELETE FROM miscellaneous WHERE Name = '{0}'".format(playtime_instance[k].display_name))
-					database.execute("VACUUM")
 					database.commit()
 				else:
 					playtime_instance[k].time_tracking()
@@ -893,9 +891,8 @@ def firefly_needed_another_6_seasons(at_least):
 		exit()
 
 	database = sqlite3.connect(database_path)
-	dbase = database.cursor()
 
-	play_status = dbase.execute("SELECT Name,Value FROM miscellaneous").fetchall()
+	play_status = database.execute("SELECT Name,Value FROM miscellaneous").fetchall()
 	number_playing = len(play_status)
 	if number_playing == 0:
 		exit(1)
@@ -926,7 +923,6 @@ def thatsallfolks():
 	if Options.conky_run is False:
 		try:
 			database.execute("DELETE FROM miscellaneous")
-			database.execute("VACUUM")
 			database.commit()
 			database.close()
 		except:
