@@ -1,7 +1,7 @@
 # twitchy
-livestreamer wrapper for twitch.tv
+livestreamer / streamlink wrapper for twitch.tv
 
-**Requires livestreamer, python3**
+**Requires livestreamer (or streamlink), python3**
 
 This script hopefully fulfills the needs of the discerning git cloner who wants to watch Twitch, hates the CPU utilization of having a browser/flash running, and has only a terminal handy.
 
