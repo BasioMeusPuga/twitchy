@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer, requests
-# rev = 52
+# rev = 53
+# TODO: Custom column display, allow sorting by custom said columns
 
 
 import sys
@@ -14,16 +15,16 @@ import requests
 import argparse
 import webbrowser
 import subprocess
+import configparser
 
 from time import time, sleep, strftime
 from shutil import which, get_terminal_size
 from random import randrange
-from ast import literal_eval
 from os import remove
 from os.path import expanduser, exists, realpath, dirname
 
 
-# Color code declaration
+# Color code declaration for initial configuration and Options
 class Colors:
 	CYAN = '\033[96m'
 	YELLOW = '\033[93m'
@@ -33,8 +34,18 @@ class Colors:
 	ENDC = '\033[0m'
 
 
-# Options
-def configure_options(special_occasion):
+# Create database
+def create_database(database_path):
+	database = sqlite3.connect(database_path)
+
+	database.execute("CREATE TABLE channels (id INTEGER PRIMARY KEY, Name TEXT, TimeWatched INTEGER, AltName TEXT)")
+	database.execute("CREATE TABLE games (id INTEGER PRIMARY KEY, Name TEXT, TimeWatched INTEGER, AltName TEXT)")
+	database.execute("CREATE TABLE miscellaneous (id INTEGER PRIMARY KEY, Name TEXT, Value TEXT)")
+
+
+# Option configuration using something that vaguely resembles a wizard
+# Options are saved to ~/.twitchy.cfg by default. There are MANY more options over there
+def configure_options():
 	try:
 		print(Colors.CYAN + ' Configure:' + Colors.ENDC)
 
@@ -62,21 +73,21 @@ def configure_options(special_occasion):
 
 		truncate_status_at = input(' Truncate stream status at [AUTO]: ')
 		if truncate_status_at == '':
-			truncate_status_at = 'Auto'
+			truncate_status_at = 0
 		else:
 			truncate_status_at = int(truncate_status_at)
 
-		""" The number of favorites displayed no longer includes offline channels.
-		i.e. setting this value to n will display - in descending order of time watched,
-		the first n ONLINE channels in the database """
+		# The number of favorites displayed does not include offline channels.
+		# i.e. setting this value to n will display - in descending order of time watched,
+		# the first n ONLINE channels in the database
 		number_of_faves_displayed = input(' Number of favorites to display [5]: ')
 		if number_of_faves_displayed == '':
 			number_of_faves_displayed = 5
 		else:
 			number_of_faves_displayed = int(number_of_faves_displayed)
 
-		chat_for_MT = input(' Display chat for multiple Twitch streams [y/N]: ')
-		if chat_for_MT == '' or chat_for_MT == 'N' or chat_for_MT == 'n' or chat_for_MT == 'no':
+		chat_for_mt = input(' Display chat for multiple Twitch streams [y/N]: ')
+		if chat_for_mt == '' or chat_for_mt == 'N' or chat_for_mt == 'n' or chat_for_mt == 'no':
 			display_chat_for_multiple_twitch_streams = False
 		else:
 			display_chat_for_multiple_twitch_streams = True
@@ -88,13 +99,14 @@ def configure_options(special_occasion):
 			check_interval = int(check_int)
 
 		print('\n' + Colors.CYAN + ' Current Settings:' + Colors.ENDC)
-		penultimate_check = """ Backend: {6}
- Media Player: {0}
- Default Quality: {1}
- Truncate status at: {2}
- Number of faves: {3}
- Display chat for multiple streams: {4}
- Check interval: {5}""".format(Colors.YELLOW + player + Colors.ENDC,
+		penultimate_check =  (' Backend: {6}\n'
+							  ' Media Player: {0}\n'
+							  ' Default Quality: {1}\n'
+							  ' Truncate status at: {2}\n'
+							  ' Number of faves: {3}\n'
+							  ' Display chat for multiple streams: {4}\n'
+							  ' Check interval: {5}').format(
+								Colors.YELLOW + player + Colors.ENDC,
 								Colors.YELLOW + default_quality + Colors.ENDC,
 								Colors.YELLOW + str(truncate_status_at) + Colors.ENDC,
 								Colors.YELLOW + str(number_of_faves_displayed) + Colors.ENDC,
@@ -106,90 +118,212 @@ def configure_options(special_occasion):
 
 		do_we_like = input(' Does this look correct to you? [Y/n]: ')
 		if do_we_like == 'Y' or do_we_like == 'yes' or do_we_like == 'y' or do_we_like == '':
-			options_to_insert = [
-						['player', player],
-						['mpv_hardware_acceleration', mpv_hardware_acceleration],
-						['default_quality', default_quality],
-						['truncate_status_at', truncate_status_at],
-						['number_of_faves_displayed', number_of_faves_displayed],
-						['display_chat_for_multiple_twitch_streams', display_chat_for_multiple_twitch_streams],
-						['check_interval', check_interval],
-						['backend', backend]]
+			options_to_insert = [player,
+								 mpv_hardware_acceleration,
+								 default_quality,
+								 truncate_status_at,
+								 number_of_faves_displayed,
+								 display_chat_for_multiple_twitch_streams,
+								 check_interval,
+								 backend]
 
-			database = sqlite3.connect(database_path)
-			if special_occasion == 'FirstRun':
-				database.execute("CREATE TABLE channels (id INTEGER PRIMARY KEY, Name TEXT, TimeWatched INTEGER, AltName TEXT)")
-				database.execute("CREATE TABLE games (id INTEGER PRIMARY KEY, Name TEXT, TimeWatched INTEGER, AltName TEXT)")
-				database.execute("CREATE TABLE miscellaneous (id INTEGER PRIMARY KEY, Name TEXT, Value TEXT)")
-				database.execute("CREATE TABLE options (id INTEGER PRIMARY KEY, Name TEXT, Value TEXT)")
+			write_to_config_file(options_to_insert)
 
-			elif special_occasion == 'TheDudeAbides':
-				database.execute("DELETE FROM options")
-
-			for i in options_to_insert:
-				database.execute("INSERT INTO options (Name,Value) VALUES ('{0}','{1}')".format(i[0], str(i[1])))
-			database.commit()
 		else:
 			raise
-	except:
+	except KeyboardInterrupt:
 		final_decision = input(Colors.RED + ' Do you wish to restart? [y/N]: ' + Colors.ENDC)
 		if final_decision == 'Y' or final_decision == 'yes' or final_decision == 'y':
 			print()
-			configure_options(special_occasion)
+			configure_options()
 		else:
 			exit()
 
 
-# Stuff that isn't options. Or optional. Lel.
-""" Check for requirements """
+def write_to_config_file(options_from_wizard):
+	player = options_from_wizard[0]
+	mpv_hardware_acceleration = options_from_wizard[1]
+	default_quality = options_from_wizard[2]
+	truncate_status_at = options_from_wizard[3]
+	number_of_faves_displayed = options_from_wizard[4]
+	display_chat_for_multiple_twitch_streams = options_from_wizard[5]
+	check_interval = options_from_wizard[6]
+	backend = options_from_wizard[7]
+
+	config_string = ('# Twitchy configuration file\n'
+					 '\n'
+					 '[VIDEO]\n'
+					 '# Valid options are: streamlink, livestreamer\n'
+					 'Backend = {7}\n'
+					 'Player = {0}\n'
+					 '# This is only valid if using mpv. VAAPI is only supported on Linux.\n'
+					 'MPVHardwareAcceleration = {1}\n'
+					 '# Valid options are: low, mid, high, source\n'
+					 'DefaultQuality = {2}\n'
+					 '\n'
+					 '\n'
+					 '[DISPLAY]\n'
+					 '# Valid Options are: ChannelName, Viewers, Uptime, GameName\n'
+					 'SortBy = GameName\n'
+					 '# Show game name separately only if display is sorted by GameName\n'
+					 'GameName = True\n'
+					 'ColumnNames = False\n'
+					 '# Set to 0 for auto truncation. Any other positive integer for manual control\n'
+					 'TruncateStatus = {3}\n'
+					 'NumberOfFaves = {4}\n'
+					 'CheckInterval = {6}\n'
+					 '\n'
+					 '\n'
+					 '[COLUMNS]\n'
+					 '# Valid options are: ChannelName, Viewers, Uptime, StreamStatus, GameName\n'
+					 'Column1 = ChannelName\n'
+					 'Column2 = Viewers\n'
+					 'Column3 = StreamStatus\n'
+					 '\n'
+					 '\n'
+					 '[COLORS]\n'
+					 '# Valid colors are: black, gray, white and dark(red, green, yellow, blue, magenta, cyan)\n'
+					 'Numbers = yellow\n'
+					 'GameName = cyan\n'
+					 'Column1 = green\n'
+					 'Column2 = green\n'
+					 'Column3 = green\n'
+					 '\n'
+					 '\n'
+					 '[CHAT]\n'
+					 'Enable = True\n'
+					 'EnableForMultiTwitch = {5}\n'.format(player,
+								 mpv_hardware_acceleration,
+								 default_quality,
+								 truncate_status_at,
+								 number_of_faves_displayed,
+								 display_chat_for_multiple_twitch_streams,
+								 check_interval,
+								 backend))
+
+	with open(config_path, 'w') as config_file:
+		config_file.write(config_string)
+		print()
+		print(Colors.CYAN + ' Options written to ~/.twitchy.cfg. Please read for additional settings.' + Colors.ENDC)
+
+
+# Check for requirements
 if which('livestreamer') is None and which('streamlink') is None:
 	print(Colors.RED + ' livestreamer / streamlink' + Colors.ENDC + ' not installed. FeelsBadMan.')
 	exit()
 
-""" Existential doubts go here """
+# Create the database and config files in case they don't exist
 database_path = expanduser('~') + '/.twitchy.db'
 if not exists(database_path):
-	print(Colors.CYAN + ' First run. Creating db and running configure.' + Colors.ENDC)
-	configure_options('FirstRun')
+	print(Colors.CYAN + ' Creating database: Add channels with -a or -s' + Colors.ENDC)
+	create_database(database_path)
 	exit()
 database = sqlite3.connect(database_path)
 
-""" Set locale for comma placement """
+config_path = expanduser('~') + '/.twitchy.cfg'
+if not exists(config_path):
+	print(Colors.CYAN + ' Config file not found. Running --configure' + Colors.ENDC)
+	configure_options()
+	exit()
+
+# Set locale for comma placement
 locale.setlocale(locale.LC_ALL, '')
 
 
 # The classy choice
 class Options:
 	try:
-		options_from_database = database.execute("SELECT Value FROM options").fetchall()
-		""" Database options scheme:
-		0: player
-		1: mpv_hardware_acceleration
-		2: default_quality
-		3: truncate_status_at
-		4: number_of_faves_displayed
-		5: display_chat_for_multiple_twitch_streams
-		6: check_interval
-		7: backend """
 
-		player = options_from_database[0][0]
-		mpv_hardware_acceleration = literal_eval(options_from_database[1][0])
-		if player == 'mpv' and mpv_hardware_acceleration is True:
+		# Get options from the config file
+		# The only things we want in all the following cases are the values in the dictionary
+		config = configparser.ConfigParser()
+		config.read(config_path)
+
+		# Video options
+		video_section = config['VIDEO']
+
+		backend = video_section.get('Backend', 'streamlink')
+		if backend not in ['streamlink', 'livestreamer']:
+			raise
+
+		player = video_section.get('Player', 'mpv')
+		hw_accel = video_section.getboolean('MPVHardwareAcceleration', False)
+		if player == 'mpv' and hw_accel is True:
 			player_final = 'mpv --hwdec=vaapi --vo=vaapi --cache 8192'
 		else:
 			player_final = 'mpv --cache 8192'
 
-		default_quality = options_from_database[2][0]
-		truncate_status_at = options_from_database[3][0]
-		number_of_faves_displayed = int(options_from_database[4][0])
-		display_chat_for_multiple_twitch_streams = literal_eval(options_from_database[5][0])
-		check_interval = int(options_from_database[6][0])
-		backend = options_from_database[7][0]
+		default_quality = video_section.get('DefaultQuality', 'high')
+		if default_quality not in ['low', 'medium', 'high', 'source']:
+			default_quality = high
 
-		""" Run time option """
+		video = dict(backend = backend,
+					 default_quality = default_quality,
+					 player_final = player_final)
+
+		# Display options
+		display_section = config['DISPLAY']
+		display = dict(sort_by = display_section.get('SortBy', 'GameName'),
+					   game_name = display_section.getboolean('GameName', True),
+					   column_names = display_section.getboolean('ColumnNames', False),
+					   truncate_status = display_section.getint('TruncateStatus', 0),
+					   faves_displayed = display_section.getint('NumberOfFaves', 10),
+					   check_interval = display_section.getint('CheckInterval', 60))
+
+		# Which columns to display
+		columns_section = config['COLUMNS']
+		columns = dict(column1 = columns_section.get('Column1', 'ChannelName'),
+					   column2 = columns_section.get('Column2', 'Viewers'),
+					   column3 = columns_section.get('Column3', 'StreamStatus'))
+
+		# How to color everything
+		colors_section = config['COLORS']
+		numbers = colors_section.get('Numbers', 'yellow')
+		game_name = colors_section.get('GameName', 'cyan')
+		column1 = colors_section.get('Column1', 'green')
+		column2 = colors_section.get('Column2', 'green')
+		column3 = colors_section.get('Column3', 'green')
+
+		# Generate escape codes per color
+		escape_codes = {
+			'black': '\033[30m',
+			'darkgray': '\033[90m',
+			'darkred': '\033[31m',
+			'red': '\033[91m',
+			'darkgreen': '\033[32m',
+			'green': '\033[92m',
+			'darkyellow': '\033[33m',
+			'yellow': '\033[93m',
+			'darkblue': '\033[34m',
+			'blue': '\033[94m',
+			'darkmagenta': '\033[35m',
+			'magenta': '\033[95m',
+			'darkcyan': '\033[36m',
+			'cyan': '\033[96m',
+			'gray': '\033[37m',
+			'white': '\033[97m',
+			'end': '\033[0m'}
+
+		try:
+			colors = dict(numbers = escape_codes[numbers],
+						  game_name = escape_codes[game_name],
+						  column1 = escape_codes[column1],
+						  column2 = escape_codes[column2],
+						  column3 = escape_codes[column3])
+		except KeyError:
+			print(Colors.RED + ' You know it\'s possible you don\'t know how to spell the names of colors.' + Colors.ENDC)
+			raise
+
+		# When do we want to display chat
+		chat_section = config['CHAT']
+		chat = dict(enable = chat_section.getboolean('Enable', True),
+					for_multi_twitch = chat_section.getboolean('EnableForMultiTwitch', False))
+
+		# Required only at runtime in case values for a conky instance are needed
 		conky_run = False
 
-		""" Map to alternate quality settings """
+		# Map to the new alternate quality settings that Twitch has introduced
+		# This adds a little time to the initial start but saves on a lot of confusion and errors
 		alternate_quality = {
 			'low': '360p',
 			'medium': '480p',
@@ -198,7 +332,7 @@ class Options:
 
 	except:
 		print(Colors.RED + ' Error getting options. Running --configure:' + Colors.ENDC)
-		configure_options('TheDudeAbides')
+		configure_options()
 		exit()
 
 
@@ -218,7 +352,7 @@ def api_request(url):
 def template_mapping(called_from):
 
 	third_column = 20
-	""" Preceding specification is mostly pointless as long as it's non zero """
+	# Preceding specification is mostly pointless as long as it's non zero
 
 	if called_from == 'list':
 		first_column = 25
@@ -366,10 +500,12 @@ def read_modify_deletefrom_database(channel_input, whatireallywant_ireallyreally
 				template = template_mapping('gameslist')
 
 			if i[1] == 0:
-				print(' ' + Colors.YELLOW + str(display_number).rjust(total_streams_digits) + Colors.ENDC + ' ' + template.format(i[0], Colors.CYAN + str(i[2]) + Colors.RED, '  Unwatched' + Colors.ENDC))
+				print(' ' + Options.colors['numbers'] + str(display_number).rjust(total_streams_digits) + Colors.ENDC + ' '
+					  + template.format(i[0],Colors.CYAN + str(i[2]) + Colors.RED, '  Unwatched' + Colors.ENDC))
 			else:
 				time_watched = time_convert(i[1]).rjust(11)
-				print(' ' + Colors.YELLOW + str(display_number).rjust(total_streams_digits) + Colors.ENDC + ' ' + template.format(i[0], Colors.CYAN + str(i[2]) + Colors.ENDC, time_watched))
+				print(' ' + Options.colors['numbers'] + str(display_number).rjust(total_streams_digits) + Colors.ENDC + ' '
+					  + template.format(i[0], Colors.CYAN + str(i[2]) + Colors.ENDC, time_watched))
 		else:
 			if table_wanted == 'channels':
 				template = template_mapping('listnocolor')
@@ -377,17 +513,19 @@ def read_modify_deletefrom_database(channel_input, whatireallywant_ireallyreally
 				template = template_mapping('gameslistnocolor')
 
 			if i[1] == 0:
-				print(' ' + Colors.YELLOW + str(display_number).rjust(total_streams_digits) + Colors.RED + ' ' + template.format(i[0], str(i[2]), '  Unwatched') + Colors.ENDC)
+				print(' ' + Options.colors['numbers'] + str(display_number).rjust(total_streams_digits) + Colors.RED + ' '
+					  + template.format(i[0], str(i[2]), '  Unwatched') + Colors.ENDC)
 			else:
 				time_watched = time_convert(i[1]).rjust(11)
-				print(' ' + Colors.YELLOW + str(display_number).rjust(total_streams_digits) + Colors.ENDC + ' ' + template.format(i[0], str(i[2]), time_watched))
+				print(' ' + Options.colors['numbers'] + str(display_number).rjust(total_streams_digits) + Colors.ENDC + ' '
+					  + template.format(i[0], str(i[2]), time_watched))
 		display_number += 1
 
 	final_selection = input(' Stream / Channel number(s)? ')
 
 	if argument == 'd':
 		try:
-			print(' ' + Colors.YELLOW + 'Deleted from database:' + Colors.ENDC)
+			print(' ' + Options.colors['numbers'] + 'Deleted from database:' + Colors.ENDC)
 			entered_numbers = [int(i) for i in final_selection.split()]
 			for j in entered_numbers:
 				print(' ' + relevant_list[j - 1][0])
@@ -420,7 +558,7 @@ def read_modify_deletefrom_database(channel_input, whatireallywant_ireallyreally
 
 		if len(watch_list) == 0:
 			exit()
-		print(' ' + Colors.YELLOW + 'Now monitoring:' + Colors.ENDC)
+		print(' ' + Options.colors['numbers'] + 'Now monitoring:' + Colors.ENDC)
 		watch_list = list(set(watch_list))
 		watch_list.sort()
 		print(Colors.WHITE + ' ' + ', '.join(watch_list) + Colors.ENDC)
@@ -429,7 +567,7 @@ def read_modify_deletefrom_database(channel_input, whatireallywant_ireallyreally
 
 # Watches channels into the night. Like a silent protector.
 def vigilo_confido(monitor_deez):
-	player = Options.player_final
+	player = Options.video['player_final']
 
 	channel_list_conky = ", ".join(monitor_deez)
 	database.execute("INSERT INTO miscellaneous (Name,Value) VALUES ('%s','%s')" % ('BellatorInMachina', channel_list_conky))
@@ -447,7 +585,7 @@ def vigilo_confido(monitor_deez):
 			monitor_deez.remove(channel_name)
 
 			channel_list_conky = ", ".join(monitor_deez)
-			database.execute("UPDATE miscellaneous set Value = '%s' WHERE Name = 'BellatorInMachina'" % (channel_list_conky))
+			database.execute("UPDATE miscellaneous set Value = '%s' WHERE Name = 'BellatorInMachina'" % channel_list_conky)
 			database.commit()
 
 			if len(channel_list_conky) > 0:
@@ -474,7 +612,7 @@ def vigilo_confido(monitor_deez):
 			subprocess.run(args_to_subprocess, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 		if len(monitor_deez) > 0:
-			sleep(Options.check_interval)
+			sleep(Options.display['check_interval'])
 
 
 # Much VOD such wow
@@ -504,7 +642,7 @@ def vod_watch(channel_input):
 	except:
 		display_name = stream_data['videos'][0]['channel']['display_name']
 
-	""" Default to source quality in case the channel is not a Twitch partner """
+	# Default to source quality in case the channel is not a Twitch partner
 	stream_data_partner = api_request('https://api.twitch.tv/kraken/channels/' + channel_input)
 
 	ispartner = stream_data_partner['partner']
@@ -512,15 +650,15 @@ def vod_watch(channel_input):
 		default_quality = 'source'
 		display_name_show = display_name + '*'
 	else:
-		default_quality = Options.default_quality
+		default_quality = Options.video['default_quality']
 		display_name_show = display_name
 
 	if broadcast_string == '':
 		limit_string = '?limit=' + totalvids
-		print(' Highlights for ' + Colors.YELLOW + display_name_show + Colors.ENDC + ':')
+		print(' Highlights for ' + Options.colors['numbers'] + display_name_show + Colors.ENDC + ':')
 	else:
 		limit_string = '&limit=' + totalvids
-		print(' Past broadcasts for ' + Colors.YELLOW + display_name_show + Colors.ENDC + ':')
+		print(' Past broadcasts for ' + Options.colors['numbers'] + display_name_show + Colors.ENDC + ':')
 
 	stream_data = api_request('https://api.twitch.tv/kraken/channels/{0}/videos{1}{2}'.format(channel_input, broadcast_string, limit_string))
 
@@ -533,9 +671,11 @@ def vod_watch(channel_input):
 		if len(video_title) > 55:
 			video_title = i['title'][:55] + '...'
 		if i_wanna_see == 'b':
-			print(' ' + Colors.YELLOW + str(display_number + 1).rjust(total_streams_digits) + Colors.ENDC + ' ' + template.format(i['game'], video_title, creation_time))
+			print(' ' + Options.colors['numbers'] + str(display_number + 1).rjust(total_streams_digits) + Colors.ENDC + ' '
+				  + template.format(i['game'], video_title, creation_time))
 		else:
-			print(' ' + Colors.YELLOW + str(display_number + 1).rjust(total_streams_digits) + Colors.ENDC + ' ' + template.format(video_title, creation_time, ''))
+			print(' ' + Options.colors['numbers'] + str(display_number + 1).rjust(total_streams_digits) + Colors.ENDC + ' '
+				  + template.format(video_title, creation_time, ''))
 		vod_links.append([i['url'], i['game'], video_title])
 
 	vod_select = int(input(' VOD number: '))
@@ -566,16 +706,17 @@ def watch(channel_input, argument):
 	elif argument == 'f':
 		status_check_required = database.execute("SELECT Name,AltName,TimeWatched FROM channels WHERE TimeWatched > 0").fetchall()
 	elif argument == 'search':
-		status_check_required = database.execute("SELECT Name,AltName FROM channels WHERE Name LIKE '{0}' or AltName LIKE '{1}'".format(('%' + channel_input + '%'), ('%' + channel_input + '%'))).fetchall()
+		status_check_required = database.execute("SELECT Name,AltName FROM channels WHERE Name LIKE '{0}' or AltName LIKE '{1}'".format(
+			('%' + channel_input + '%'), ('%' + channel_input + '%'))).fetchall()
 
 	if argument[:5] != 'conky':
-		print(' ' + Colors.YELLOW + 'Checking {0} channel(s)...'.format(len(status_check_required)) + Colors.ENDC)
+		print(' ' + Options.colors['numbers'] + 'Checking {0} channel(s)...'.format(len(status_check_required)) + Colors.ENDC)
 
 	stream_status = []
 
 	def get_status(status_check_required):
-		""" Queries to the Twitch API are limited to 100 results at a time
-		Hence the dwindling """
+		# Queries to the Twitch API are limited to 100 results at a time
+		# Hence the dwindling
 		dwindler = [names[0] for names in status_check_required]
 		while len(dwindler) > 0:
 			try:
@@ -593,10 +734,10 @@ def watch(channel_input, argument):
 				channel_name = stream_data['streams'][i]['channel']['name']
 				game_name_formatted = str(stream_data['streams'][i]['channel']['game']).replace('\'', '')
 
-				if Options.truncate_status_at == 'Auto':
+				if Options.display['truncate_status'] == 0:
 					truncate_status_at = get_terminal_size().columns - 44
 				else:
-					truncate_status_at = int(Options.truncate_status_at)
+					truncate_status_at = int(Options.display['truncate_status'])
 				status_message = str(stream_data['streams'][i]['channel']['status'])
 				if len(status_message) > truncate_status_at:
 					status_message = status_message[0:truncate_status_at - 3] + '...'
@@ -609,7 +750,13 @@ def watch(channel_input, argument):
 				if argument == 'f':
 					timewatched = [v[2] for i, v in enumerate(status_check_required) if v[0] == channel_name][0]
 
-				stream_status.append([channel_name, game_name_formatted, status_message, stream_data['streams'][i]['viewers'], alt_name, stream_data['streams'][i]['channel']['partner'], timewatched])
+				stream_status.append([
+					channel_name,
+					game_name_formatted,
+					status_message,
+					stream_data['streams'][i]['viewers'],
+					alt_name, stream_data['streams'][i]['channel']['partner'],
+					timewatched])
 				""" List Scheme
 				0: Channel name
 				1: Game name
@@ -621,26 +768,26 @@ def watch(channel_input, argument):
 
 	get_status(status_check_required)
 
-	""" Return online channels for conky
-	Terminate the watch() function """
+	# Return online channels for conky
+	# Terminate the watch() function
 	if argument[:5] == 'conky':
 		output = ''
 		for i in stream_status:
 			if argument == 'conky_go':
 				output = i[4] + ', ' + output
 			elif argument == 'conky_csv':
-				""" The omission of the space is intentional """
+				# The omission of the space is intentional
 				output = i[0] + ',' + output
 		output = output.strip()[:-1]
 		return output
 
-	""" Continuation of the standard watch() function """
+	# Continuation of the standard watch() function
 	if len(stream_status) > 0:
 		if argument == 'f':
-			""" The display list is now sorted in descending order """
+			# The display list is now sorted in descending order
 			stream_status = sorted(stream_status, key=lambda x: x[6], reverse=True)
 
-			""" Get ranks to display for -f """
+			# Get ranks to display for -f
 			all_seen = database.execute("SELECT TimeWatched,Name FROM channels WHERE TimeWatched > 0").fetchall()
 			all_seen.sort(reverse=True)
 			names_only = [el[1] for el in all_seen]
@@ -676,20 +823,29 @@ def watch(channel_input, argument):
 		3: Partner status - Boolean """
 		template = template_mapping('watch')
 
-		""" We need special formatting in case of -f """
+		# Special formatting in the case of -f
 		if argument == 'f':
-			column_3_display = Colors.CYAN + str(display_name_game) + Colors.GREEN + ' - ' + i[2]
+			column_3_display = Options.colors['game_name'] + str(display_name_game) + Options.colors['column3'] + ' - ' + i[2]
 			if len(column_3_display) + 45 >= get_terminal_size().columns:
 				column_3_display = column_3_display[0:get_terminal_size().columns - 40] + '...'
 			rank = str(names_only.index(i[0]) + 1)
-			print(' ' + Colors.YELLOW + (str(display_number + 1).rjust(total_streams_digits) + Colors.ENDC) + ' ' + (Colors.GREEN + template.format(display_name_strimmer + ' (' + rank + ')', time_convert(i[6]).rjust(11), column_3_display) + Colors.ENDC))
-			if display_number == Options.number_of_faves_displayed - 1:
+			print(' ' + Options.colors['numbers'] + (str(display_number + 1).rjust(total_streams_digits) + Colors.ENDC) + ' '
+				  + (template.format(Options.colors['column1'] + display_name_strimmer + ' (' + rank + ')',
+									 Options.colors['column2'] + time_convert(i[6]).rjust(11),
+									 column_3_display)) + Colors.ENDC)
+			if display_number == Options.display['faves_displayed'] - 1:
 				break
+
+		# This is the table the user will see under most circumstances
 		else:
 			if display_name_game not in games_shown:
-				print(' ' * total_streams_digits + Colors.CYAN + str(display_name_game) + Colors.ENDC)
+				if Options.display['game_name'] is True:
+					print(' ' * total_streams_digits + Options.colors['game_name'] + str(display_name_game) + Colors.ENDC)
 				games_shown.append(display_name_game)
-			print(' ' + Colors.YELLOW + (str(display_number + 1).rjust(total_streams_digits) + Colors.ENDC) + ' ' + (Colors.GREEN + template.format(display_name_strimmer, str(format(i[3], 'n')).rjust(8), i[2]) + Colors.ENDC))
+			print(' ' + Options.colors['numbers'] + (str(display_number + 1).rjust(total_streams_digits) + Colors.ENDC) + ' '
+				  + template.format(Options.colors['column1'] + display_name_strimmer,
+									Options.colors['column2'] + str(format(i[3], 'n')).rjust(8),
+									Options.colors['column3'] + i[2]) + Colors.ENDC)
 
 	# Parse user input
 	try:
@@ -697,7 +853,7 @@ def watch(channel_input, argument):
 
 		watch_input_final = []
 		final_selection = []
-		default_quality = Options.default_quality
+		default_quality = Options.video['default_quality']
 
 		entered_numbers = stream_select.split()
 		if not entered_numbers:
@@ -711,7 +867,11 @@ def watch(channel_input, argument):
 			ispartner = stream_final[int(j[0]) - 1][3]
 			if ispartner is True:
 				if len(j) == 1:
-					final_selection.append([stream_final[int(j[0]) - 1][0], default_quality, stream_final[int(j[0]) - 1][2], stream_final[int(j[0]) - 1][1], None])
+					final_selection.append([stream_final[int(j[0]) - 1][0],
+											default_quality,
+											stream_final[int(j[0]) - 1][2],
+											stream_final[int(j[0]) - 1][1],
+											None])
 				else:
 					if j[1] == 'l':
 						custom_quality = 'low'
@@ -723,9 +883,17 @@ def watch(channel_input, argument):
 						custom_quality = 'source'
 					else:
 						custom_quality = default_quality
-					final_selection.append([stream_final[int(j[0]) - 1][0], custom_quality, stream_final[int(j[0]) - 1][2], stream_final[int(j[0]) - 1][1], None])
+					final_selection.append([stream_final[int(j[0]) - 1][0],
+											custom_quality,
+											stream_final[int(j[0]) - 1][2],
+											stream_final[int(j[0]) - 1][1],
+											None])
 			elif ispartner is False:
-					final_selection.append([stream_final[int(j[0]) - 1][0], 'source', stream_final[int(j[0]) - 1][2], stream_final[int(j[0]) - 1][1], None])
+					final_selection.append([stream_final[int(j[0]) - 1][0],
+											'source',
+											stream_final[int(j[0]) - 1][2],
+											stream_final[int(j[0]) - 1][1],
+											None])
 
 		playtime_instances(final_selection)
 	except (IndexError, ValueError):
@@ -751,16 +919,17 @@ class Playtime:
 	def play(self):
 		self.start_time = time()
 
-		""" Add game name to database after it's been started at least once """
+		# Add game name to database after it's been started at least once
 		does_it_exist = database.execute("SELECT Name FROM games WHERE Name = '%s'" % self.game_name).fetchone()
 		if does_it_exist is None:
 			database.execute("INSERT INTO games (Name,Timewatched,AltName) VALUES ('%s',0,NULL)" % self.game_name)
 
-		""" For conky output - Populate the miscellaneous table with the display name and start time """
+		# For conky output - Populate the miscellaneous table with the display name and start time
 		database.execute("INSERT INTO miscellaneous (Name,Value) VALUES ('%s','%s')" % (self.display_name, self.start_time))
 		database.commit()
 
-		if self.show_chat is True:
+		# It is now possible to override chat window display even for a single streamer
+		if self.show_chat is True and Options.chat['enable'] is True:
 			try:
 				webbrowser.get('chromium').open_new('--app=http://www.twitch.tv/%s/chat?popout=' % self.final_selection)
 			except webbrowser.Error:
@@ -768,24 +937,24 @@ class Playtime:
 
 		if self.channel_name_if_vod is None:
 			print(' ' + Colors.WHITE + self.display_name + Colors.ENDC + ' | ' + Colors.WHITE + self.stream_quality.title() + Colors.ENDC)
-			player_final = Options.player_final + ' --title ' + self.display_name.replace(' ', '')
+			player_final = Options.video['player_final'] + ' --title ' + self.display_name.replace(' ', '')
 
 			self.args_to_subprocess = "{3} twitch.tv/'{0}' '{1}' --player '{2}' --hls-segment-threads 3 --http-header Client-ID=guulhcvqo9djhuyhb2vi56wqnglc351".format(
-				self.final_selection, self.stream_quality, player_final, Options.backend)
+				self.final_selection, self.stream_quality, player_final, Options.video['backend'])
 
 			# Alternate quality in case the default one errors out
 			self.args_to_subprocess_alternate = "{3} twitch.tv/'{0}' '{1}' --player '{2}' --hls-segment-threads 3 --http-header Client-ID=guulhcvqo9djhuyhb2vi56wqnglc351".format(
-				self.final_selection, self.stream_quality_alternate, player_final, Options.backend)
+				self.final_selection, self.stream_quality_alternate, player_final, Options.video['backend'])
 		else:
 			print(' ' + Colors.WHITE + self.display_name + ': ' + self.video_title_if_vod + Colors.ENDC + ' | ' + Colors.WHITE + self.stream_quality.title() + Colors.ENDC)
-			player_final = Options.player_final + ' --title ' + self.display_name
+			player_final = Options.video['player_final'] + ' --title ' + self.display_name
 
 			self.args_to_subprocess = "{3} '{0}' '{1}' --player '{2}' --hls-segment-threads 3 --player-passthrough=hls --http-header Client-ID=guulhcvqo9djhuyhb2vi56wqnglc351".format(
-				self.final_selection, self.stream_quality, player_final, Options.backend)
+				self.final_selection, self.stream_quality, player_final, Options.video['backend'])
 
 			# Alternate quality in case the default one errors out
 			self.args_to_subprocess_alternate = "{3} '{0}' '{1}' --player '{2}' --hls-segment-threads 3 --player-passthrough=hls --http-header Client-ID=guulhcvqo9djhuyhb2vi56wqnglc351".format(
-				self.final_selection, self.stream_quality_alternate, player_final, Options.backend)
+				self.final_selection, self.stream_quality_alternate, player_final, Options.video['backend'])
 
 		self.args_to_subprocess = shlex.split(self.args_to_subprocess)
 		self.args_to_subprocess_alternate = shlex.split(self.args_to_subprocess_alternate)
@@ -799,11 +968,11 @@ class Playtime:
 
 		database = sqlite3.connect(database_path)
 
-		""" Set name for VODs to enable time tracking """
+		# Set name for VODs to enable time tracking
 		if self.channel_name_if_vod is not None:
 			self.final_selection = self.channel_name_if_vod
 
-		""" Update time watched for a channel that exists in the database (avoids exceptions due to -w) """
+		# Update time watched for a channel that exists in the database (avoids exceptions due to -w)
 		channel_record = database.execute("SELECT Name,TimeWatched FROM channels WHERE Name = '%s'" % self.final_selection).fetchone()
 		final_name = None
 		if channel_record is not None:
@@ -816,7 +985,7 @@ class Playtime:
 			rank = str(names_only.index(self.final_selection) + 1)
 			final_name = Colors.WHITE + self.display_name + Colors.ENDC + ': ' + time_convert(total_time_watched) + ' (' + rank + ')'
 
-		""" Update time watched for game. All game names will already be in the database. """
+		# Update time watched for game. All game names will already be in the database.
 		game_details = database.execute("SELECT TimeWatched,Name,AltName FROM games WHERE Name = '%s'" % self.game_name).fetchone()
 		total_time_watched = game_details[0] + time_watched
 		database.execute("UPDATE games set TimeWatched = '{0}' WHERE Name = '{1}'".format(total_time_watched, self.game_name))
@@ -853,15 +1022,13 @@ def playtime_instances(final_selection):
 	total_streams = len(final_selection)
 
 	show_chat = False
+	print(' q / Ctrl + C to quit ')
 	if total_streams == 1:
 		channel_name_if_vod = final_selection[0][4]
 		if channel_name_if_vod is None:
 			show_chat = True
-			print(' q / Ctrl + C to quit | m to identify music ')
-	elif total_streams > 1:
-		print(' q / Ctrl + C to quit ')
-		if Options.display_chat_for_multiple_twitch_streams is True:
-			show_chat = True
+	if total_streams > 1 and Options.chat['for_multi_twitch'] is True:
+		show_chat = True
 
 	print(' Now watching:')
 	for count, i in enumerate(final_selection):
@@ -872,16 +1039,16 @@ def playtime_instances(final_selection):
 	while playing_streams:
 		for k in playing_streams:
 			playtime_instance[k].livestreamer_process.poll()
-			""" returncode does nothing without polling
-			A delay in the while loop is introduced by the select method below """
+			# returncode does nothing without polling
+			# A delay in the while loop is introduced by the select method below
 			if playtime_instance[k].livestreamer_process.returncode is not None:
 				if playtime_instance[k].livestreamer_process.returncode == 1:
 					stream_error = playtime_instance[k].livestreamer_process.stdout.read().decode('utf-8').split('\n')
 					error_message = [er for er in stream_error if 'error:' in er]
 
-					""" This hack is needed because the Twitch API does not give quality settings
-					We move on to the alternate quality settings specified in the Options class
-					OR we error out. It's a good day to die. """
+					# This hack is needed because the Twitch API does not give quality settings
+					# We move on to the alternate quality settings specified in the Options class
+					# OR we error out. It's a good day to die.
 					if error_message[0][:30] == 'error: The specified stream(s)' and playtime_instance[k].alternate_quality_tried is False:
 						playtime_instance[k].livestreamer_process = subprocess.Popen(
 							playtime_instance[k].args_to_subprocess_alternate, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
@@ -900,8 +1067,6 @@ def playtime_instances(final_selection):
 				keypress_made = sys.stdin.readline().strip()
 				if keypress_made == "q":
 					raise KeyboardInterrupt
-				elif keypress_made == "m" and total_streams == 1:
-					webbrowser.open('http://www.twitchecho.com/%s' % playtime_instance[0].final_selection)
 		except KeyboardInterrupt:
 			for k in playing_streams:
 				playtime_instance[k].time_tracking()
@@ -911,7 +1076,7 @@ def playtime_instances(final_selection):
 
 # Update the script to the latest git revision
 def update_script():
-	print(' ' + Colors.YELLOW + 'Checking for update...' + Colors.ENDC)
+	print(' ' + Options.colors['numbers'] + 'Checking for update...' + Colors.ENDC)
 	script_path = realpath(__file__)
 
 	with open(script_path) as script_text:
@@ -954,10 +1119,10 @@ def firefly_needed_another_6_seasons(at_least):
 		exit(1)
 	else:
 		if play_status[0][0] == 'BellatorInMachina':
-			""" Monitor """
+			# Monitor
 			print('(M) ' + play_status[0][1])
 		else:
-			""" Any channels being watched """
+			# Any channels being watched
 			for i in play_status:
 				current_time = time()
 				start_time = float(play_status[0][1])
@@ -1002,8 +1167,8 @@ def main():
 	parser.add_argument('--reset', action='store_true', help='Start over')
 	parser.add_argument('-s', type=str, nargs=1, help='Sync username\'s followed accounts to local database', metavar='username')
 	parser.add_argument('--update', action='store_true', help='Update to git master')
-	parser.add_argument('-v', type=str, nargs=1, help='Watch VODs', metavar='')
-	parser.add_argument('-w', type=str, nargs='+', help='Watch specified channel(s)', metavar='')
+	parser.add_argument('-v', type=str, nargs=1, help='Watch VODs', metavar='<channel>')
+	parser.add_argument('-w', type=str, nargs='+', help='Watch specified channel(s)', metavar='<channel>')
 	args = parser.parse_args()
 
 	if (args.s or args.v) and args.searchfor:
@@ -1015,7 +1180,7 @@ def main():
 	elif args.an:
 		read_modify_deletefrom_database(args.an, 'CantTouchThis', 'an')
 	elif args.configure:
-		configure_options('TheDudeAbides')
+		configure_options()
 	elif args.conky:
 		firefly_needed_another_6_seasons(args.conky)
 	elif args.d:
