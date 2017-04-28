@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer, requests
-# rev = 53
-# TODO: Custom column display, allow sorting by custom said columns
+# rev = 54
 
 
 import sys
@@ -12,6 +11,7 @@ import select
 import locale
 import sqlite3
 import requests
+import datetime
 import argparse
 import webbrowser
 import subprocess
@@ -22,7 +22,6 @@ from shutil import which, get_terminal_size
 from random import randrange
 from os import remove
 from os.path import expanduser, exists, realpath, dirname
-
 
 # Color code declaration for initial configuration and Options
 class Colors:
@@ -162,23 +161,21 @@ def write_to_config_file(options_from_wizard):
 					 'DefaultQuality = {2}\n'
 					 '\n'
 					 '\n'
-					 '[DISPLAY]\n'
-					 '# Valid Options are: ChannelName, Viewers, Uptime, GameName\n'
-					 'SortBy = GameName\n'
-					 '# Show game name separately only if display is sorted by GameName\n'
-					 'GameName = True\n'
-					 'ColumnNames = False\n'
-					 '# Set to 0 for auto truncation. Any other positive integer for manual control\n'
-					 'TruncateStatus = {3}\n'
-					 'NumberOfFaves = {4}\n'
-					 'CheckInterval = {6}\n'
-					 '\n'
-					 '\n'
 					 '[COLUMNS]\n'
 					 '# Valid options are: ChannelName, Viewers, Uptime, StreamStatus, GameName\n'
 					 'Column1 = ChannelName\n'
 					 'Column2 = Viewers\n'
 					 'Column3 = StreamStatus\n'
+					 '\n'
+					 '\n'
+					 '[DISPLAY]\n'
+					 '# Valid options are: 1, 2, 3 or GameName\n'
+					 'SortBy = GameName\n'
+					 'ColumnNames = False\n'
+					 '# Set to 0 for auto truncation. Any other positive integer for manual control\n'
+					 'TruncateStatus = {3}\n'
+					 'NumberOfFaves = {4}\n'
+					 'CheckInterval = {6}\n'
 					 '\n'
 					 '\n'
 					 '[COLORS]\n'
@@ -261,20 +258,23 @@ class Options:
 					 default_quality = default_quality,
 					 player_final = player_final)
 
-		# Display options
-		display_section = config['DISPLAY']
-		display = dict(sort_by = display_section.get('SortBy', 'GameName'),
-					   game_name = display_section.getboolean('GameName', True),
-					   column_names = display_section.getboolean('ColumnNames', False),
-					   truncate_status = display_section.getint('TruncateStatus', 0),
-					   faves_displayed = display_section.getint('NumberOfFaves', 10),
-					   check_interval = display_section.getint('CheckInterval', 60))
-
 		# Which columns to display
 		columns_section = config['COLUMNS']
 		columns = dict(column1 = columns_section.get('Column1', 'ChannelName'),
 					   column2 = columns_section.get('Column2', 'Viewers'),
 					   column3 = columns_section.get('Column3', 'StreamStatus'))
+
+		# Display options
+		display_section = config['DISPLAY']
+		sort_by = display_section.get('SortBy', 'GameName')
+		if sort_by not in ['1', '2', '3', 'GameName']:
+			sort_by = GameName
+		display = dict(sort_by = sort_by,
+					   column_names = display_section.getboolean('ColumnNames', False),
+					   truncate_status = display_section.getint('TruncateStatus', 0),
+					   faves_displayed = display_section.getint('NumberOfFaves', 10),
+					   check_interval = display_section.getint('CheckInterval', 60))
+
 
 		# How to color everything
 		colors_section = config['COLORS']
@@ -378,7 +378,7 @@ def template_mapping(called_from):
 	return template
 
 
-# Convert time in seconds to a more human readable format. This doesn't mean you're human.
+# Convert time in seconds to a more human readable format,
 def time_convert(seconds):
 	seconds = int(seconds)
 	m, s = divmod(seconds, 60)
@@ -734,6 +734,13 @@ def watch(channel_input, argument):
 				channel_name = stream_data['streams'][i]['channel']['name']
 				game_name_formatted = str(stream_data['streams'][i]['channel']['game']).replace('\'', '')
 
+				# Get stream uptime by subtracting stream creation time from current UTC provided by the datetime module
+				# It's better to keep this in seconds to allow for sorting later
+				start_time = str(stream_data['streams'][i]['created_at'])
+				datetime_start_time = datetime.datetime.strptime(start_time, '%Y-%m-%dT%H:%M:%SZ')
+				stream_uptime_seconds = (datetime.datetime.utcnow() - datetime_start_time).seconds
+
+				# Generate status truncation
 				if Options.display['truncate_status'] == 0:
 					truncate_status_at = get_terminal_size().columns - 44
 				else:
@@ -746,6 +753,7 @@ def watch(channel_input, argument):
 				if alt_name is None:
 					alt_name = stream_data['streams'][i]['channel']['display_name']
 
+				# Reserved only for the -f argument - Should be 0 if not explicitly queried
 				timewatched = 0
 				if argument == 'f':
 					timewatched = [v[2] for i, v in enumerate(status_check_required) if v[0] == channel_name][0]
@@ -755,8 +763,10 @@ def watch(channel_input, argument):
 					game_name_formatted,
 					status_message,
 					stream_data['streams'][i]['viewers'],
-					alt_name, stream_data['streams'][i]['channel']['partner'],
-					timewatched])
+					alt_name,
+					stream_data['streams'][i]['channel']['partner'],
+					timewatched,
+					stream_uptime_seconds])
 				""" List Scheme
 				0: Channel name
 				1: Game name
@@ -764,9 +774,16 @@ def watch(channel_input, argument):
 				3: Viewers
 				4: Display name
 				5: Partner status - Boolean
-				6: Time Watched - Should be zero if not explicitly queried"""
+				6: Time Watched
+				7: Stream uptime in seconds"""
 
 	get_status(status_check_required)
+	# Map the stream_status list to the names of custom columns
+	custom_columns = dict(GameName=1,
+						  StreamStatus=2,
+						  Viewers=3,
+						  ChannelName=4,
+						  Uptime=7)
 
 	# Return online channels for conky
 	# Terminate the watch() function
@@ -782,6 +799,7 @@ def watch(channel_input, argument):
 		return output
 
 	# Continuation of the standard watch() function
+	# The list is sorted according to specifications in twitchy.cfg
 	if len(stream_status) > 0:
 		if argument == 'f':
 			# The display list is now sorted in descending order
@@ -792,7 +810,20 @@ def watch(channel_input, argument):
 			all_seen.sort(reverse=True)
 			names_only = [el[1] for el in all_seen]
 		else:
-			stream_status = sorted(stream_status, key=lambda x: (x[1], -x[3]))
+			if Options.display['sort_by'] == 'GameName':
+				# By default, streams are first sorted by the game name (0), and then by the number of viewers (3)
+				stream_status = sorted(stream_status, key=lambda x: (x[1], -x[3]))
+			else:
+				# If some other column is specified in twitchy.cfg, sorting happens by way of its integer value
+				sorting_column = int(Options.display['sort_by'])
+				if sorting_column == 1:
+					sorting_key = custom_columns[Options.columns['column1']]
+				elif sorting_column == 2:
+					sorting_key = custom_columns[Options.columns['column2']]
+				else:
+					sorting_key = custom_columns[Options.columns['column3']]
+				stream_status = sorted(stream_status, key=lambda x: x[sorting_key], reverse=True)
+
 	else:
 		print(Colors.RED + ' All channels offline' + Colors.ENDC)
 		exit()
@@ -803,6 +834,7 @@ def watch(channel_input, argument):
 	# Display table of online channels
 	total_streams_digits = len(str(len(stream_status)))
 	for display_number, i in enumerate(stream_status):
+
 		try:
 			display_name_game = database.execute("SELECT AltName FROM games WHERE Name = '%s'" % i[1]).fetchone()[0]
 			if display_name_game is None:
@@ -829,6 +861,7 @@ def watch(channel_input, argument):
 			if len(column_3_display) + 45 >= get_terminal_size().columns:
 				column_3_display = column_3_display[0:get_terminal_size().columns - 40] + '...'
 			rank = str(names_only.index(i[0]) + 1)
+			# TODO: Somehow the formatting got messed up. Compare with past commits.
 			print(' ' + Options.colors['numbers'] + (str(display_number + 1).rjust(total_streams_digits) + Colors.ENDC) + ' '
 				  + (template.format(Options.colors['column1'] + display_name_strimmer + ' (' + rank + ')',
 									 Options.colors['column2'] + time_convert(i[6]).rjust(11),
@@ -838,14 +871,34 @@ def watch(channel_input, argument):
 
 		# This is the table the user will see under most circumstances
 		else:
+
+			# These are only for the default display. -f is a separate entity except for the colors
+			column_display = [Options.columns['column1'],
+							  Options.columns['column2'],
+							  Options.columns['column3']]
+
+			columns_final = []
+			for column in column_display:
+				if column == 'GameName':
+					columns_final.append(display_name_game)
+				elif column == 'StreamStatus':
+					columns_final.append(i[2])
+				elif column == 'Viewers':
+					columns_final.append(str(format(i[3], 'n')))
+				elif column == 'ChannelName':
+					columns_final.append(display_name_strimmer)
+				elif column == 'Uptime':
+					columns_final.append(time_convert(i[7]))
+
 			if display_name_game not in games_shown:
-				if Options.display['game_name'] is True:
+				# Show the game name only if the list has been sorted by it
+				if Options.display['sort_by'] == 'GameName':
 					print(' ' * total_streams_digits + Options.colors['game_name'] + str(display_name_game) + Colors.ENDC)
 				games_shown.append(display_name_game)
 			print(' ' + Options.colors['numbers'] + (str(display_number + 1).rjust(total_streams_digits) + Colors.ENDC) + ' '
-				  + template.format(Options.colors['column1'] + display_name_strimmer,
-									Options.colors['column2'] + str(format(i[3], 'n')).rjust(8),
-									Options.colors['column3'] + i[2]) + Colors.ENDC)
+				  + template.format(Options.colors['column1'] + columns_final[0],
+									Options.colors['column2'] + columns_final[1].rjust(8),
+									Options.colors['column3'] + columns_final[2]) + Colors.ENDC)
 
 	# Parse user input
 	try:
