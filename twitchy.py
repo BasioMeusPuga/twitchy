@@ -20,7 +20,7 @@ import configparser
 from time import time, sleep, strftime
 from shutil import which, get_terminal_size
 from random import randrange
-from os import remove
+from os import remove, makedirs
 from os.path import expanduser, exists, realpath, dirname
 
 # Color code declaration for initial configuration and Options
@@ -131,13 +131,15 @@ def configure_options():
 		else:
 			raise
 	except KeyboardInterrupt:
-		final_decision = input(Colors.RED + ' Do you wish to restart? [y/N]: ' + Colors.ENDC)
-		if final_decision == 'Y' or final_decision == 'yes' or final_decision == 'y':
-			print()
-			configure_options()
-		else:
+		try:
+			final_decision = input(Colors.RED + ' Do you wish to restart? [y/N]: ' + Colors.ENDC)
+			if final_decision == 'Y' or final_decision == 'yes' or final_decision == 'y':
+				print()
+				configure_options()
+			else:
+				exit()
+		except KeyboardInterrupt:
 			exit()
-
 
 def write_to_config_file(options_from_wizard):
 	player = options_from_wizard[0]
@@ -201,7 +203,7 @@ def write_to_config_file(options_from_wizard):
 	with open(config_path, 'w') as config_file:
 		config_file.write(config_string)
 		print()
-		print(Colors.CYAN + ' Options written to ~/.twitchy.cfg. Please read for additional settings.' + Colors.ENDC)
+		print(Colors.CYAN + ' Options written to {}. Please read for additional settings.'.format(config_path) + Colors.ENDC)
 
 
 # Check for requirements
@@ -209,15 +211,27 @@ if which('livestreamer') is None and which('streamlink') is None:
 	print(Colors.RED + ' livestreamer / streamlink' + Colors.ENDC + ' not installed. FeelsBadMan.')
 	exit()
 
+# Both the config file and the directory are going to go in their own directory in .config
+# First we'll see if the config directory exists, if it doesn't, well, everything goes right back to $HOME
+if exists(expanduser('~') + '/.config'):
+	location_prefix = expanduser('~') + '/.config/twitchy/'
+	if not exists(location_prefix):
+		makedirs(location_prefix)
+else:
+	location_prefix = expanduser('~') + '/.'
+
+# Names of the actual files
+database_path = location_prefix + 'twitchy.db'
+config_path = location_prefix + 'twitchy.cfg'
+
 # Create the database and config files in case they don't exist
-database_path = expanduser('~') + '/.twitchy.db'
 if not exists(database_path):
 	print(Colors.CYAN + ' Creating database: Add channels with -a or -s' + Colors.ENDC)
 	create_database(database_path)
-	exit()
+	if exists(config_path):
+		exit()
 database = sqlite3.connect(database_path)
 
-config_path = expanduser('~') + '/.twitchy.cfg'
 if not exists(config_path):
 	print(Colors.CYAN + ' Config file not found. Running --configure' + Colors.ENDC)
 	configure_options()
@@ -230,7 +244,6 @@ locale.setlocale(locale.LC_ALL, '')
 # The classy choice
 class Options:
 	try:
-
 		# Get options from the config file
 		# The only things we want in all the following cases are the values in the dictionary
 		config = configparser.ConfigParser()
