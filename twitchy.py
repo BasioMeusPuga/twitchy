@@ -372,6 +372,8 @@ def template_mapping(called_from):
 
     third_column = 20
     # Preceding specification is mostly pointless as long as it's non zero
+    # If however, it exceeds the column number of the terminal, we'll get the unenviable
+    # free line breaks. That's just silly.
 
     if called_from == 'list':
         first_column = 25
@@ -388,7 +390,6 @@ def template_mapping(called_from):
     elif called_from == 'watch':
         first_column = 25
         second_column = 20
-        third_column = 100
     elif called_from == 'vods':
         first_column = 40
         second_column = 60
