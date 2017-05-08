@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Requires: python3, livestreamer, requests
-# rev = 128
+# rev = 130
 
 
 import sys
@@ -447,10 +447,10 @@ def add_to_database(channel_input, argument):
         something_added = False
         print(' ' + Colors.YELLOW + 'Additions to database:' + Colors.ENDC)
         for channel_name in final_addition_input:
-            does_it_exist = database.execute("SELECT Name FROM channels WHERE Name = '%s'" % channel_name.lower()).fetchone()
+            does_it_exist = database.execute("SELECT Name FROM channels WHERE Name = '%s'" % channel_name).fetchone()
             if does_it_exist is None:
                 something_added = True
-                database.execute("INSERT INTO channels (Name,TimeWatched) VALUES ('%s',0)" % channel_name.lower())
+                database.execute("INSERT INTO channels (Name,TimeWatched) VALUES ('%s',0)" % channel_name)
                 print(" " + channel_name)
         database.commit()
         if something_added is False:
@@ -465,7 +465,7 @@ def add_to_database(channel_input, argument):
             total_followed = stream_data['_total']
             stream_data = api_request('https://api.twitch.tv/kraken/users/%s/follows/channels?limit=%s' % (username, str(total_followed)))
             for i in range(0, total_followed):
-                final_addition_streams.append(stream_data['follows'][i]['channel']['name'].lower())
+                final_addition_streams.append(stream_data['follows'][i]['channel']['name'])
             final_addition(final_addition_streams)
         except:
             print(' ' + username + ' doesn\'t exist')
@@ -488,9 +488,9 @@ def read_modify_deletefrom_database(channel_input, whatireallywant_ireallyreally
         table_wanted = 'channels'
     else:
         table_wanted = input(' Modify (s)treamer or (g)ame name? ')
-        if table_wanted == 's':
+        if table_wanted.lower() == 's':
             table_wanted = 'channels'
-        elif table_wanted == 'g':
+        elif table_wanted.lower() == 'g':
             table_wanted = 'games'
         else:
             exit()
@@ -498,7 +498,8 @@ def read_modify_deletefrom_database(channel_input, whatireallywant_ireallyreally
     if channel_input == 'BlankForAllIntensivePurposes':
         relevant_list = database.execute("SELECT Name, TimeWatched, AltName FROM %s" % table_wanted).fetchall()
     else:
-        relevant_list = database.execute("SELECT Name, TimeWatched, AltName FROM '{0}' WHERE Name LIKE '{1}'".format(table_wanted, ('%' + channel_input + '%'))).fetchall()
+        relevant_list = database.execute("SELECT Name, TimeWatched, AltName FROM '{0}' WHERE Name LIKE '{1}' OR AltName LIKE '{1}'".format(
+            table_wanted, ('%' + channel_input + '%'))).fetchall()
 
     if len(relevant_list) == 0:
         print(Colors.RED + ' Database query returned nothing.' + Colors.ENDC)
@@ -637,7 +638,7 @@ def vigilo_confido(monitor_deez):
 
 # Much VOD such wow
 def vod_watch(channel_input):
-    channel_input = channel_input[0].lower()
+    channel_input = channel_input[0]
     i_wanna_see = input(' Watch (b)roadcasts or (h)ighlights: ')
 
     broadcast_string = ''
@@ -650,6 +651,10 @@ def vod_watch(channel_input):
         totalvids = str(stream_data['_total'])
         if int(totalvids) == 0:
             raise
+        elif int(totalvids) > 100:
+            # We're currently limiting the number of VODs displayed to the 100 most recent entries
+            # Honestly, I'm not sure if I want to take it much beyond that.
+            totalvids = '100'
     except:
         print(Colors.RED + ' Channel does not exist or No VODs found.' + Colors.ENDC)
         exit()
@@ -664,7 +669,6 @@ def vod_watch(channel_input):
 
     # Default to source quality in case the channel is not a Twitch partner
     stream_data_partner = api_request('https://api.twitch.tv/kraken/channels/' + channel_input)
-
     ispartner = stream_data_partner['partner']
     if ispartner is False:
         default_quality = 'source'
@@ -1259,32 +1263,57 @@ def main():
         parser.error('Only one argument allowed with -s and -v')
         exit()
 
+    # Relevant inputs below have been converted to lower case as per their type
     if args.a:
+        args.a = [lc_args.lower() for lc_args in args.a]
         add_to_database(args.a, 'a')
+
     elif args.an:
+        if args.an != 'BlankForAllIntensivePurposes':
+            args.an = args.an.lower()
         read_modify_deletefrom_database(args.an, 'CantTouchThis', 'an')
+
     elif args.configure:
         configure_options()
+
     elif args.conky:
         firefly_needed_another_6_seasons(args.conky)
+
     elif args.d:
+        if args.d != 'BlankForAllIntensivePurposes':
+            args.d = args.d.lower()
         read_modify_deletefrom_database(args.d, 'CantTouchThis', 'd')
+
     elif args.f:
         watch(None, 'f')
+
     elif args.n:
+        if args.n != 'BlankForAllIntensivePurposes':
+            args.n = args.n.lower()
         read_modify_deletefrom_database(args.n, 'ItsHammerTime', 'n')
+
     elif args.reset:
         nuke_it_from_orbit()
+
     elif args.s:
+        args.s = [lc_args.lower() for lc_args in args.s]
         add_to_database(args.s, 's')
+
     elif args.update:
         update_script()
+
     elif args.v:
+        args.v = [lc_args.lower() for lc_args in args.v]
         vod_watch(args.v)
+
     elif args.w:
+        args.w = [lc_args.lower() for lc_args in args.w]
         watch(args.w, 'w')
+
     elif args.searchfor:
+        args.searchfor = args.searchfor.lower()
         watch(args.searchfor, 'search')
+
     else:
         watch(None, '')
 
