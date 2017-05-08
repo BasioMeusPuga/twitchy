@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 # Requires: python3, livestreamer, requests
 # rev = 130
 
