@@ -1,18 +1,18 @@
 # twitchy
 livestreamer / streamlink wrapper for twitch.tv
 
-**Requires livestreamer (or streamlink), python3**
+**Requires streamlink (or livestreamer), python3, python-requests**
 
 This script hopefully fulfills the needs of the discerning git cloner who wants to watch Twitch, hates the CPU utilization of having a browser/flash running, and has only a terminal handy.
 
 Features:
-* Integration with your conky instance.
 * Tracking of most watched channels.
-* View VODs
+* Custom layouts: User adjustable colors and columns
+* VOD support
 * Get notified when a channel you watch comes online
-* Music identification (uses twitchecho.com)
 * Sync your followed accounts to a local sqlite database that does not judge you.
-* Stream as many... streams as you want at once.
+* Stream multiple... streams at once.
+* Integration with your conky instance.
 * The ability to display alternate names for games / streamers. If your happiness is somehow contingent upon displaying "Hearthstone: Heroes of Warcraft" as "Wizard Poker", well, you've come to the right place.
 
 ## Installation
@@ -32,24 +32,27 @@ https://aur.archlinux.org/packages/twitchy-git
     [OPTIONS]
     -h, --help                      This helpful message
     -a <channel name>               Add channel(s)
-    -an                             Set/unset alternate names
+    -an [*searchstring*]            Set/unset alternate names
     --configure                     Configure options
     --conky [ go / csvnames ]       Generate data for conky
-    -d                              Delete channel(s) from database
+    -d [*searchstring*]             Delete channel(s) from database
     -f                              Check which of your favorite channels are online
-    -n                              Notify if a channel comes online
+    -n [*searchstring*]             Notify if a channel comes online
+    --reset                         Delete everything and start over
     -s <username>                   Sync followed channels from specified account
     --update                        Update to the latest git revision
     -v <channel name>               Watch channel's recorded videos
     -w <channel name>               Watch specified channel(s)
     
+    First run:
+    Will create both the database and an editable config file in ~/.config/twitchy
+    
     While playing:
-    <m> to attempt music identification with twitchecho
-    <q> to quit
+    <q / Ctrl + C> to quit
     
     Notification settings:
     When a channel comes online, the script will play alarm.mp3 (in the same directory as itself).
-    While the path of the file is hardcoded, feel free to replace it with whatever you find (in)appropriate.
+    While the path of the file is hardcoded, feel free to replace it with whatever you find appropriate.
     
     Conky options. Execute script with:
     --conky                         Now playing
@@ -62,20 +65,21 @@ https://aur.archlinux.org/packages/twitchy-git
 Using no argument while launching the script will check the status of every channel in the local database:
 ![alt tag](https://i.imgur.com/1Id6J7G.png)
     
-Add "bobross" to local database:
+Add channels to local database:
 
-    $ twitchy -a bobross
+    $ twitchy -a bobross <channel2> <channel3> ...
+    $ twitchy -s <your twitch username>
     
 Display all strings matching *obr*:
 
     $ twitchy obr
     Checking channels...
     Creative
-    1 bobross                   80085                       The Joy of Painting Monday Season 7 Marathon #painting...
+    1 bobross                   80085                The Joy of Painting Monday Season 7 Marathon #painting...
     Sonic: Generations
-    2 mariobro                  123                         #WhereMuhPrincessAt?
+    2 mariobro                  123                  #WhereMuhPrincessAt?
     Wizard Poker                               
-    3 flatulentcobra            6969                        Playing secret Paladin. Killing a puppy later.
+    3 flatulentcobra            6969                 Playing secret Paladin. Killing a puppy later.
     Channel number(s): 1-h 2-s 3-l
 
     Custom quality settings: Specify with hyphen next to channel number.
@@ -86,7 +90,5 @@ Watch specified channel(s) - Do not have to be in local database:
     $ twitchy -w northernlion cobaltstreak
     Checking channels...
     The Binding of Isaac: Afterbirth
-    1 northernlion                5757                      Egg
-    Offline
-    x cobaltstreak
+    1 northernlion                5757               Egg
     Channel number(s): 1

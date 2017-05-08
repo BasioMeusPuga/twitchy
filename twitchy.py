@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Requires: python3, livestreamer, requests
-# rev = 130
+# rev = 133
 
 
 import sys
@@ -22,6 +22,7 @@ from shutil import which, get_terminal_size
 from random import randrange
 from os import remove, makedirs
 from os.path import expanduser, exists, realpath, dirname
+
 
 # Color code declaration for initial configuration and Options
 class Colors:
@@ -101,20 +102,20 @@ def configure_options():
             check_interval = int(check_int)
 
         print('\n' + Colors.CYAN + ' Current Settings:' + Colors.ENDC)
-        penultimate_check =  (' Backend: {6}\n'
-                              ' Media Player: {0}\n'
-                              ' Default Quality: {1}\n'
-                              ' Truncate status at: {2}\n'
-                              ' Number of faves: {3}\n'
-                              ' Display chat for multiple streams: {4}\n'
-                              ' Check interval: {5}').format(
-                                Colors.YELLOW + player + Colors.ENDC,
-                                Colors.YELLOW + default_quality + Colors.ENDC,
-                                Colors.YELLOW + str(truncate_status_at) + Colors.ENDC,
-                                Colors.YELLOW + str(number_of_faves_displayed) + Colors.ENDC,
-                                Colors.YELLOW + str(display_chat_for_multiple_twitch_streams) + Colors.ENDC,
-                                Colors.YELLOW + str(check_interval) + Colors.ENDC,
-                                Colors.YELLOW + backend + Colors.ENDC)
+        penultimate_check = (' Backend: {6}\n'
+                             ' Media Player: {0}\n'
+                             ' Default Quality: {1}\n'
+                             ' Truncate status at: {2}\n'
+                             ' Number of faves: {3}\n'
+                             ' Display chat for multiple streams: {4}\n'
+                             ' Check interval: {5}').format(
+            Colors.YELLOW + player + Colors.ENDC,
+            Colors.YELLOW + default_quality + Colors.ENDC,
+            Colors.YELLOW + str(truncate_status_at) + Colors.ENDC,
+            Colors.YELLOW + str(number_of_faves_displayed) + Colors.ENDC,
+            Colors.YELLOW + str(display_chat_for_multiple_twitch_streams) + Colors.ENDC,
+            Colors.YELLOW + str(check_interval) + Colors.ENDC,
+            Colors.YELLOW + backend + Colors.ENDC)
 
         print(penultimate_check)
 
@@ -143,6 +144,7 @@ def configure_options():
                 exit()
         except KeyboardInterrupt:
             exit()
+
 
 def write_to_config_file(options_from_wizard):
     player = options_from_wizard[0]
@@ -197,14 +199,14 @@ def write_to_config_file(options_from_wizard):
                      '[CHAT]\n'
                      'Enable = True\n'
                      'EnableForMultiTwitch = {7}\n'.format(
-                                            backend,
-                                            player,
-                                            mpv_hardware_acceleration,
-                                            default_quality,
-                                            truncate_status_at,
-                                            number_of_faves_displayed,
-                                            check_interval,
-                                            display_chat_for_multiple_twitch_streams))
+                         backend,
+                         player,
+                         mpv_hardware_acceleration,
+                         default_quality,
+                         truncate_status_at,
+                         number_of_faves_displayed,
+                         check_interval,
+                         display_chat_for_multiple_twitch_streams))
 
     with open(config_path, 'w') as config_file:
         config_file.write(config_string)
@@ -273,27 +275,26 @@ class Options:
         if default_quality not in ['low', 'medium', 'high', 'source']:
             default_quality = 'high'
 
-        video = dict(backend = backend,
-                     default_quality = default_quality,
-                     player_final = player_final)
+        video = dict(backend=backend,
+                     default_quality=default_quality,
+                     player_final=player_final)
 
         # Which columns to display
         columns_section = config['COLUMNS']
-        columns = dict(column1 = columns_section.get('Column1', 'ChannelName'),
-                       column2 = columns_section.get('Column2', 'Viewers'),
-                       column3 = columns_section.get('Column3', 'StreamStatus'))
+        columns = dict(column1=columns_section.get('Column1', 'ChannelName'),
+                       column2=columns_section.get('Column2', 'Viewers'),
+                       column3=columns_section.get('Column3', 'StreamStatus'))
 
         # Display options
         display_section = config['DISPLAY']
         sort_by = display_section.get('SortBy', 'GameName')
         if sort_by not in ['1', '2', '3', 'GameName']:
             sort_by = 'GameName'
-        display = dict(sort_by = sort_by,
-                       column_names = display_section.getboolean('ColumnNames', False),
-                       truncate_status = display_section.getint('TruncateStatus', 0),
-                       faves_displayed = display_section.getint('NumberOfFaves', 10),
-                       check_interval = display_section.getint('CheckInterval', 60))
-
+        display = dict(sort_by=sort_by,
+                       column_names=display_section.getboolean('ColumnNames', False),
+                       truncate_status=display_section.getint('TruncateStatus', 0),
+                       faves_displayed=display_section.getint('NumberOfFaves', 10),
+                       check_interval=display_section.getint('CheckInterval', 60))
 
         # How to color everything
         colors_section = config['COLORS']
@@ -324,19 +325,19 @@ class Options:
             'end': '\033[0m'}
 
         try:
-            colors = dict(numbers = escape_codes[numbers],
-                          game_name = escape_codes[game_name],
-                          column1 = escape_codes[column1],
-                          column2 = escape_codes[column2],
-                          column3 = escape_codes[column3])
+            colors = dict(numbers=escape_codes[numbers],
+                          game_name=escape_codes[game_name],
+                          column1=escape_codes[column1],
+                          column2=escape_codes[column2],
+                          column3=escape_codes[column3])
         except KeyError:
             print(Colors.RED + ' You know it\'s possible you don\'t know how to spell the names of colors.' + Colors.ENDC)
             raise
 
         # When do we want to display chat
         chat_section = config['CHAT']
-        chat = dict(enable = chat_section.getboolean('Enable', True),
-                    for_multi_twitch = chat_section.getboolean('EnableForMultiTwitch', False))
+        chat = dict(enable=chat_section.getboolean('Enable', True),
+                    for_multi_twitch=chat_section.getboolean('EnableForMultiTwitch', False))
 
         # Required only at runtime in case values for a conky instance are needed
         conky_run = False
@@ -522,7 +523,7 @@ def read_modify_deletefrom_database(channel_input, whatireallywant_ireallyreally
 
             if i[1] == 0:
                 print(' ' + Options.colors['numbers'] + str(display_number).rjust(total_streams_digits) + Colors.ENDC + ' '
-                      + template.format(i[0],Colors.CYAN + str(i[2]) + Colors.RED, '  Unwatched' + Colors.ENDC))
+                      + template.format(i[0], Colors.CYAN + str(i[2]) + Colors.RED, '  Unwatched' + Colors.ENDC))
             else:
                 time_watched = time_convert(i[1]).rjust(11)
                 print(' ' + Options.colors['numbers'] + str(display_number).rjust(total_streams_digits) + Colors.ENDC + ' '
@@ -1224,6 +1225,7 @@ def nuke_it_from_orbit():
     print('Are you sure you want to remove the database and start over?')
     confirm = input('Please type ' + Colors.RED + 'KappaKeepoPogChamp' + Colors.ENDC + ' to continue: ')
     if confirm == 'KappaKeepoPogChamp':
+        remove(config_path)
         remove(database_path)
 
 
