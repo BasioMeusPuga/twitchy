@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 # Requires: python3, livestreamer, requests
-# rev = 133
-
+# rev = 134
 
 import sys
-import json
 import shlex
 import atexit
 import select
@@ -38,7 +36,7 @@ class Colors:
 def create_database(database_path):
     database = sqlite3.connect(database_path)
 
-    database.execute("CREATE TABLE channels (id INTEGER PRIMARY KEY, Name TEXT, TimeWatched INTEGER, AltName TEXT)")
+    database.execute("CREATE TABLE channels (id INTEGER PRIMARY KEY, Name TEXT, TimeWatched INTEGER, AltName TEXT, AltQuality TEXT)")
     database.execute("CREATE TABLE games (id INTEGER PRIMARY KEY, Name TEXT, TimeWatched INTEGER, AltName TEXT)")
     database.execute("CREATE TABLE miscellaneous (id INTEGER PRIMARY KEY, Name TEXT, Value TEXT)")
 
@@ -314,7 +312,7 @@ class Options:
             'green': '\033[92m',
             'darkyellow': '\033[33m',
             'yellow': '\033[93m',
-            'darkblue': '\033[34m',
+            'darkblue': '\x1b[0;34;40m',
             'blue': '\033[94m',
             'darkmagenta': '\033[35m',
             'magenta': '\033[95m',
@@ -361,7 +359,7 @@ def api_request(url):
     http_header = {'Client-ID': 'guulhcvqo9djhuyhb2vi56wqnglc351'}
     try:
         r = requests.get(url, headers=http_header)
-        stream_data = json.loads(r.text)
+        stream_data = r.json()
         return stream_data
     except requests.exceptions.ConnectionError:
         print(Colors.RED + ' Unable to connect to Twitch.' + Colors.ENDC)
@@ -465,9 +463,13 @@ def add_to_database(channel_input, argument):
         try:
             total_followed = stream_data['_total']
             stream_data = api_request('https://api.twitch.tv/kraken/users/%s/follows/channels?limit=%s' % (username, str(total_followed)))
-            for i in range(0, total_followed):
+
+            # The Twitch api is reporting different values for stream_data['_total'] and stream_data['follows']
+            # This may be grounds for a revisit in the future
+            for i in range(0, len(stream_data['follows'])):
                 final_addition_streams.append(stream_data['follows'][i]['channel']['name'])
             final_addition(final_addition_streams)
+
         except:
             print(' ' + username + ' doesn\'t exist')
 
@@ -522,12 +524,12 @@ def read_modify_deletefrom_database(channel_input, whatireallywant_ireallyreally
                 template = template_mapping('gameslist')
 
             if i[1] == 0:
-                print(' ' + Options.colors['numbers'] + str(display_number).rjust(total_streams_digits) + Colors.ENDC + ' '
-                      + template.format(i[0], Colors.CYAN + str(i[2]) + Colors.RED, '  Unwatched' + Colors.ENDC))
+                print(' ' + Options.colors['numbers'] + str(display_number).rjust(total_streams_digits) + Colors.ENDC + ' ' + 
+                    template.format(i[0], Colors.CYAN + str(i[2]) + Colors.RED, '  Unwatched' + Colors.ENDC))
             else:
                 time_watched = time_convert(i[1]).rjust(11)
-                print(' ' + Options.colors['numbers'] + str(display_number).rjust(total_streams_digits) + Colors.ENDC + ' '
-                      + template.format(i[0], Colors.CYAN + str(i[2]) + Colors.ENDC, time_watched))
+                print(' ' + Options.colors['numbers'] + str(display_number).rjust(total_streams_digits) + Colors.ENDC + ' ' + 
+                    template.format(i[0], Colors.CYAN + str(i[2]) + Colors.ENDC, time_watched))
         else:
             if table_wanted == 'channels':
                 template = template_mapping('listnocolor')
@@ -898,8 +900,8 @@ def watch(channel_input, argument):
             if len(column_3_display) + 45 >= get_terminal_size().columns:
                 column_3_display = column_3_display[0:get_terminal_size().columns - 45] + '...'
             rank = str(names_only.index(i[0]) + 1)
-            print(' ' + Options.colors['numbers'] + (str(display_number + 1).rjust(total_streams_digits) + Colors.ENDC) + ' '
-                  + (template.format(Options.colors['column1'] + display_name_strimmer + ' (' + rank + ')',
+            print(' ' + Options.colors['numbers'] + (str(display_number + 1).rjust(total_streams_digits) + Colors.ENDC) + ' ' + 
+                                    (template.format(Options.colors['column1'] + display_name_strimmer + ' (' + rank + ')',
                                      Options.colors['column2'] + time_convert(i[6]).rjust(11),
                                      column_3_display)) + Colors.ENDC)
             if display_number == Options.display['faves_displayed'] - 1:
@@ -931,8 +933,8 @@ def watch(channel_input, argument):
                 if Options.display['sort_by'] == 'GameName':
                     print(' ' * total_streams_digits + Options.colors['game_name'] + str(display_name_game) + Colors.ENDC)
                 games_shown.append(display_name_game)
-            print(' ' + Options.colors['numbers'] + (str(display_number + 1).rjust(total_streams_digits) + Colors.ENDC) + ' '
-                  + template.format(Options.colors['column1'] + columns_final[0],
+            print(' ' + Options.colors['numbers'] + (str(display_number + 1).rjust(total_streams_digits) + Colors.ENDC) + ' ' + 
+                                    template.format(Options.colors['column1'] + columns_final[0],
                                     Options.colors['column2'] + columns_final[1].rjust(8),
                                     Options.colors['column3'] + columns_final[2]) + Colors.ENDC)
 
@@ -999,6 +1001,7 @@ class Playtime:
         self.display_name = display_name
         self.game_name = game_name
         self.show_chat = show_chat
+        self.livestreamer_process = None
         if channel_name_if_vod is not None:
             self.channel_name_if_vod = channel_name_if_vod[0]
             self.video_title_if_vod = channel_name_if_vod[1]
@@ -1048,8 +1051,21 @@ class Playtime:
         self.args_to_subprocess = shlex.split(self.args_to_subprocess)
         self.args_to_subprocess_alternate = shlex.split(self.args_to_subprocess_alternate)
 
-        # Starts with the default quality setting
-        self.livestreamer_process = subprocess.Popen(self.args_to_subprocess, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        # WE ARE NOT currently accounting for what happens if a channel switches
+        # from the old quality settings to the new ones and then back to the old ones.
+        # I assume it'll be some form of a space time continuum rupture. There's really no way to tell.
+
+        # Start with the quality setting that we remember best
+        # Type is string True
+
+        try:
+            uses_aq = database.execute("SELECT AltQuality FROM channels WHERE Name = '{0}'".format(self.final_selection)).fetchone()[0]
+            if uses_aq == 'True':
+                self.livestreamer_process = subprocess.Popen(self.args_to_subprocess_alternate, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            else:
+                self.livestreamer_process = subprocess.Popen(self.args_to_subprocess, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        except sqlite3.OperationalError:  # Accounts for -w and older databases
+            self.livestreamer_process = subprocess.Popen(self.args_to_subprocess, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 
     def time_tracking(self):
         end_time = time()
@@ -1141,7 +1157,17 @@ def playtime_instances(final_selection):
                     if error_message[0][:30] == 'error: The specified stream(s)' and playtime_instance[k].alternate_quality_tried is False:
                         playtime_instance[k].livestreamer_process = subprocess.Popen(
                             playtime_instance[k].args_to_subprocess_alternate, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+
+                        # In case we find the channel has shifted to the new, more heretic quality settings,
+                        # we can default to them in the future
+                        # This cuts startup time in half. HALF.
                         playtime_instance[k].alternate_quality_tried = True
+                        try:
+                            database.execute("UPDATE channels SET AltQuality = 'True' WHERE Name = '{0}'".format(playtime_instance[k].final_selection))
+                            database.commit()
+                        except sqlite3.OperationalError:  # In case of -w or for an older database
+                            pass
+
                     else:
                         print(' ' + Colors.RED + playtime_instance[k].display_name + Colors.ENDC + ' (' + error_message[0] + ')')
                         database.execute("DELETE FROM miscellaneous WHERE Name = '{0}'".format(playtime_instance[k].display_name))
@@ -1151,6 +1177,7 @@ def playtime_instances(final_selection):
                     playtime_instance[k].time_tracking()
                     playing_streams.remove(k)
         try:
+            # The 0.8 is the polling interval for the streamlink / livestreamer process
             keypress, o, e = select.select([sys.stdin], [], [], 0.8)
             if keypress:
                 keypress_made = sys.stdin.readline().strip()
