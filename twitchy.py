@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
+# -*- coding: UTF-8 -*-
 # Requires: python3, livestreamer, requests
-# rev = 134
+# rev = 135
 
 import sys
 import shlex
@@ -900,7 +901,7 @@ def watch(channel_input, argument):
             if len(column_3_display) + 45 >= get_terminal_size().columns:
                 column_3_display = column_3_display[0:get_terminal_size().columns - 45] + '...'
             rank = str(names_only.index(i[0]) + 1)
-            print(' ' + Options.colors['numbers'] + (str(display_number + 1).rjust(total_streams_digits) + Colors.ENDC) + ' ' + 
+            print(' ' + Options.colors['numbers'] + (str(display_number + 1).rjust(total_streams_digits) + Colors.ENDC) + ' ' +
                                     (template.format(Options.colors['column1'] + display_name_strimmer + ' (' + rank + ')',
                                      Options.colors['column2'] + time_convert(i[6]).rjust(11),
                                      column_3_display)) + Colors.ENDC)
@@ -933,7 +934,7 @@ def watch(channel_input, argument):
                 if Options.display['sort_by'] == 'GameName':
                     print(' ' * total_streams_digits + Options.colors['game_name'] + str(display_name_game) + Colors.ENDC)
                 games_shown.append(display_name_game)
-            print(' ' + Options.colors['numbers'] + (str(display_number + 1).rjust(total_streams_digits) + Colors.ENDC) + ' ' + 
+            print(' ' + Options.colors['numbers'] + (str(display_number + 1).rjust(total_streams_digits) + Colors.ENDC) + ' ' +
                                     template.format(Options.colors['column1'] + columns_final[0],
                                     Options.colors['column2'] + columns_final[1].rjust(8),
                                     Options.colors['column3'] + columns_final[2]) + Colors.ENDC)
@@ -1197,14 +1198,14 @@ def update_script():
 
     with open(script_path) as script_text:
         the_lines = script_text.readlines()
-    current_revision = the_lines[2].replace('\n', '')
+    current_revision = the_lines[3].replace('\n', '')
     script_text.close()
 
     script_git_list = []
     script_git = requests.get('https://raw.githubusercontent.com/BasioMeusPuga/twitchy/master/twitchy.py', stream=True)
     for x in script_git.iter_lines():
         script_git_list.append(x)
-    git_revision = script_git_list[2].decode('utf-8')
+    git_revision = script_git_list[3].decode('utf-8')
 
     if current_revision == git_revision:
         print(' ' + Colors.GREEN + 'Already at latest revision.' + Colors.ENDC)
