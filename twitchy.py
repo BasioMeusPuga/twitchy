@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: UTF-8 -*-
 # Requires: python3, livestreamer, requests
 # rev = 135
 
@@ -756,7 +755,15 @@ def watch(channel_input, argument):
                 del dwindler[:len_dwindler]
 
             stream_data = api_request('https://api.twitch.tv/kraken/streams/' + '?limit=100&channel=' + channel_list)
-            total = stream_data['_total']
+            try:
+                total = stream_data['_total']
+            except KeyError:
+                try:
+                    print(Colors.RED + ' API call failed: ' + stream_data['message'] + Colors.ENDC)
+                    exit()
+                except KeyError:
+                    print(Colors.RED + ' EVERYTHING HAS GONE WRONG' + Colors.ENDC)
+                    exit()
 
             for i in range(0, total):
                 channel_name = stream_data['streams'][i]['channel']['name']
@@ -774,6 +781,7 @@ def watch(channel_input, argument):
                 else:
                     truncate_status_at = int(Options.display['truncate_status'])
                 status_message = str(stream_data['streams'][i]['channel']['status'])
+
                 if len(status_message) > truncate_status_at:
                     status_message = status_message[0:truncate_status_at - 3] + '...'
 
@@ -1065,7 +1073,7 @@ class Playtime:
                 self.livestreamer_process = subprocess.Popen(self.args_to_subprocess_alternate, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
             else:
                 self.livestreamer_process = subprocess.Popen(self.args_to_subprocess, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-        except sqlite3.OperationalError:  # Accounts for -w and older databases
+        except (sqlite3.OperationalError, TypeError):  # Accounts for -w and older databases
             self.livestreamer_process = subprocess.Popen(self.args_to_subprocess, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 
     def time_tracking(self):
