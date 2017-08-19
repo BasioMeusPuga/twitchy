@@ -306,21 +306,21 @@ class Options:
         # Generate escape codes per color
         escape_codes = {
             'black': '\033[30m',
-            'darkgray': '\033[90m',
+            'darkgray': '\033[0;30m',
             'darkred': '\033[31m',
-            'red': '\033[91m',
+            'red': '\033[0;31m',
             'darkgreen': '\033[32m',
-            'green': '\033[92m',
+            'green': '\033[0,32m',
             'darkyellow': '\033[33m',
-            'yellow': '\033[93m',
-            'darkblue': '\x1b[0;34;40m',
-            'blue': '\033[94m',
+            'yellow': '\033[0;33m',
+            'darkblue': '\033[34m',
+            'blue': '\033[0;34m',
             'darkmagenta': '\033[35m',
-            'magenta': '\033[95m',
+            'magenta': '\033[0;35m',
             'darkcyan': '\033[36m',
-            'cyan': '\033[96m',
+            'cyan': '\033[0;36m',
             'gray': '\033[37m',
-            'white': '\033[97m',
+            'white': '\033[0;37m',
             'end': '\033[0m'}
 
         try:
