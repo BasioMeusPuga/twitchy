@@ -15,6 +15,7 @@ import webbrowser
 import subprocess
 import configparser
 
+
 from time import time, sleep, strftime
 from shutil import which, get_terminal_size
 from random import randrange
@@ -671,8 +672,13 @@ def vod_watch(channel_input):
         display_name = stream_data['videos'][0]['channel']['display_name']
 
     # Default to source quality in case the channel is not a Twitch partner
-    stream_data_partner = api_request('https://api.twitch.tv/kraken/channels/' + channel_input)
-    ispartner = stream_data_partner['partner']
+    # Setting ispartner to True by default in all cases. The api now makes a special case for affiliates
+    # but doesn't somehow return that value in the existing query
+
+    # stream_data_partner = api_request('https://api.twitch.tv/kraken/channels/' + channel_input)
+    # ispartner = stream_data_partner['partner']
+
+    ispartner = True
     if ispartner is False:
         default_quality = 'source'
         display_name_show = display_name + '*'
@@ -800,7 +806,7 @@ def watch(channel_input, argument):
                     status_message,
                     stream_data['streams'][i]['viewers'],
                     alt_name,
-                    stream_data['streams'][i]['channel']['partner'],
+                    True,  # stream_data['streams'][i]['channel']['partner'] - Partner status is being set to True by default
                     timewatched,
                     stream_uptime_seconds])
                 """ List Scheme
