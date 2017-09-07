@@ -64,10 +64,11 @@ def configure_options():
                 raise
 
         mpv_hardware_acceleration = False
-        if player == 'mpv' and sys.platform == 'linux':
-            mpv_option = input(' Use hardware acceleration (vaapi) with mpv [y/N]: ')
-            if mpv_option in yes_default:
-                mpv_hardware_acceleration = True
+        # Currently defaulting to no hardware acceleration unless explicity stated in the config file
+        # if player == 'mpv' and sys.platform == 'linux':
+        #     mpv_option = input(' Use hardware acceleration (vaapi) with mpv [y/N]: ')
+        #     if mpv_option in yes_default:
+        #         mpv_hardware_acceleration = True
 
         default_quality = input(' Default stream quality [low/medium/HIGH/source]: ')
         if default_quality == '' or default_quality not in ['low', 'medium', 'source']:
@@ -108,13 +109,13 @@ def configure_options():
                              ' Number of faves: {3}\n'
                              ' Display chat for multiple streams: {4}\n'
                              ' Check interval: {5}').format(
-            Colors.YELLOW + player + Colors.ENDC,
-            Colors.YELLOW + default_quality + Colors.ENDC,
-            Colors.YELLOW + str(truncate_status_at) + Colors.ENDC,
-            Colors.YELLOW + str(number_of_faves_displayed) + Colors.ENDC,
-            Colors.YELLOW + str(display_chat_for_multiple_twitch_streams) + Colors.ENDC,
-            Colors.YELLOW + str(check_interval) + Colors.ENDC,
-            Colors.YELLOW + backend + Colors.ENDC)
+                                 Colors.YELLOW + player + Colors.ENDC,
+                                 Colors.YELLOW + default_quality + Colors.ENDC,
+                                 Colors.YELLOW + str(truncate_status_at) + Colors.ENDC,
+                                 Colors.YELLOW + str(number_of_faves_displayed) + Colors.ENDC,
+                                 Colors.YELLOW + str(display_chat_for_multiple_twitch_streams) + Colors.ENDC,
+                                 Colors.YELLOW + str(check_interval) + Colors.ENDC,
+                                 Colors.YELLOW + backend + Colors.ENDC)
 
         print(penultimate_check)
 
@@ -161,7 +162,9 @@ def write_to_config_file(options_from_wizard):
                      '# Valid options are: streamlink, livestreamer\n'
                      'Backend = {0}\n'
                      'Player = {1}\n'
-                     '# This is only valid if using mpv. VAAPI is only supported on Linux.\n'
+                     '# This is only valid if using mpv.\n'
+                     '# Valid options are: False, <hw. acceleration method>\n'
+                     '# Valid methods are: vaapi (Intel hardware), vdpau (nvidia hardware) etc.\n'
                      'MPVHardwareAcceleration = {2}\n'
                      '# Valid options are: low, mid, high, source\n'
                      'DefaultQuality = {3}\n'
@@ -264,9 +267,10 @@ class Options:
             raise
 
         player = video_section.get('Player', 'mpv')
-        hw_accel = video_section.getboolean('MPVHardwareAcceleration', False)
-        if player == 'mpv' and hw_accel is True:
-            player_final = 'mpv --hwdec=vaapi --vo=vaapi --cache 8192'
+        # Treating this as a string so as not to need another line for the kind of hw. decoding
+        hw_accel = video_section.get('MPVHardwareAcceleration', 'false').lower()
+        if player == 'mpv' and hw_accel != 'false':
+            player_final = 'mpv --hwdec={0} --vo={0} --cache 8192'.format(hw_accel)
         else:
             player_final = 'mpv --cache 8192'
 
@@ -525,12 +529,12 @@ def read_modify_deletefrom_database(channel_input, whatireallywant_ireallyreally
                 template = template_mapping('gameslist')
 
             if i[1] == 0:
-                print(' ' + Options.colors['numbers'] + str(display_number).rjust(total_streams_digits) + Colors.ENDC + ' ' + 
-                    template.format(i[0], Colors.CYAN + str(i[2]) + Colors.RED, '  Unwatched' + Colors.ENDC))
+                print(' ' + Options.colors['numbers'] + str(display_number).rjust(total_streams_digits) + Colors.ENDC + ' ' +
+                      template.format(i[0], Colors.CYAN + str(i[2]) + Colors.RED, '  Unwatched' + Colors.ENDC))
             else:
                 time_watched = time_convert(i[1]).rjust(11)
-                print(' ' + Options.colors['numbers'] + str(display_number).rjust(total_streams_digits) + Colors.ENDC + ' ' + 
-                    template.format(i[0], Colors.CYAN + str(i[2]) + Colors.ENDC, time_watched))
+                print(' ' + Options.colors['numbers'] + str(display_number).rjust(total_streams_digits) + Colors.ENDC + ' ' +
+                      template.format(i[0], Colors.CYAN + str(i[2]) + Colors.ENDC, time_watched))
         else:
             if table_wanted == 'channels':
                 template = template_mapping('listnocolor')
@@ -995,11 +999,11 @@ def watch(channel_input, argument):
                                             stream_final[int(j[0]) - 1][1],
                                             None])
             elif ispartner is False:
-                    final_selection.append([stream_final[int(j[0]) - 1][0],
-                                            'source',
-                                            stream_final[int(j[0]) - 1][2],
-                                            stream_final[int(j[0]) - 1][1],
-                                            None])
+                final_selection.append([stream_final[int(j[0]) - 1][0],
+                                        'source',
+                                        stream_final[int(j[0]) - 1][2],
+                                        stream_final[int(j[0]) - 1][1],
+                                        None])
 
         playtime_instances(final_selection)
     except (IndexError, ValueError):
@@ -1076,15 +1080,18 @@ class Playtime:
         try:
             uses_aq = database.execute("SELECT AltQuality FROM channels WHERE Name = '{0}'".format(self.final_selection)).fetchone()[0]
             if uses_aq == 'True':
-                self.livestreamer_process = subprocess.Popen(self.args_to_subprocess_alternate, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+                self.livestreamer_process = subprocess.Popen(self.args_to_subprocess_alternate, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             else:
-                self.livestreamer_process = subprocess.Popen(self.args_to_subprocess, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+                self.livestreamer_process = subprocess.Popen(self.args_to_subprocess, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except (sqlite3.OperationalError, TypeError):  # Accounts for -w and older databases
-            self.livestreamer_process = subprocess.Popen(self.args_to_subprocess, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            self.livestreamer_process = subprocess.Popen(self.args_to_subprocess, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     def time_tracking(self):
         end_time = time()
         time_watched = int(end_time - self.start_time)
+        if time_watched < 30 and Options.hw_accel != 'false':
+            print(Colors.RED + ' Did the stream error out prematurely?' + Colors.ENDC)
+            return
 
         database = sqlite3.connect(database_path)
 
@@ -1163,7 +1170,7 @@ def playtime_instances(final_selection):
             # A delay in the while loop is introduced by the select method below
             if playtime_instance[k].livestreamer_process.returncode is not None:
                 if playtime_instance[k].livestreamer_process.returncode == 1:
-                    stream_error = playtime_instance[k].livestreamer_process.stdout.read().decode('utf-8').split('\n')
+                    stream_error = playtime_instance[k].livestreamer_process.stdout.read().decode('utf-8').split('\n') + playtime_instance[k].livestreamer_process.stderr.read().decode('utf-8').split('\n')
                     error_message = [er for er in stream_error if 'error:' in er]
 
                     # This hack is needed because the Twitch API does not give quality settings
@@ -1171,7 +1178,7 @@ def playtime_instances(final_selection):
                     # OR we error out. It's a good day to die.
                     if error_message[0][:30] == 'error: The specified stream(s)' and playtime_instance[k].alternate_quality_tried is False:
                         playtime_instance[k].livestreamer_process = subprocess.Popen(
-                            playtime_instance[k].args_to_subprocess_alternate, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+                            playtime_instance[k].args_to_subprocess_alternate, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
                         # In case we find the channel has shifted to the new, more heretic quality settings,
                         # we can default to them in the future
