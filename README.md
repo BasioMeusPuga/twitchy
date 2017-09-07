@@ -23,6 +23,8 @@ Features:
 Alternatively, use the AUR package:
 https://aur.archlinux.org/packages/twitchy-git
 
+Please delete `~/.config/twitchy/*` and restart twitchy before reporting any issues.
+
 ## Usage
 
     $ twitchy [ARGUMENT] [OPTIONS]
