@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # Requires: python3, livestreamer, requests
-# rev = 135
 
 import sys
 import shlex
@@ -74,20 +73,18 @@ def configure_options():
         if default_quality == '' or default_quality not in ['low', 'medium', 'source']:
             default_quality = 'high'
 
-        truncate_status_at = input(' Truncate stream status at [AUTO]: ')
-        if truncate_status_at == '':
+        try:
+            truncate_status_at = int(input(' Truncate stream status at [AUTO]: '))
+        except ValueError:
             truncate_status_at = 0
-        else:
-            truncate_status_at = int(truncate_status_at)
 
         # The number of favorites displayed does not include offline channels.
         # i.e. setting this value to n will display - in descending order of time watched,
         # the first n ONLINE channels in the database
-        number_of_faves_displayed = input(' Number of favorites to display [5]: ')
-        if number_of_faves_displayed == '':
+        try:
+            number_of_faves_displayed = int(input(' Number of favorites to display [5]: '))
+        except ValueError:
             number_of_faves_displayed = 5
-        else:
-            number_of_faves_displayed = int(number_of_faves_displayed)
 
         chat_for_mt = input(' Display chat for multiple Twitch streams [y/N]: ')
         if chat_for_mt in yes_default:
@@ -95,11 +92,10 @@ def configure_options():
         else:
             display_chat_for_multiple_twitch_streams = False
 
-        check_int = input(' Interval (seconds) in between channel status checks [60]: ')
-        if check_int == '':
+        try:
+            check_int = int(input(' Interval (seconds) in between channel status checks [60]: '))
+        except ValueError:
             check_interval = 60
-        else:
-            check_interval = int(check_int)
 
         print('\n' + Colors.CYAN + ' Current Settings:' + Colors.ENDC)
         penultimate_check = (' Backend: {6}\n'
@@ -133,7 +129,7 @@ def configure_options():
             write_to_config_file(options_to_insert)
 
         else:
-            raise
+            raise KeyboardInterrupt
     except KeyboardInterrupt:
         try:
             final_decision = input(Colors.RED + ' Do you wish to restart? [y/N]: ' + Colors.ENDC)
@@ -164,7 +160,7 @@ def write_to_config_file(options_from_wizard):
                      'Player = {1}\n'
                      '# This is only valid if using mpv.\n'
                      '# Valid options are: False, <hw. acceleration method>\n'
-                     '# Valid methods are: vaapi (Intel hardware), vdpau (nvidia hardware) etc.\n'
+                     '# Valid methods are: vaapi (Intel hardware), vdpau (Nvidia hardware) etc.\n'
                      'MPVHardwareAcceleration = {2}\n'
                      '# Valid options are: low, mid, high, source\n'
                      'DefaultQuality = {3}\n'
@@ -182,7 +178,7 @@ def write_to_config_file(options_from_wizard):
                      '# Valid options are: 1, 2, 3 or GameName\n'
                      'SortBy = GameName\n'
                      '# Shows the name of each column in case sorting is not by GameName\n'
-                     'ColumnNames = False\n'
+                     'ColumnNames = True\n'
                      '# Set to 0 for auto truncation. Any other positive integer for manual control\n'
                      'TruncateStatus = {4}\n'
                      'NumberOfFaves = {5}\n'
@@ -458,7 +454,7 @@ def add_to_database(channel_input, argument):
                 print(" " + channel_name)
         database.commit()
         if something_added is False:
-            print(' ' + Colors.RED + 'None' + Colors.ENDC)
+            print(' None')
 
     if argument == 's':
         username = channel_input[0]
@@ -466,26 +462,37 @@ def add_to_database(channel_input, argument):
         stream_data = api_request('https://api.twitch.tv/kraken/users/%s/follows/channels' % username)
 
         try:
-            total_followed = stream_data['_total']
-            stream_data = api_request('https://api.twitch.tv/kraken/users/%s/follows/channels?limit=%s' % (username, str(total_followed)))
+            # The API has started strict enforcement of the limit paramter.
+            # That means syncing has to be paginated in case total_followed > 100
 
-            # The Twitch api is reporting different values for stream_data['_total'] and stream_data['follows']
-            # This may be grounds for a revisit in the future
-            for i in range(0, len(stream_data['follows'])):
-                final_addition_streams.append(stream_data['follows'][i]['channel']['name'])
+            total_followed = int(stream_data['_total'])
+
+            offset = 0
+            while total_followed > 0:
+                stream_data = api_request('https://api.twitch.tv/kraken/users/%s/follows/channels?limit=100&offset=%d' % (username, offset))
+                total_followed -= 100
+                offset += 100
+
+                # The Twitch api is reporting different values for
+                # stream_data['_total'] and stream_data['follows']
+                # This may be grounds for a revisit in the future
+                for i in range(0, len(stream_data['follows'])):
+                    final_addition_streams.append(stream_data['follows'][i]['channel']['name'])
+
             final_addition(final_addition_streams)
 
-        except:
-            print(' ' + username + ' doesn\'t exist')
+        except KeyError:
+            print(' ' + Colors.RED + username + Colors.ENDC + ' doesn\'t exist')
 
     if argument == 'a':
         for names_for_addition in channel_input:
-            stream_data = api_request('https://api.twitch.tv/kraken/streams/' + names_for_addition)
+            stream_data = api_request('https://api.twitch.tv/kraken/users/%s' % names_for_addition)
 
             try:
-                stream_data['error']
-                print(' ' + names_for_addition + ' doesn\'t exist')
-            except:
+                stream_data['error']  # This statement isn't meant to do
+                                      # anything except generate an exception
+                print(' ' + Colors.RED + names_for_addition + Colors.ENDC + ' doesn\'t exist')
+            except KeyError:
                 final_addition_streams.append(names_for_addition)
         final_addition(final_addition_streams)
 
@@ -890,6 +897,8 @@ def watch(channel_input, argument):
     # Map out the template for the online stream table
     template = template_mapping('watch')
     total_streams_digits = len(str(len(stream_status)))
+    if total_streams_digits > 1:
+        total_streams_digits -= 1
 
     # Display table of online channels
     for display_number, i in enumerate(stream_status):
@@ -1212,31 +1221,6 @@ def playtime_instances(final_selection):
             playing_streams.clear()
 
 
-# Update the script to the latest git revision
-def update_script():
-    print(' ' + Options.colors['numbers'] + 'Checking for update...' + Colors.ENDC)
-    script_path = realpath(__file__)
-
-    with open(script_path) as script_text:
-        the_lines = script_text.readlines()
-    current_revision = the_lines[3].replace('\n', '')
-    script_text.close()
-
-    script_git_list = []
-    script_git = requests.get('https://raw.githubusercontent.com/BasioMeusPuga/twitchy/master/twitchy.py', stream=True)
-    for x in script_git.iter_lines():
-        script_git_list.append(x)
-    git_revision = script_git_list[3].decode('utf-8')
-
-    if current_revision == git_revision:
-        print(' ' + Colors.GREEN + 'Already at latest revision.' + Colors.ENDC)
-    else:
-        script_path = open(realpath(__file__), mode='w')
-        script_git = requests.get('https://raw.githubusercontent.com/BasioMeusPuga/twitchy/master/twitchy.py', stream=True)
-        script_path.write(script_git.text)
-        print(' ' + Colors.GREEN + 'Updated to Revision' + git_revision.split('=')[1] + Colors.ENDC)
-
-
 # Get output for a conky instance
 def firefly_needed_another_6_seasons(at_least):
     Options.conky_run = True
@@ -1305,7 +1289,6 @@ def main():
     parser.add_argument('-n', type=str, nargs='?', const='BlankForAllIntensivePurposes', help='Notify when online', metavar='*searchstring*')
     parser.add_argument('--reset', action='store_true', help='Start over')
     parser.add_argument('-s', type=str, nargs=1, help='Sync username\'s followed accounts to local database', metavar='username')
-    parser.add_argument('--update', action='store_true', help='Update to git master')
     parser.add_argument('-v', type=str, nargs=1, help='Watch VODs', metavar='<channel>')
     parser.add_argument('-w', type=str, nargs='+', help='Watch specified channel(s)', metavar='<channel>')
     args = parser.parse_args()
@@ -1349,9 +1332,6 @@ def main():
     elif args.s:
         args.s = [lc_args.lower() for lc_args in args.s]
         add_to_database(args.s, 's')
-
-    elif args.update:
-        update_script()
 
     elif args.v:
         args.v = [lc_args.lower() for lc_args in args.v]
