@@ -467,7 +467,7 @@ def add_to_database(channel_input, argument):
 
         try:
             total_followed = stream_data['_total']
-            stream_data = api_request('https://api.twitch.tv/kraken/users/%s/follows/channels?limit=%s' % (username, str(total_followed)))
+            stream_data = api_request('https://api.twitch.tv/kraken/users/%s/follows/channels?limit=%s' % (username, str(min(total_followed, 100))))
 
             # The Twitch api is reporting different values for stream_data['_total'] and stream_data['follows']
             # This may be grounds for a revisit in the future
