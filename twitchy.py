@@ -93,7 +93,7 @@ def configure_options():
             display_chat_for_multiple_twitch_streams = False
 
         try:
-            check_int = int(input(' Interval (seconds) in between channel status checks [60]: '))
+            check_interval = int(input(' Interval (seconds) in between channel status checks [60]: '))
         except ValueError:
             check_interval = 60
 
@@ -266,7 +266,7 @@ class Options:
         # Treating this as a string so as not to need another line for the kind of hw. decoding
         hw_accel = video_section.get('MPVHardwareAcceleration', 'false').lower()
         if player == 'mpv' and hw_accel != 'false':
-            player_final = 'mpv --hwdec={0} --vo={0} --cache 8192'.format(hw_accel)
+            player_final = 'mpv --hwdec={0} --cache 8192'.format(hw_accel)
         else:
             player_final = 'mpv --cache 8192'
 
@@ -897,8 +897,6 @@ def watch(channel_input, argument):
     # Map out the template for the online stream table
     template = template_mapping('watch')
     total_streams_digits = len(str(len(stream_status)))
-    if total_streams_digits > 1:
-        total_streams_digits -= 1
 
     # Display table of online channels
     for display_number, i in enumerate(stream_status):
@@ -959,7 +957,11 @@ def watch(channel_input, argument):
             if display_name_game not in games_shown:
                 # Show the game name only if the list has been sorted by it
                 if Options.display['sort_by'] == 'GameName':
-                    print(' ' * total_streams_digits + Options.colors['game_name'] + str(display_name_game) + Colors.ENDC)
+                    game_name_indent = total_streams_digits
+                    if game_name_indent > 1:
+                        game_name_indent -= 1
+
+                    print(' ' * game_name_indent + Options.colors['game_name'] + str(display_name_game) + Colors.ENDC)
                 games_shown.append(display_name_game)
             print(' ' + Options.colors['numbers'] + (str(display_number + 1).rjust(total_streams_digits) + Colors.ENDC) + ' ' +
                                     template.format(Options.colors['column1'] + columns_final[0],
@@ -1352,5 +1354,5 @@ def main():
 if __name__ == '__main__':
     try:
         main()
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, EOFError):
         thatsallfolks()
