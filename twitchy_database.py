@@ -8,7 +8,7 @@ import twitchy_api
 from twitchy_config import Colors
 
 
-location_prefix = os.path.expanduser('~') + '/.config/twitchy3/'
+location_prefix = os.path.expanduser('~') + '/.config/twitchy/'
 
 
 class DatabaseInit:
@@ -68,3 +68,28 @@ class DatabaseFunctions:
 
         self.database.commit()
         return added_channels
+
+    def fetch_data(self, columns, table, selection_criteria=None):
+        # columns is a tuple that will be passed as a comma separated list
+        # table is supposed to be a string which is used as is
+        # selection_criteria is a dictionary which contains the name of a column linked
+        # to a corresponding value for selection
+
+        column_list = ','.join(columns)
+        sql_command_fetch = f"SELECT {column_list} FROM {table}"
+        if selection_criteria:
+            sql_command_fetch += " WHERE"
+            for i in selection_criteria.keys():
+                search_parameter = "'%" + selection_criteria[i] + "%'"
+                sql_command_fetch += f" {i} LIKE {search_parameter} OR"
+
+        sql_command_fetch = sql_command_fetch[:-3]  # Truncate the last OR
+        print(sql_command_fetch)
+        print(self.database.execute(sql_command_fetch).fetchall())
+
+# Name and AltName are expected to be the same
+sel_dict = {
+    'Name': 'sav',
+    'AltName': 'sav'
+}
+aa = DatabaseFunctions().fetch_data(('Name',), 'channels', sel_dict)

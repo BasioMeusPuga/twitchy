@@ -12,15 +12,11 @@ except ImportError:
     exit(1)
 
 
-def api_call(url, arguments=None):
+def api_call(url, params=None):
     try:
         headers = {
             'Accept': 'application/vnd.twitchtv.v5+json',
             'Client-ID': 'guulhcvqo9djhuyhb2vi56wqnglc351'}
-
-        params = None
-        if arguments:
-            params = (('login', ','.join(arguments)),)
 
         r = requests.get(
             url,
@@ -43,9 +39,10 @@ def get_id(channels):
     id_dict = {}
 
     api_endpoint = 'https://api.twitch.tv/kraken/users'
+    params = (('login', ','.join(channels)),)
     stream_data = api_call(
         api_endpoint,
-        channels)
+        params)
 
     for i in stream_data['users']:
         id_dict[i['name']] = i['_id']
@@ -93,16 +90,18 @@ def sync_from_id(username):
         api_endpoint)
     total_followed = stream_data['_total']
 
-    # Redo the entire sync with the total number
-    # of channels in mind
+    # Do sync with pagination
     offset = 0
     valid_channels = []
     while total_followed > 0:
-        api_endpoint = (
-            f'https://api.twitch.tv/kraken/users/{username_id}/follows/channels'
-            f'?limit=100&offset={offset}')
+        api_endpoint = f'https://api.twitch.tv/kraken/users/{username_id}/follows/channels'
+        params = {
+            'limit': 100,
+            'offset': offset}
         stream_data = api_call(
-            api_endpoint)
+            api_endpoint,
+            params
+        )
         total_followed -= 100
         offset += 100
 
@@ -115,7 +114,7 @@ def sync_from_id(username):
     # add_to_database function
     return valid_channels
 
-# pprint(sync_from_id('cohhcarnage'))
+# pprint(sync_from_id('kingspawntofour'))
 
 class GetOnlineStatus:
     def __init__(self, channels):
@@ -145,12 +144,14 @@ class GetOnlineStatus:
         # The API imposes an upper limit of 100 channels
         # checked at once. Pagination is required, as usual.
         while self.channels:
-            channel_checklist = ','.join(self.channels[:100])
+            api_endpoint = 'https://api.twitch.tv/kraken/streams'
+            params = {
+                'limit': 100,
+                'channel': ','.join(self.channels[:100])}
             del self.channels[:100]
-            api_endpoint = (
-                f'https://api.twitch.tv/kraken/streams/?limit=100&channel={channel_checklist}')
             stream_data = api_call(
-                api_endpoint)
+                api_endpoint,
+                params)
 
             # The stream data dictionary is
             # Key: name
@@ -165,7 +166,6 @@ class GetOnlineStatus:
                     'viewers': i['viewers'],
                     'display_name': i['channel']['display_name'],
                     'uptime': self.parse_uptime(i['created_at'])}
-
 
 # channels = GetOnlineStatus(['22588033', '26610234'])
 # channels.check_channels()
