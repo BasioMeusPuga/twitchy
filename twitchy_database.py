@@ -71,7 +71,7 @@ class DatabaseFunctions:
 
     def fetch_data(self, columns, table, selection_criteria=None):
         # columns is a tuple that will be passed as a comma separated list
-        # table is supposed to be a string which is used as is
+        # table is a string that will be used as is
         # selection_criteria is a dictionary which contains the name of a column linked
         # to a corresponding value for selection
 
@@ -82,14 +82,13 @@ class DatabaseFunctions:
             for i in selection_criteria.keys():
                 search_parameter = "'%" + selection_criteria[i] + "%'"
                 sql_command_fetch += f" {i} LIKE {search_parameter} OR"
+            sql_command_fetch = sql_command_fetch[:-3]  # Truncate the last OR
 
-        sql_command_fetch = sql_command_fetch[:-3]  # Truncate the last OR
-        print(sql_command_fetch)
-        print(self.database.execute(sql_command_fetch).fetchall())
+        return self.database.execute(sql_command_fetch).fetchall()
 
 # Name and AltName are expected to be the same
-sel_dict = {
-    'Name': 'sav',
-    'AltName': 'sav'
-}
-aa = DatabaseFunctions().fetch_data(('Name',), 'channels', sel_dict)
+# sel_dict = {
+#     'Name': 'sav',
+#     'AltName': 'sav'
+# }
+# aa = DatabaseFunctions().fetch_data(('Name',), 'channels', sel_dict)

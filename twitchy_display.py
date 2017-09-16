@@ -77,3 +77,11 @@ def emote():
         ' ░░░░░░░░▀▀█▄▄▄▄▀░░░░\n')
 
     print('\n' + kappa)
+
+def generate_table(table_data_incoming=None):
+    # Universal function for generating tables
+    # Applies to -d, -an, -n, and all the watch functions
+    # Will wait for an input and return it to the function
+    # that called it
+    # Expects to take guidance from template_mapping() and emote()
+    pass
