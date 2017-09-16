@@ -118,7 +118,7 @@ def sync_from_id(username):
 
 class GetOnlineStatus:
     def __init__(self, channels):
-        # Again, channels is expected to be a list
+        # Again, channels is expected to be a tuple
         # containing the _id as a string
         # More than 100 channels will be paginated
         self.channels = channels
@@ -166,6 +166,8 @@ class GetOnlineStatus:
                     'viewers': i['viewers'],
                     'display_name': i['channel']['display_name'],
                     'uptime': self.parse_uptime(i['created_at'])}
+
+        return self.online_channels
 
 # channels = GetOnlineStatus(['22588033', '26610234'])
 # channels.check_channels()

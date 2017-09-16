@@ -8,7 +8,7 @@ import twitchy_api
 from twitchy_config import Colors
 
 
-location_prefix = os.path.expanduser('~') + '/.config/twitchy/'
+location_prefix = os.path.expanduser('~') + '/.config/twitchy3/'
 
 
 class DatabaseInit:

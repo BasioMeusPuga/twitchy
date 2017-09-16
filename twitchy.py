@@ -37,9 +37,10 @@ Options = twitchy_config.Options()
 # relevant function in the aforementioned module
 
 def channel_addition(option, channels):
-    # Common function for -s and -a
-    # Channels is supposed to be a list
+    # option is either 'add' for -a 
+    # OR 'sync' for -s
     # -s accepts only a string
+    # TODO Respond to the datatype of channels after writing main()
     # Everything is converted to lowercase in the relevant function
 
     print(' ' + Colors.YELLOW + 'Additions to database:' + Colors.ENDC)
@@ -60,9 +61,9 @@ def channel_addition(option, channels):
 # channel_addition('add', ['hsdogdog', 'reynad27', 'AMAzHs', 'ajdk342m'])
 # channel_addition('sync', 'cohhcarnage')
 
-def database_modification(database_search=None):
-    # Common for -d, -an, and -n
-    # That's deletion, alternate naming, and notifications
+def database_modification(option, database_search=None):
+    # option is either 'delete' for -d 
+    # OR 'alternate_name' for -an
 
     table_wanted = input(' Modify (s)treamer or (g)ame name? ')
     if table_wanted.lower() == 's':
@@ -84,3 +85,23 @@ def database_modification(database_search=None):
     # That belongs in the twitchy.py file
 
 # database_modification('sav')
+
+def watch_channel(option=None, database_search=None):
+    # Option is either 'watch' for -w
+    # OR None for no special case
+
+    if database_search:
+        database_search = {
+            'Name': database_search,
+            'AltName': database_search}
+
+    channel_data = twitchy_database.DatabaseFunctions().fetch_data(
+        ('ChannelID',),
+        'channels',
+        database_search)
+
+    id_string_list = [str(i[0]) for i in channel_data]
+    channels_online = twitchy_api.GetOnlineStatus(id_string_list).check_channels()
+    final_selection = twitchy_display.generate_table(channels_online)
+
+watch_channel()
