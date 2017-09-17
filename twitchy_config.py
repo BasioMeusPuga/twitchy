@@ -269,7 +269,7 @@ class Options:
                 medium='480p',
                 high='720p',
                 source='best')
-
+        
         except KeyError:
             print(Colors.RED +
                   ' Error getting options. Running --configure:' +

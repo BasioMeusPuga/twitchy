@@ -84,8 +84,9 @@ class DatabaseFunctions:
                 sql_command_fetch += f" {i} LIKE {search_parameter} OR"
             sql_command_fetch = sql_command_fetch[:-3]  # Truncate the last OR
 
-        return self.database.execute(sql_command_fetch).fetchall()
-
+        # channel data is returned as a list of tuples
+        channel_data = self.database.execute(sql_command_fetch).fetchall()
+        return channel_data
 # Name and AltName are expected to be the same
 # sel_dict = {
 #     'Name': 'sav',

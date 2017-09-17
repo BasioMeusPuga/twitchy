@@ -9,7 +9,12 @@ from pprint import pprint
 import twitchy_config
 from twitchy_config import Colors
 
+# For the love of God, a direct reference to class.method()
+# is a direct reference to class.method()
+# It will not populate the class attributes for you
+# Even if you ask nicely
 options = twitchy_config.Options()
+options.parse_options()
 
 # Set locale for comma placement
 locale.setlocale(locale.LC_ALL, '')
@@ -121,20 +126,52 @@ def generate_table(table_data_incoming):
 
     try:
         channel_selection = input(' Number? ')
-        if channel_selection == '':
-            channel_selection = random.randrange(0, count)
-            emote()
-        else:
-            channel_selection = int(channel_selection)
-            channel_selection -= 1
-        
 
-        # We'll be getting the relevant channel name from the
-        # OrderedDict itself. This requires conversion of
-        # the keys iterable into a list
-        # channel_selection is just the index of the requisite
-        # item on that list
-        pprint(list(display_dict.items())[channel_selection])
+        # Whatever is selected is passed to this list
+        # This is then iterated upon to get the list of parameters
+        # that will be passed back to the parent function
+        final_selection = []
+
+        entered_numbers = channel_selection.split()
+        if not entered_numbers:
+            final_selection = [[
+                random.randrange(0, count),
+                options.video['default_quality']]]
+        else:
+            quality_dict = {
+                'l': 'low',
+                'm': 'medium',
+                'h': 'high',
+                's': 'source'}
+
+            entered_numbers = [i.split('-') for i in entered_numbers]
+            for i in entered_numbers:
+                try:
+                    selected_quality = quality_dict[i[1]]
+                except IndexError:
+                    selected_quality = options.video['default_quality']
+
+                final_selection.append([
+                    int(i[0]) - 1,
+                    selected_quality])
+
+        return_dict = collections.OrderedDict()
+        for i in final_selection:
+            # We'll be getting the relevant channel name from the
+            # OrderedDict itself. This requires conversion of
+            # the keys iterable into a list
+            current = list(display_dict.items())[i[0]]
+
+            # Furthermore, additional relevant data can be inserted into
+            # the dictionary at index 1
+            # Currently, this includes: quality selection
+            current[1]['quality'] = i[1]
+
+            # Populate the dictionary that will be returned to
+            # tha parent function
+            return_dict[current[0]] = current[1]
+
+        return return_dict
 
     except (IndexError, ValueError):
         print(Colors.RED + ' Invalid input.' + Colors.ENDC)

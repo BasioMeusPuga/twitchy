@@ -25,6 +25,7 @@ import twitchy_database
 
 from twitchy_config import Colors
 
+from pprint import pprint
 
 twitchy_database.DatabaseInit()
 twitchy_config.ConfigInit()
@@ -37,7 +38,7 @@ Options = twitchy_config.Options()
 # relevant function in the aforementioned module
 
 def channel_addition(option, channels):
-    # option is either 'add' for -a 
+    # option is either 'add' for -a
     # OR 'sync' for -s
     # -s accepts only a string
     # TODO Respond to the datatype of channels after writing main()
@@ -61,8 +62,9 @@ def channel_addition(option, channels):
 # channel_addition('add', ['hsdogdog', 'reynad27', 'AMAzHs', 'ajdk342m'])
 # channel_addition('sync', 'cohhcarnage')
 
+
 def database_modification(option, database_search=None):
-    # option is either 'delete' for -d 
+    # option is either 'delete' for -d
     # OR 'alternate_name' for -an
 
     table_wanted = input(' Modify (s)treamer or (g)ame name? ')
@@ -81,13 +83,17 @@ def database_modification(option, database_search=None):
         table_wanted,
         database_search)
 
-    # channel_data should now be passed to the function that generates tables
-    # That belongs in the twitchy.py file
+    # We're going to change it into a dictionary using
+    # the black magic fuckery that is dictionary comprehension
+    # channel_data_dict is then passed to the table generation function
+    channel_data_dict = {i[0]: dict(timewatched=i[1], alt_name=i[2]) for i in channel_data}
+    pprint(channel_data_dict)
 
-# database_modification('sav')
+# database_modification('delete', 'fa')
 
 def watch_channel(option=None, database_search=None):
     # Option is either 'watch' for -w
+    # 'favorites' for -f
     # OR None for no special case
 
     if database_search:
@@ -103,5 +109,6 @@ def watch_channel(option=None, database_search=None):
     id_string_list = [str(i[0]) for i in channel_data]
     channels_online = twitchy_api.GetOnlineStatus(id_string_list).check_channels()
     final_selection = twitchy_display.generate_table(channels_online)
+    pprint(final_selection)
 
 watch_channel()
