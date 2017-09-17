@@ -4,7 +4,7 @@
 import os
 import shutil
 import configparser
-
+import collections
 
 location_prefix = os.path.expanduser('~') + '/.config/twitchy3/'
 try:
@@ -234,42 +234,60 @@ class Options:
         chat_section = config['CHAT']
 
         try:
-            self.video = dict(
-                default_quality=default_quality,
-                player_final=player_final)
+            Columns = collections.namedtuple(
+                'Columns',
+                ['column1', 'column2', 'column3'])
+            self.columns = Columns(
+                columns_section.get('Column1', 'ChannelName'),
+                columns_section.get('Column2', 'Viewers'),
+                columns_section.get('Column3', 'StreamStatus'))
 
-            self.columns = dict(
-                column1=columns_section.get('Column1', 'ChannelName'),
-                column2=columns_section.get('Column2', 'Viewers'),
-                column3=columns_section.get('Column3', 'StreamStatus'))
+            Video = collections.namedtuple(
+                'Video',
+                ['default_quality', 'player_final'])
+            self.video = Video(
+                default_quality,
+                player_final)
 
-            self.display = dict(
-                sort_by=sort_by,
-                column_names=display_section.getboolean('ColumnNames', False),
-                truncate_status=display_section.getint('TruncateStatus', 0),
-                faves_displayed=display_section.getint('NumberOfFaves', 10),
-                check_interval=display_section.getint('CheckInterval', 60))
+            Display = collections.namedtuple(
+                'Display',
+                ['sort_by', 'column_names', 'truncate_status', 'faves_displayed', 'check_interval'])
+            self.display = Display(
+                sort_by,
+                display_section.getboolean('ColumnNames', False),
+                display_section.getint('TruncateStatus', 0),
+                display_section.getint('NumberOfFaves', 10),
+                display_section.getint('CheckInterval', 60))
 
-            self.colors = dict(
-                numbers=escape_codes[numbers],
-                game_name=escape_codes[game_name],
-                column1=escape_codes[column1],
-                column2=escape_codes[column2],
-                column3=escape_codes[column3])
+            Colors = collections.namedtuple(
+                'Colors',
+                ['numbers', 'game_name', 'column1', 'column2', 'column3'])
+            self.colors = Colors(
+                escape_codes[numbers],
+                escape_codes[game_name],
+                escape_codes[column1],
+                escape_codes[column2],
+                escape_codes[column3])
 
-            self.chat = dict(
-                enable=chat_section.getboolean('Enable', True),
-                for_multi_twitch=chat_section.getboolean('EnableForMultiTwitch', False))
+            Chat = collections.namedtuple(
+                'Chat',
+                ['enable', 'for_multi_twitch'])
+            self.chat = Chat(
+                chat_section.getboolean('Enable', True),
+                chat_section.getboolean('EnableForMultiTwitch', False))
 
             # Required only at runtime in case values for a conky instance are needed
             self.conky_run = False
 
-            self.quality_map = dict(
-                low='360p',
-                medium='480p',
-                high='720p',
-                source='best')
-        
+            QualityMap = collections.namedtuple(
+                'QualityMap',
+                ['low', 'medium', 'high', 'source'])
+            self.quality_map = QualityMap(
+                '360p',
+                '480p',
+                '720p',
+                'best')
+
         except KeyError:
             print(Colors.RED +
                   ' Error getting options. Running --configure:' +

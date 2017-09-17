@@ -2,10 +2,10 @@
 # Requirements: streamlink, requests
 
 """ TODO:
-	Look up packaging
-	Debug logging - Make this a switch
-	Switch to v5 of the API
-	Alternate color coding
+    Look up packaging
+    Debug logging - Make this a switch
+    Switch to v5 of the API
+    Alternate color coding
     Try not to have anything here except code that displays shit
     Use the livestreamer module instead of subprocess
     Switch to explicit imports instead of from * import *
@@ -108,7 +108,7 @@ def watch_channel(option=None, database_search=None):
 
     id_string_list = [str(i[0]) for i in channel_data]
     channels_online = twitchy_api.GetOnlineStatus(id_string_list).check_channels()
-    final_selection = twitchy_display.generate_table(channels_online)
+    final_selection = twitchy_display.GenerateTable(channels_online).watch()
     pprint(final_selection)
 
 watch_channel()
