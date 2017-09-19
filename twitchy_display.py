@@ -94,10 +94,16 @@ def emote():
 class GenerateTable():
     def __init__(self, table_data_incoming):
         self.table_data_incoming = table_data_incoming
+        self.display_dict = None
+
+    def get_selection(self):
+        # Returns whatever the user selects at the relevant prompt
+        pass
 
     def table_display(self, display_list):
         # Accepts a list containg the first, second, and third
-        # columns. These are shown in the usual manner.
+        # columns. These are shown according to formatting guidance
+        # from the other functions in this class
 
         # In the following case, we also expect the presence
         # of i[3], the GameName
@@ -107,36 +113,85 @@ class GenerateTable():
 
         for count, i in enumerate(display_list):
 
+            # If sorting is by GameName, print only the
+            # name of every game that's mentioned for the first time
             if Options.display.sort_by == 'GameName':
                 current_game = i[3]
                 if previous_game != current_game:
+                    previous_game = current_game
                     print(Options.colors.game_name + current_game)
 
             print(
-                Options.colors.numbers + str(count + 1) +
-                Options.colors.column1 + i[0] +
-                Options.colors.column2 + i[1] +
-                Options.colors.column3 + i[2])
+                Options.colors.numbers + str(count + 1) + ' ' +
+                Options.colors.column1 + i[0] + ' ' +
+                Options.colors.column2 + i[1] + ' ' +
+                Options.colors.column3 + i[2] + Colors.ENDC)
 
     def watch(self):
         # Applies to the watch functions
         # Will wait for an input and return it to the function
         # that called it
 
-        # We will be iterating over the display_dict dictionary
-        # This is an Ordered dictionary
+        column_dict = {
+            'ChannelName': 'display_name',
+            'Viewers': 'viewers',
+            'Uptime': 'uptime',
+            'StreamStatus': 'status',
+            'GameName': 'game'}
+
         # The lambda function is of critical importance since
         # it decides how the display will actually go
-        # TODO Correlate the lamba function with Options
+        # The - in the lambda implies sorting is by reverse
 
-        display_dict = collections.OrderedDict(sorted(
+        # By default, streams are first sorted by the game name (0),
+        # and then by the number of viewers (3)
+        if Options.display.sort_by == 'GameName':
+            sorting_key = lambda t: (t[1]['game'], -t[1]['viewers'])
+
+        # In this case, the integer value of the column is related to the
+        # column name and things are sorted accordingly
+        else:
+            sorting_column_index = int(Options.display.sort_by) - 1
+            sorting_column_name = Options.columns[sorting_column_index]
+            sorting_key = lambda t: -t[1][column_dict[sorting_column_name]]
+
+        # We will be iterating over the display_dict dictionary
+        # This is an Ordered dictionary
+        self.display_dict = collections.OrderedDict(sorted(
             self.table_data_incoming.items(),
-            key=lambda t: t[1]['game']))
+            key=sorting_key))
 
-        # TODO Generate a list here for sending to self.table_display()
+        # Since columns are selectable, the table will have to be built
+        # for each channel here
         # Valid options are: ChannelName, Viewers, Uptime, StreamStatus, GameName
+        final_columns = []
+        for i in self.display_dict.items():
+            display_columns = []
+            for j in Options.columns:
+                # Get the name of the required dictionary item from the
+                # column_dict declared above
+                add_this = i[1][column_dict[j]]
 
-        self.table_display([['1', '2', '3', '4']])
+                # Account for special cases
+                # TODO Check the database for alternate naming here
+                if j == 'Viewers':
+                    # Convert the number of viewers into a string
+                    # formatted by an appropriately placed comma
+                    add_this = str(format(add_this, 'n'))
+                elif j == 'Uptime':
+                    # Convert the uptime into H:M:S
+                    add_this = time_convert(add_this)
+
+                display_columns.append(add_this)
+
+            # In case sorting is by game name, this is expected regardless
+            # of what the other columns are
+            if Options.display.sort_by == 'GameName':
+                display_columns.append(i[1]['game'])
+
+            final_columns.append(display_columns)
+
+        self.table_display(final_columns)
         exit(1)
 
         try:
@@ -177,7 +232,7 @@ class GenerateTable():
                 # We'll be getting the relevant channel name from the
                 # OrderedDict itself. This requires conversion of
                 # the keys iterable into a list
-                current = list(display_dict.items())[i[0]]
+                current = list(self.display_dict.items())[i[0]]
 
                 # Furthermore, additional relevant data can be inserted into
                 # the dictionary at index 1

@@ -112,6 +112,7 @@ class ConfigInit:
     def write_to_config_file(self):
         config_string = (
             '# Twitchy configuration file\n'
+            '# OPTIONS ARE CASE SENSITIVE\n'
             '\n'
             '[VIDEO]\n'
             f'self.player = {self.player}\n'
