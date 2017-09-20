@@ -8,7 +8,7 @@ import twitchy_api
 from twitchy_config import Colors
 
 
-location_prefix = os.path.expanduser('~') + '/.config/twitchy/'
+location_prefix = os.path.expanduser('~') + '/.config/twitchy3/'
 
 
 class DatabaseInit:
@@ -75,6 +75,14 @@ class DatabaseFunctions:
         # selection_criteria is a dictionary which contains the name of a column linked
         # to a corresponding value for selection
 
+        # Example:
+        # Name and AltName are expected to be the same
+        # sel_dict = {
+        #     'Name': 'sav',
+        #     'AltName': 'sav'
+        # }
+        # aa = DatabaseFunctions().fetch_data(('Name',), 'channels', sel_dict)
+
         try:
             column_list = ','.join(columns)
             sql_command_fetch = f"SELECT {column_list} FROM {table}"
@@ -91,9 +99,26 @@ class DatabaseFunctions:
         except sqlite3.OperationalError:
             print(Colors.RED + ' Database Error' + Colors.ENDC)
             exit()
-# Name and AltName are expected to be the same
-# sel_dict = {
-#     'Name': 'sav',
-#     'AltName': 'sav'
-# }
-# aa = DatabaseFunctions().fetch_data(('Name',), 'channels', sel_dict)
+
+    def modify_data(self, mode, table, criteria):
+        if mode == 'alternate_name':
+            # criteria in this case is expected to be a dictionary containing
+            # new_name and old_name keys corresponding to their values
+            old_name = criteria['old_name']
+            new_name = criteria['new_name']
+            if not new_name or new_name == '':
+                # NULL is the sql equivalent of NoneType
+                new_name = 'NULL'
+            else:
+                # Encapsulate in single quotes to form valid SQL
+                new_name = f"'{new_name}'"
+
+            sql_command = f"UPDATE {table} SET AltName = {new_name} WHERE Name = '{old_name}'"
+            self.database.execute(sql_command)
+            self.database.commit()
+
+        if mode == 'delete':
+            # In this case, criteria is a single string
+            sql_command = f"DELETE FROM {table} WHERE Name = '{criteria}'"
+            self.database.execute(sql_command)
+            self.database.commit()

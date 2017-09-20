@@ -84,9 +84,33 @@ def database_modification(option, database_search=None):
         database_search)
 
     final_selection = twitchy_display.GenerateTable(channel_data).database()
-    pprint(final_selection)
 
-database_modification('delete')
+    if option == 'delete':
+        yes_default = ['y', 'Y', 'yes', 'YES']
+        for i in final_selection:
+            confirm_delete = input(
+                f' Delete {Colors.YELLOW + i + Colors.ENDC} ')
+
+            if confirm_delete in yes_default:
+                twitchy_database.DatabaseFunctions().modify_data(
+                    'delete',
+                    table_wanted,
+                    i)
+
+    elif option == 'alternate_name':
+        for i in final_selection:
+            new_name = input(
+                f' Alternate name for {Colors.YELLOW + i + Colors.ENDC} ')
+            criteria_dict = {
+                'old_name': i,
+                'new_name': new_name}
+
+            twitchy_database.DatabaseFunctions().modify_data(
+                'alternate_name',
+                table_wanted,
+                criteria_dict)
+
+# database_modification('delete')
 # database_modification('delete', 'fa')
 
 def watch_channel(option=None, database_search=None):
@@ -109,4 +133,4 @@ def watch_channel(option=None, database_search=None):
     final_selection = twitchy_display.GenerateTable(channels_online).online_channels()
     pprint(final_selection)
 
-# watch_channel()
+watch_channel(None, 'dog')

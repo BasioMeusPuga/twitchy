@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Table display and selection module
 
 import locale
 import random
@@ -6,6 +7,7 @@ import collections
 
 from pprint import pprint
 
+import twitchy_database
 import twitchy_config
 from twitchy_config import Colors
 
@@ -65,7 +67,7 @@ def time_convert(seconds):
     if h > 0:
         time_converted += f'{h}h '
     if m > 0:
-        time_converted += f'{m}m '
+        time_converted += f'{m}m'
     else:
         time_converted = f'{s}s'
 
@@ -200,6 +202,7 @@ class GenerateTable():
         # and then by the number of viewers (3)
         if Options.display.sort_by == 'GameName':
             sorting_key = lambda t: (t[1]['game'], -t[1]['viewers'])
+            reverse_val = False
 
         # In this case, the integer value of the column is related to the
         # column name and things are sorted accordingly
@@ -207,12 +210,13 @@ class GenerateTable():
             sorting_column_index = int(Options.display.sort_by) - 1
             sorting_column_name = Options.columns[sorting_column_index]
             sorting_key = lambda t: t[1][column_dict[sorting_column_name]]
+            reverse_val = True
 
         # We will be iterating over the display_dict dictionary
         # This is an Ordered dictionary
         self.display_dict = collections.OrderedDict(sorted(
             self.table_data_incoming.items(),
-            key=sorting_key))
+            key=sorting_key, reverse=reverse_val))
         self.item_count = len(self.display_dict.keys())
 
         # Since columns are selectable, the table will have to be built
@@ -227,16 +231,30 @@ class GenerateTable():
                 add_this = i[1][column_dict[j]]
 
                 # Account for special cases
-                # TODO Check the database for alternate naming here
                 # TODO truncate status messages here
 
-                if j == 'Viewers':
+                if j == 'ChannelName':
+                    database_search = {
+                        'Name': add_this}
+                    sql_reply = twitchy_database.DatabaseFunctions().fetch_data(
+                        ('AltName',),
+                        'channels',
+                        database_search)[0][0]
+                    if sql_reply:
+                        add_this = self.display_dict[i[0]]['display_name'] = sql_reply
+
+                elif j == 'Viewers':
                     # Convert the number of viewers into a string
                     # formatted by an appropriately placed comma
                     add_this = str(format(add_this, 'n'))
+
                 elif j == 'Uptime':
                     # Convert the uptime into H:M:S
                     add_this = time_convert(add_this)
+
+                elif j == 'StreamStatus':
+                    if len(add_this) > Options.display.truncate_status:
+                        add_this = add_this[:Options.display.truncate_status] + '...'
 
                 display_columns.append(add_this)
 
@@ -298,7 +316,8 @@ class GenerateTable():
                     Options.colors.numbers + str(count + 1) + ' ' +
                     row_color1 + i[0] + ' ' +
                     row_color2 + str(alt_name) + ' ' +
-                    time_watched + Colors.ENDC)
+                    Colors.ENDC + time_watched +
+                    Colors.ENDC)
 
         table_display(self.table_data_incoming)
         final_selection = self.get_selection('database')

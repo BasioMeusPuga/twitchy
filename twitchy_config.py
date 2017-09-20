@@ -202,6 +202,10 @@ class Options:
         sort_by = display_section.get('SortBy', 'GameName')
         if sort_by not in ['1', '2', '3', 'GameName']:
             sort_by = 'GameName'
+        
+        truncate_status_at = display_section.getint('TruncateStatus', 0)
+        if truncate_status_at == 0:
+            truncate_status_at = shutil.get_terminal_size().columns - 44
 
         # Color selection
         colors_section = config['COLORS']
@@ -256,7 +260,7 @@ class Options:
             self.display = Display(
                 sort_by,
                 display_section.getboolean('ColumnNames', False),
-                display_section.getint('TruncateStatus', 0),
+                truncate_status_at,
                 display_section.getint('NumberOfFaves', 10),
                 display_section.getint('CheckInterval', 60))
 
