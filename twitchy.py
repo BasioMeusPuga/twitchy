@@ -83,12 +83,10 @@ def database_modification(option, database_search=None):
         table_wanted,
         database_search)
 
-    # We're going to change it into a dictionary using
-    # the black magic fuckery that is dictionary comprehension
-    # channel_data_dict is then passed to the table generation function
-    channel_data_dict = {i[0]: dict(timewatched=i[1], alt_name=i[2]) for i in channel_data}
-    pprint(channel_data_dict)
+    final_selection = twitchy_display.GenerateTable(channel_data).database()
+    pprint(final_selection)
 
+database_modification('delete')
 # database_modification('delete', 'fa')
 
 def watch_channel(option=None, database_search=None):
@@ -108,7 +106,7 @@ def watch_channel(option=None, database_search=None):
 
     id_string_list = [str(i[0]) for i in channel_data]
     channels_online = twitchy_api.GetOnlineStatus(id_string_list).check_channels()
-    final_selection = twitchy_display.GenerateTable(channels_online).watch()
+    final_selection = twitchy_display.GenerateTable(channels_online).online_channels()
     pprint(final_selection)
 
-watch_channel()
+# watch_channel()

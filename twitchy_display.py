@@ -24,9 +24,9 @@ locale.setlocale(locale.LC_ALL, '')
 def template_mapping(called_from):
 
     third_column = 20
-    # Preceding specification is mostly pointless as long as it's non zero
-    # If however, it exceeds the column number of the terminal, we'll get the unenviable
-    # free line breaks. That's just silly.
+    # Preceding specification is pointless as long as it's non zero
+    # If however, it exceeds the column number of the terminal,
+    # we'll get the unenviable free line breaks. That's just silly.
 
     if called_from == 'list':
         first_column = 25
@@ -51,21 +51,23 @@ def template_mapping(called_from):
     return template
 
 
-# Convert time in seconds to a more human readable format,
+# Convert time in seconds to a more human readable format
 def time_convert(seconds):
     seconds = int(seconds)
     m, s = divmod(seconds, 60)
     h, m = divmod(m, 60)
     d, h = divmod(h, 24)
 
+    # FizzBuzz
+    time_converted = ''
     if d > 0:
-        time_converted = '%dd %dh %dm' % (d, h, m)
-    elif h > 0:
-        time_converted = '%dh %dm' % (h, m)
-    elif m > 0:
-        time_converted = '%dm' % m
+        time_converted += f'{d}d '
+    if h > 0:
+        time_converted += f'{h}h '
+    if m > 0:
+        time_converted += f'{m}m '
     else:
-        time_converted = '%ds' % s
+        time_converted = f'{s}s'
 
     return time_converted
 
@@ -91,46 +93,97 @@ def emote():
 
     print('\n' + kappa)
 
+
 class GenerateTable():
     def __init__(self, table_data_incoming):
         self.table_data_incoming = table_data_incoming
         self.display_dict = None
+        self.item_count = None
 
-    def get_selection(self):
+    def get_selection(self, mode):
         # Returns whatever the user selects at the relevant prompt
-        pass
+        # Modes are 'online_channels' and 'database'
 
-    def table_display(self, display_list):
-        # Accepts a list containg the first, second, and third
-        # columns. These are shown according to formatting guidance
-        # from the other functions in this class
+        try:
+            channel_selection = input(' Number? ')
 
-        # In the following case, we also expect the presence
-        # of i[3], the GameName
-        # I think this should be passed to this function regardless
-        if Options.display.sort_by == 'GameName':
-            previous_game = None
+            # Whatever is selected is passed to this list
+            # This is then iterated upon to get the list of parameters
+            # that will be passed back to the parent function
+            final_selection = []
 
-        for count, i in enumerate(display_list):
+            entered_numbers = channel_selection.split()
+            if not entered_numbers:
+                # Everything should error out in case a null selection is
+                # made when we're operating purely with database values
+                # Otherwise, we're going for a random selection
+                # with default quality video
+                if mode == 'database':
+                    raise ValueError
+                elif mode == 'online_channels':
+                    final_selection = [[
+                        random.randrange(0, self.item_count),
+                        Options.video.default_quality]]
+            else:
+                quality_dict = {
+                    'l': 'low',
+                    'm': 'medium',
+                    'h': 'high',
+                    's': 'source'}
 
-            # If sorting is by GameName, print only the
-            # name of every game that's mentioned for the first time
-            if Options.display.sort_by == 'GameName':
-                current_game = i[3]
-                if previous_game != current_game:
-                    previous_game = current_game
-                    print(Options.colors.game_name + current_game)
+                entered_numbers = [i.split('-') for i in entered_numbers]
+                for i in entered_numbers:
+                    try:
+                        selected_quality = quality_dict[i[1]]
+                    except (KeyError, IndexError):
+                        # Anything that has a valid digit that prefixes it
+                        # is started at the default_quality
+                        selected_quality = Options.video.default_quality
 
-            print(
-                Options.colors.numbers + str(count + 1) + ' ' +
-                Options.colors.column1 + i[0] + ' ' +
-                Options.colors.column2 + i[1] + ' ' +
-                Options.colors.column3 + i[2] + Colors.ENDC)
+                    final_selection.append([
+                        int(i[0]) - 1,
+                        selected_quality])
 
-    def watch(self):
+                return final_selection
+
+        except (IndexError, ValueError, KeyboardInterrupt):
+            print(Colors.RED + ' Invalid input.' + Colors.ENDC)
+            exit(1)
+
+    def online_channels(self):
         # Applies to the watch functions
         # Will wait for an input and return it to the function
         # that called it
+
+        def table_display(display_list):
+            # Accepts a list containg the first, second, and third
+            # columns. These are shown according to formatting guidance
+            # from the other functions in this class
+
+            # In the following case, we also expect the presence
+            # of i[3], the GameName
+            # I think this should be passed to this function regardless
+            if Options.display.sort_by == 'GameName':
+                previous_game = None
+
+            for count, i in enumerate(display_list):
+
+                # If sorting is by GameName, print only the
+                # name of every game that's mentioned for the first time
+                if Options.display.sort_by == 'GameName':
+                    current_game = i[3]
+                    if previous_game != current_game:
+                        previous_game = current_game
+                        print(Options.colors.game_name + current_game)
+
+                # Output the table to console
+                # TODO Take formatting instructions from other functions
+                print(
+                    Options.colors.numbers + str(count + 1) + ' ' +
+                    Options.colors.column1 + i[0] + ' ' +
+                    Options.colors.column2 + i[1] + ' ' +
+                    Options.colors.column3 + i[2] + Colors.ENDC)
+
 
         column_dict = {
             'ChannelName': 'display_name',
@@ -153,13 +206,14 @@ class GenerateTable():
         else:
             sorting_column_index = int(Options.display.sort_by) - 1
             sorting_column_name = Options.columns[sorting_column_index]
-            sorting_key = lambda t: -t[1][column_dict[sorting_column_name]]
+            sorting_key = lambda t: t[1][column_dict[sorting_column_name]]
 
         # We will be iterating over the display_dict dictionary
         # This is an Ordered dictionary
         self.display_dict = collections.OrderedDict(sorted(
             self.table_data_incoming.items(),
             key=sorting_key))
+        self.item_count = len(self.display_dict.keys())
 
         # Since columns are selectable, the table will have to be built
         # for each channel here
@@ -174,6 +228,8 @@ class GenerateTable():
 
                 # Account for special cases
                 # TODO Check the database for alternate naming here
+                # TODO truncate status messages here
+
                 if j == 'Viewers':
                     # Convert the number of viewers into a string
                     # formatted by an appropriately placed comma
@@ -191,60 +247,66 @@ class GenerateTable():
 
             final_columns.append(display_columns)
 
-        self.table_display(final_columns)
-        exit(1)
+        table_display(final_columns)
+        final_selection = self.get_selection('online_channels')
 
-        try:
-            channel_selection = input(' Number? ')
+        return_dict = collections.OrderedDict()
+        for i in final_selection:
+            # We'll be getting the relevant channel name from the
+            # OrderedDict itself. This requires conversion of
+            # the keys iterable into a list
+            current = list(self.display_dict.items())[i[0]]
 
-            # Whatever is selected is passed to this list
-            # This is then iterated upon to get the list of parameters
-            # that will be passed back to the parent function
-            final_selection = []
+            # Furthermore, additional relevant data can be inserted
+            # into the dictionary at index 1
+            # Currently, this includes: quality selection
+            current[1]['quality'] = i[1]
 
-            entered_numbers = channel_selection.split()
-            if not entered_numbers:
-                final_selection = [[
-                    random.randrange(0, count),
-                    Options.video.default_quality]]
-            else:
-                quality_dict = {
-                    'l': 'low',
-                    'm': 'medium',
-                    'h': 'high',
-                    's': 'source'}
+            # Populate the dictionary that will be returned to
+            # tha parent function
+            return_dict[current[0]] = current[1]
 
-                entered_numbers = [i.split('-') for i in entered_numbers]
-                for i in entered_numbers:
-                    try:
-                        selected_quality = quality_dict[i[1]]
-                    except (KeyError, IndexError):
-                        # Anything that has a valid digit that prefixes it
-                        # is started at the default_quality
-                        selected_quality = Options.video.default_quality
+        return return_dict
 
-                    final_selection.append([
-                        int(i[0]) - 1,
-                        selected_quality])
+    def database(self):
+        # Applies to functions that deal with the database
 
-            return_dict = collections.OrderedDict()
-            for i in final_selection:
-                # We'll be getting the relevant channel name from the
-                # OrderedDict itself. This requires conversion of
-                # the keys iterable into a list
-                current = list(self.display_dict.items())[i[0]]
+        # self.table_data_incoming is a list of tuples
+        # Indices
+        # 0: Channel name
+        # 1: Time Watched
+        # 2: Alt Name
 
-                # Furthermore, additional relevant data can be inserted into
-                # the dictionary at index 1
-                # Currently, this includes: quality selection
-                current[1]['quality'] = i[1]
+        def table_display(display_list):
+            # Accepts a list containg the first, second, and third
+            # columns. These are shown according to formatting guidance
+            # from the other functions in this class
+            for count, i in enumerate(display_list):
 
-                # Populate the dictionary that will be returned to
-                # tha parent function
-                return_dict[current[0]] = current[1]
+                # Display colors in case of specific value ranges only
+                row_color1 = row_color2 = Colors.ENDC
 
-            return return_dict
+                if i[1] == 0:
+                    row_color1 = Colors.RED
 
-        except (IndexError, ValueError):
-            print(Colors.RED + ' Invalid input.' + Colors.ENDC)
-            exit(1)
+                time_watched = time_convert(i[1])
+                alt_name = i[2]
+                if alt_name:
+                    row_color2 = Colors.CYAN
+
+                print(
+                    Options.colors.numbers + str(count + 1) + ' ' +
+                    row_color1 + i[0] + ' ' +
+                    row_color2 + str(alt_name) + ' ' +
+                    time_watched + Colors.ENDC)
+
+        table_display(self.table_data_incoming)
+        final_selection = self.get_selection('database')
+
+        # A double 0 index is required because we're reusing the
+        # get selection function that also returns the default quality
+        # setting in case of selection of a list of numbers
+        return_list = [
+            self.table_data_incoming[i[0]][0] for i in final_selection]
+
+        return return_list

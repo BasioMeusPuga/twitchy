@@ -8,7 +8,7 @@ import twitchy_api
 from twitchy_config import Colors
 
 
-location_prefix = os.path.expanduser('~') + '/.config/twitchy3/'
+location_prefix = os.path.expanduser('~') + '/.config/twitchy/'
 
 
 class DatabaseInit:
@@ -75,18 +75,22 @@ class DatabaseFunctions:
         # selection_criteria is a dictionary which contains the name of a column linked
         # to a corresponding value for selection
 
-        column_list = ','.join(columns)
-        sql_command_fetch = f"SELECT {column_list} FROM {table}"
-        if selection_criteria:
-            sql_command_fetch += " WHERE"
-            for i in selection_criteria.keys():
-                search_parameter = "'%" + selection_criteria[i] + "%'"
-                sql_command_fetch += f" {i} LIKE {search_parameter} OR"
-            sql_command_fetch = sql_command_fetch[:-3]  # Truncate the last OR
+        try:
+            column_list = ','.join(columns)
+            sql_command_fetch = f"SELECT {column_list} FROM {table}"
+            if selection_criteria:
+                sql_command_fetch += " WHERE"
+                for i in selection_criteria.keys():
+                    search_parameter = "'%" + selection_criteria[i] + "%'"
+                    sql_command_fetch += f" {i} LIKE {search_parameter} OR"
+                sql_command_fetch = sql_command_fetch[:-3]  # Truncate the last OR
 
-        # channel data is returned as a list of tuples
-        channel_data = self.database.execute(sql_command_fetch).fetchall()
-        return channel_data
+            # channel data is returned as a list of tuples
+            channel_data = self.database.execute(sql_command_fetch).fetchall()
+            return channel_data
+        except sqlite3.OperationalError:
+            print(Colors.RED + ' Database Error' + Colors.ENDC)
+            exit()
 # Name and AltName are expected to be the same
 # sel_dict = {
 #     'Name': 'sav',
