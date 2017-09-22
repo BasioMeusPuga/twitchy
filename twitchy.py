@@ -30,8 +30,6 @@ from pprint import pprint
 twitchy_database.DatabaseInit()
 twitchy_config.ConfigInit()
 
-Options = twitchy_config.Options()
-
 # In case of addition, all that needs to be done is pass
 # the name of the channel to the api module
 # Acutal addition to the database is carried out by the
@@ -81,7 +79,8 @@ def database_modification(option, database_search=None):
     channel_data = twitchy_database.DatabaseFunctions().fetch_data(
         ('Name', 'TimeWatched', 'AltName'),
         table_wanted,
-        database_search)
+        database_search,
+        'LIKE')
 
     final_selection = twitchy_display.GenerateTable(channel_data).database()
 
@@ -126,7 +125,8 @@ def watch_channel(option=None, database_search=None):
     channel_data = twitchy_database.DatabaseFunctions().fetch_data(
         ('ChannelID',),
         'channels',
-        database_search)
+        database_search,
+        'LIKE')
 
     id_string_list = [str(i[0]) for i in channel_data]
     channels_online = twitchy_api.GetOnlineStatus(id_string_list).check_channels()

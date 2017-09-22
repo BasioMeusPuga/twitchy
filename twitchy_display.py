@@ -10,7 +10,6 @@ from pprint import pprint
 import twitchy_database
 import twitchy_config
 from twitchy_config import Colors
-
 # For the love of God, a direct reference to class.method()
 # is a direct reference to class.method()
 # It will not populate the class attributes for you
@@ -231,17 +230,17 @@ class GenerateTable():
                 add_this = i[1][column_dict[j]]
 
                 # Account for special cases
-                # TODO truncate status messages here
-
                 if j == 'ChannelName':
                     database_search = {
-                        'Name': add_this}
+                        'Name': i[0]}
                     sql_reply = twitchy_database.DatabaseFunctions().fetch_data(
                         ('AltName',),
                         'channels',
-                        database_search)[0][0]
+                        database_search,
+                        'EQUALS')
                     if sql_reply:
-                        add_this = self.display_dict[i[0]]['display_name'] = sql_reply
+                        # Change the display name universally
+                        add_this = self.display_dict[i[0]]['display_name'] = sql_reply[0][0]
 
                 elif j == 'Viewers':
                     # Convert the number of viewers into a string
@@ -256,10 +255,24 @@ class GenerateTable():
                     if len(add_this) > Options.display.truncate_status:
                         add_this = add_this[:Options.display.truncate_status] + '...'
 
+                elif j == 'GameName':
+                    # Create a new entry in the dictionary in case the 'GameName'
+                    # has a corresponding AltName entry
+                    database_search = {
+                        'Name': add_this}
+                    sql_reply = twitchy_database.DatabaseFunctions().fetch_data(
+                        ('AltName',),
+                        'games',
+                        database_search,
+                        'EQUALS')
+                    if sql_reply:
+                        self.display_dict[i[0]]['game_display_name'] = sql_reply[0][0]
+
                 display_columns.append(add_this)
 
             # In case sorting is by game name, this is expected regardless
             # of what the other columns are
+            # TODO This needs to be correlated to the game_display_name
             if Options.display.sort_by == 'GameName':
                 display_columns.append(i[1]['game'])
 

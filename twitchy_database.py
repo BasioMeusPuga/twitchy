@@ -69,7 +69,7 @@ class DatabaseFunctions:
         self.database.commit()
         return added_channels
 
-    def fetch_data(self, columns, table, selection_criteria=None):
+    def fetch_data(self, columns, table, selection_criteria, equivalence):
         # columns is a tuple that will be passed as a comma separated list
         # table is a string that will be used as is
         # selection_criteria is a dictionary which contains the name of a column linked
@@ -81,21 +81,38 @@ class DatabaseFunctions:
         #     'Name': 'sav',
         #     'AltName': 'sav'
         # }
-        # aa = DatabaseFunctions().fetch_data(('Name',), 'channels', sel_dict)
+        # data = DatabaseFunctions().fetch_data(('Name',), 'channels', sel_dict)
+
+        # TODO Since this function is also being used in twitchy_display
+        # replace LIKE with = in said case
 
         try:
             column_list = ','.join(columns)
             sql_command_fetch = f"SELECT {column_list} FROM {table}"
             if selection_criteria:
                 sql_command_fetch += " WHERE"
-                for i in selection_criteria.keys():
-                    search_parameter = "'%" + selection_criteria[i] + "%'"
-                    sql_command_fetch += f" {i} LIKE {search_parameter} OR"
+
+                if equivalence == 'EQUALS':
+                    for i in selection_criteria.keys():
+                        search_parameter = selection_criteria[i]
+                        sql_command_fetch += f" {i} = '{search_parameter}' OR"
+
+                elif equivalence == 'LIKE':
+                    for i in selection_criteria.keys():
+                        search_parameter = "'%" + selection_criteria[i] + "%'"
+                        sql_command_fetch += f" {i} LIKE {search_parameter} OR"
+
                 sql_command_fetch = sql_command_fetch[:-3]  # Truncate the last OR
 
+            print(sql_command_fetch)
             # channel data is returned as a list of tuples
             channel_data = self.database.execute(sql_command_fetch).fetchall()
-            return channel_data
+
+            if channel_data:
+                return channel_data
+            else:
+                return None
+
         except sqlite3.OperationalError:
             print(Colors.RED + ' Database Error' + Colors.ENDC)
             exit()

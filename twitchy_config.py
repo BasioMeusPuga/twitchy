@@ -65,12 +65,6 @@ class ConfigInit:
             except ValueError:
                 self.number_of_faves = 5
 
-            chat_for_mt = input(' Display chat for multiple Twitch streams [y/N]: ')
-            if chat_for_mt in yes_default:
-                self.mt_chat = True
-            else:
-                self.mt_chat = False
-
             try:
                 self.check_interval = int(
                     input(' Interval (seconds) in between channel status checks [60]: '))
@@ -83,7 +77,6 @@ class ConfigInit:
                 f' Default Quality: {Colors.YELLOW + self.default_quality + Colors.ENDC}\n'
                 f' Truncate status at: {Colors.YELLOW + str(self.truncate_status_at) + Colors.ENDC}\n'
                 f' Number of faves: {Colors.YELLOW + str(self.number_of_faves) + Colors.ENDC}\n'
-                f' Display chat for multiple streams: {Colors.YELLOW + str(self.mt_chat) + Colors.ENDC}\n'
                 f' Check interval: {Colors.YELLOW + str(self.check_interval) + Colors.ENDC}')
             print(penultimate_check)
 
@@ -154,8 +147,7 @@ class ConfigInit:
             '\n'
             '\n'
             '[CHAT]\n'
-            'Enable = True\n'
-            f'EnableForMultiTwitch = {self.mt_chat}\n')
+            'Enable = True\n')
 
         with open(self.config_path, 'w') as config_file:
             config_file.write(config_string)
@@ -163,6 +155,8 @@ class ConfigInit:
             print(Colors.CYAN +
                   f' Config written to {self.config_path}. Read for additional settings.' +
                   Colors.ENDC)
+
+        exit()
 
 
 class Options:
@@ -202,7 +196,7 @@ class Options:
         sort_by = display_section.get('SortBy', 'GameName')
         if sort_by not in ['1', '2', '3', 'GameName']:
             sort_by = 'GameName'
-        
+
         truncate_status_at = display_section.getint('TruncateStatus', 0)
         if truncate_status_at == 0:
             truncate_status_at = shutil.get_terminal_size().columns - 44
@@ -276,22 +270,18 @@ class Options:
 
             Chat = collections.namedtuple(
                 'Chat',
-                ['enable', 'for_multi_twitch'])
+                ['enable'])
             self.chat = Chat(
-                chat_section.getboolean('Enable', True),
-                chat_section.getboolean('EnableForMultiTwitch', False))
+                chat_section.getboolean('Enable', True))
 
             # Required only at runtime in case values for a conky instance are needed
             self.conky_run = False
 
-            QualityMap = collections.namedtuple(
-                'QualityMap',
-                ['low', 'medium', 'high', 'source'])
-            self.quality_map = QualityMap(
-                '360p',
-                '480p',
-                '720p',
-                'best')
+            self.quality_map = {
+                'low': '360p',
+                'medium': '480p',
+                'high': '720p',
+                'source': 'best'}
 
         except KeyError:
             print(Colors.RED +
