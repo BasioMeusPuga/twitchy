@@ -122,6 +122,7 @@ class GenerateTable():
                 if mode == 'database':
                     raise ValueError
                 elif mode == 'online_channels':
+                    # TODO There's a bug in the randomization process
                     final_selection = [[
                         random.randrange(0, self.item_count),
                         Options.video.default_quality]]
@@ -196,6 +197,7 @@ class GenerateTable():
         # The lambda function is of critical importance since
         # it decides how the display will actually go
         # The - in the lambda implies sorting is by reverse
+        # A negative value is only applicable to integers
 
         # By default, streams are first sorted by the game name (0),
         # and then by the number of viewers (3)
@@ -223,6 +225,25 @@ class GenerateTable():
         # Valid options are: ChannelName, Viewers, Uptime, StreamStatus, GameName
         final_columns = []
         for i in self.display_dict.items():
+
+            # Every entry is to be checked for a game_name_display in cases
+            # where an alternate name may have been specified
+            # This needs to take place outside the following loop
+            database_search = {
+                'Name': i[1]['game']}
+            sql_reply = twitchy_database.DatabaseFunctions().fetch_data(
+                ('AltName',),
+                'games',
+                database_search,
+                'EQUALS')
+
+            game_display_name = self.display_dict[i[0]]['game_display_name'] = None
+            if sql_reply:
+                # Create a new entry in the dictionary in case the 'GameName'
+                # has a corresponding AltName entry
+                game_display_name = sql_reply[0][0]
+                self.display_dict[i[0]]['game_display_name'] = game_display_name
+
             display_columns = []
             for j in Options.columns:
                 # Get the name of the required dictionary item from the
@@ -237,10 +258,10 @@ class GenerateTable():
                         ('AltName',),
                         'channels',
                         database_search,
-                        'EQUALS')
+                        'EQUALS')[0][0]
                     if sql_reply:
                         # Change the display name universally
-                        add_this = self.display_dict[i[0]]['display_name'] = sql_reply[0][0]
+                        add_this = self.display_dict[i[0]]['display_name'] = sql_reply
 
                 elif j == 'Viewers':
                     # Convert the number of viewers into a string
@@ -255,18 +276,8 @@ class GenerateTable():
                     if len(add_this) > Options.display.truncate_status:
                         add_this = add_this[:Options.display.truncate_status] + '...'
 
-                elif j == 'GameName':
-                    # Create a new entry in the dictionary in case the 'GameName'
-                    # has a corresponding AltName entry
-                    database_search = {
-                        'Name': add_this}
-                    sql_reply = twitchy_database.DatabaseFunctions().fetch_data(
-                        ('AltName',),
-                        'games',
-                        database_search,
-                        'EQUALS')
-                    if sql_reply:
-                        self.display_dict[i[0]]['game_display_name'] = sql_reply[0][0]
+                elif j == 'GameName' and game_display_name:
+                    add_this = game_display_name
 
                 display_columns.append(add_this)
 
@@ -274,7 +285,10 @@ class GenerateTable():
             # of what the other columns are
             # TODO This needs to be correlated to the game_display_name
             if Options.display.sort_by == 'GameName':
-                display_columns.append(i[1]['game'])
+                if game_display_name:
+                    display_columns.append(game_display_name)
+                else:
+                    display_columns.append(i[1]['game'])
 
             final_columns.append(display_columns)
 
@@ -297,6 +311,7 @@ class GenerateTable():
             # tha parent function
             return_dict[current[0]] = current[1]
 
+        # pprint(self.display_dict)
         return return_dict
 
     def database(self):

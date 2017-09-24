@@ -21,7 +21,6 @@ class DatabaseInit:
             print()
             self.create_database()
 
-
     def create_database(self):
         database = sqlite3.connect(self.database_path)
 
@@ -35,7 +34,6 @@ class DatabaseInit:
         database.execute(
             "CREATE TABLE miscellaneous \
             (id INTEGER PRIMARY KEY, Name TEXT, Value TEXT)")
-
 
     def remove_database(self):
         os.remove(self.database_path)
@@ -83,9 +81,6 @@ class DatabaseFunctions:
         # }
         # data = DatabaseFunctions().fetch_data(('Name',), 'channels', sel_dict)
 
-        # TODO Since this function is also being used in twitchy_display
-        # replace LIKE with = in said case
-
         try:
             column_list = ','.join(columns)
             sql_command_fetch = f"SELECT {column_list} FROM {table}"
@@ -104,7 +99,6 @@ class DatabaseFunctions:
 
                 sql_command_fetch = sql_command_fetch[:-3]  # Truncate the last OR
 
-            print(sql_command_fetch)
             # channel data is returned as a list of tuples
             channel_data = self.database.execute(sql_command_fetch).fetchall()
 

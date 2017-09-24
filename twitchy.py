@@ -22,6 +22,7 @@ import twitchy_api
 import twitchy_config  # This import also creates the path
 import twitchy_display
 import twitchy_database
+import twitchy_play
 
 from twitchy_config import Colors
 
@@ -30,10 +31,9 @@ from pprint import pprint
 twitchy_database.DatabaseInit()
 twitchy_config.ConfigInit()
 
-# In case of addition, all that needs to be done is pass
-# the name of the channel to the api module
-# Acutal addition to the database is carried out by the
-# relevant function in the aforementioned module
+Options = twitchy_config.Options()
+Options.parse_options()
+
 
 def channel_addition(option, channels):
     # option is either 'add' for -a
@@ -44,6 +44,7 @@ def channel_addition(option, channels):
 
     print(' ' + Colors.YELLOW + 'Additions to database:' + Colors.ENDC)
 
+    # Get the numeric id of each channel that is to be added to the database
     if option == 'add':
         valid_channels = twitchy_api.add_to_database(channels)
     elif option == 'sync':
@@ -53,6 +54,7 @@ def channel_addition(option, channels):
         print(Colors.RED + ' No valid channels found' + Colors.ENDC)
         exit(1)
 
+    # Actual addition to the database takes place here
     added_channels = twitchy_database.DatabaseFunctions().add_channels(valid_channels)
     for i in added_channels:
         print(' ' + i)
@@ -129,8 +131,12 @@ def watch_channel(option=None, database_search=None):
         'LIKE')
 
     id_string_list = [str(i[0]) for i in channel_data]
+    print(' ' + Options.colors.numbers +
+          f'Checking {len(id_string_list)} channels...' +
+          Colors.ENDC)
     channels_online = twitchy_api.GetOnlineStatus(id_string_list).check_channels()
     final_selection = twitchy_display.GenerateTable(channels_online).online_channels()
-    pprint(final_selection)
+    twitchy_play.play_instance_generator(final_selection)
 
-watch_channel(None, 'dog')
+#watch_channel(None, 'dog')
+watch_channel()
