@@ -2,37 +2,44 @@
 # Requirements: streamlink, requests
 
 """ TODO:
-    Look up packaging
-    Debug logging - Make this a switch
-    Switch to v5 of the API
+    ✓ Switch to v5 of the API
+    ✓ Try not to have anything here except code that displays shit
+    ✓ Switch to explicit imports instead of from * import *
+    ✓ Explicit exception naming
+    ✓ Shift to string literals: Python 3.6 and above
+    ✓ Shift to the new quality settings as the default
     Alternate color coding
-    Try not to have anything here except code that displays shit
-    Use the livestreamer module instead of subprocess
-    Switch to explicit imports instead of from * import *
-    Explicit exception naming
-    Shift to string literals: Python 3.6 and above
-    Shift to the new quality settings as the default
+    Look up packaging
+    Implement a proper non interactive mode
+    Start channel without confirmation when in non interactive mode
+    x Debug logging - Make this a switch
+    x Use the streamlink module instead of subprocess
 """
 
 # Standard imports
-import os
+import sys
 
 # Custom imports
 import twitchy_api
 import twitchy_config  # This import also creates the path
+from twitchy_config import Colors
 import twitchy_display
 import twitchy_database
 import twitchy_play
 
-from twitchy_config import Colors
-
-from pprint import pprint
-
 twitchy_database.DatabaseInit()
 twitchy_config.ConfigInit()
 
+# All database functions are an attribute of database_instance
+database_instance = twitchy_database.DatabaseFunctions()
+
 Options = twitchy_config.Options()
 Options.parse_options()
+
+# Exit if version requirements are not met
+if sys.version_info < (3, 6):
+    print(Colors.RED + ' Python 3.6 or greater required.' + Colors.ENDC)
+    exit()
 
 
 def channel_addition(option, channels):
@@ -78,7 +85,7 @@ def database_modification(option, database_search=None):
             'Name': database_search,
             'AltName': database_search}
 
-    channel_data = twitchy_database.DatabaseFunctions().fetch_data(
+    channel_data = database_instance.fetch_data(
         ('Name', 'TimeWatched', 'AltName'),
         table_wanted,
         database_search,
@@ -93,7 +100,7 @@ def database_modification(option, database_search=None):
                 f' Delete {Colors.YELLOW + i + Colors.ENDC} ')
 
             if confirm_delete in yes_default:
-                twitchy_database.DatabaseFunctions().modify_data(
+                database_instance.modify_data(
                     'delete',
                     table_wanted,
                     i)
@@ -106,7 +113,7 @@ def database_modification(option, database_search=None):
                 'old_name': i,
                 'new_name': new_name}
 
-            twitchy_database.DatabaseFunctions().modify_data(
+            database_instance.modify_data(
                 'alternate_name',
                 table_wanted,
                 criteria_dict)
@@ -124,7 +131,7 @@ def watch_channel(option=None, database_search=None):
             'Name': database_search,
             'AltName': database_search}
 
-    channel_data = twitchy_database.DatabaseFunctions().fetch_data(
+    channel_data = database_instance.fetch_data(
         ('ChannelID',),
         'channels',
         database_search,
@@ -132,11 +139,47 @@ def watch_channel(option=None, database_search=None):
 
     id_string_list = [str(i[0]) for i in channel_data]
     print(' ' + Options.colors.numbers +
-          f'Checking {len(id_string_list)} channels...' +
+          f'Checking {len(id_string_list)} channel(s)...' +
           Colors.ENDC)
     channels_online = twitchy_api.GetOnlineStatus(id_string_list).check_channels()
+    if not channels_online:
+        print(
+            Colors.RED + ' All channels offline' + Colors.ENDC)
+        exit()
+
     final_selection = twitchy_display.GenerateTable(channels_online).online_channels()
     twitchy_play.play_instance_generator(final_selection)
 
-#watch_channel(None, 'dog')
+# watch_channel(None, 'dog')
 watch_channel()
+
+def non_interactive(mode=None):
+    # mode is None in case data is required about the currently playing channel
+    # or 'get_online' to get a list of online channels
+    # or 'kick_start' to skip selection and just pass the channel name to the
+    # play module
+
+    if mode == 'get_online':
+        # Prints game name, channel_name for all channels found online in the
+        # database
+        channel_data = database_instance.fetch_data(
+            ('ChannelID',),
+            'channels',
+            None,
+            'LIKE')
+
+        id_string_list = [str(i[0]) for i in channel_data]
+        channels_online = twitchy_api.GetOnlineStatus(id_string_list).check_channels()
+
+        # All standard channel parameters are available
+        return_list = []
+        for i in channels_online.items():
+            return_list.append([
+                i[1]['game'], i[0], i[1]['display_name']])
+
+        return_list.sort()
+        for i in return_list:
+            print(','.join(i))
+
+
+# non_interactive('get_online')

@@ -3,7 +3,6 @@
 
 import locale
 import random
-import collections
 
 from pprint import pprint
 
@@ -98,8 +97,8 @@ def emote():
 class GenerateTable():
     def __init__(self, table_data_incoming):
         self.table_data_incoming = table_data_incoming
-        self.display_dict = None
         self.item_count = None
+        self.display_list = None
 
     def get_selection(self, mode):
         # Returns whatever the user selects at the relevant prompt
@@ -161,19 +160,33 @@ class GenerateTable():
             # Accepts a list containg the first, second, and third
             # columns. These are shown according to formatting guidance
             # from the other functions in this class
+            # The self.display_list also has a [3] that corresponds to relational
+            # parameters that will be used at the time of selection
 
-            # In the following case, we also expect the presence
-            # of i[3], the GameName
-            # I think this should be passed to this function regardless
+            # It's worth remembering that sorting is case sensitive
+            # Goodbye, one little bit of my sanity
+
+            self.display_list = display_list
             if Options.display.sort_by == 'GameName':
+                # The lambda function is of critical importance since
+                # it decides how the display will actually go
+                # The - in the lambda implies sorting is by reverse
+                # A negative value is only applicable to integers
+                self.display_list.sort(
+                    key=lambda x: (x[3]['game_display_name'].lower(), -x[3]['viewers']))
                 previous_game = None
 
-            for count, i in enumerate(display_list):
+            else:
+                sorting_column_index = int(Options.display.sort_by) - 1
+                self.display_list.sort(
+                    key=lambda x: x[sorting_column_index].lower())
+
+            for count, i in enumerate(self.display_list):
 
                 # If sorting is by GameName, print only the
                 # name of every game that's mentioned for the first time
                 if Options.display.sort_by == 'GameName':
-                    current_game = i[3]
+                    current_game = i[3]['game_display_name']
                     if previous_game != current_game:
                         previous_game = current_game
                         print(Options.colors.game_name + current_game)
@@ -187,132 +200,72 @@ class GenerateTable():
                     Options.colors.column3 + i[2] + Colors.ENDC)
 
 
-        column_dict = {
-            'ChannelName': 'display_name',
-            'Viewers': 'viewers',
-            'Uptime': 'uptime',
-            'StreamStatus': 'status',
-            'GameName': 'game'}
-
-        # The lambda function is of critical importance since
-        # it decides how the display will actually go
-        # The - in the lambda implies sorting is by reverse
-        # A negative value is only applicable to integers
-
-        # By default, streams are first sorted by the game name (0),
-        # and then by the number of viewers (3)
-        if Options.display.sort_by == 'GameName':
-            sorting_key = lambda t: (t[1]['game'], -t[1]['viewers'])
-            reverse_val = False
-
-        # In this case, the integer value of the column is related to the
-        # column name and things are sorted accordingly
-        else:
-            sorting_column_index = int(Options.display.sort_by) - 1
-            sorting_column_name = Options.columns[sorting_column_index]
-            sorting_key = lambda t: t[1][column_dict[sorting_column_name]]
-            reverse_val = True
-
-        # We will be iterating over the display_dict dictionary
-        # This is an Ordered dictionary
-        self.display_dict = collections.OrderedDict(sorted(
-            self.table_data_incoming.items(),
-            key=sorting_key, reverse=reverse_val))
-        self.item_count = len(self.display_dict.keys())
+        # self.table_data_incoming is the bog standard dictionary that
+        # will be iterated upon
+        # self.item_count is the number of values in said dictionary
+        # This is needed for selection of a random entry
+        self.item_count = len(self.table_data_incoming.keys())
 
         # Since columns are selectable, the table will have to be built
         # for each channel here
         # Valid options are: ChannelName, Viewers, Uptime, StreamStatus, GameName
         final_columns = []
-        for i in self.display_dict.items():
+        for i in self.table_data_incoming.items():
 
-            # Every entry is to be checked for a game_name_display in cases
-            # where an alternate name may have been specified
-            # This needs to take place outside the following loop
-            database_search = {
-                'Name': i[1]['game']}
-            sql_reply = twitchy_database.DatabaseFunctions().fetch_data(
-                ('AltName',),
-                'games',
-                database_search,
-                'EQUALS')
-
-            game_display_name = self.display_dict[i[0]]['game_display_name'] = None
-            if sql_reply:
-                # Create a new entry in the dictionary in case the 'GameName'
-                # has a corresponding AltName entry
-                game_display_name = sql_reply[0][0]
-                self.display_dict[i[0]]['game_display_name'] = game_display_name
-
+            game_display_name = i[1]['game_display_name']
             display_columns = []
             for j in Options.columns:
-                # Get the name of the required dictionary item from the
-                # column_dict declared above
-                add_this = i[1][column_dict[j]]
 
-                # Account for special cases
                 if j == 'ChannelName':
-                    database_search = {
-                        'Name': i[0]}
-                    sql_reply = twitchy_database.DatabaseFunctions().fetch_data(
-                        ('AltName',),
-                        'channels',
-                        database_search,
-                        'EQUALS')[0][0]
-                    if sql_reply:
-                        # Change the display name universally
-                        add_this = self.display_dict[i[0]]['display_name'] = sql_reply
+                    add_this = i[1]['display_name']
 
-                elif j == 'Viewers':
+                if j == 'Viewers':
                     # Convert the number of viewers into a string
                     # formatted by an appropriately placed comma
-                    add_this = str(format(add_this, 'n'))
+                    add_this = str(format(i[1]['viewers'], 'n'))
 
                 elif j == 'Uptime':
                     # Convert the uptime into H:M:S
-                    add_this = time_convert(add_this)
+                    add_this = time_convert(i[1]['uptime'])
 
                 elif j == 'StreamStatus':
+                    add_this = i[1]['status']
                     if len(add_this) > Options.display.truncate_status:
                         add_this = add_this[:Options.display.truncate_status] + '...'
 
-                elif j == 'GameName' and game_display_name:
-                    add_this = game_display_name
+                elif j == 'GameName':
+                    if game_display_name:
+                        add_this = game_display_name
 
                 display_columns.append(add_this)
 
-            # In case sorting is by game name, this is expected regardless
-            # of what the other columns are
-            # TODO This needs to be correlated to the game_display_name
-            if Options.display.sort_by == 'GameName':
-                if game_display_name:
-                    display_columns.append(game_display_name)
-                else:
-                    display_columns.append(i[1]['game'])
+            # At [3] in display_columns, is a dictionary containg both
+            # the (alternate) game_name as well as the real channel name
+            if not game_display_name:
+                game_display_name = i[1]['game']
+            relational_params = {
+                'name': i[0],
+                'viewers': i[1]['viewers'],
+                'game_display_name': game_display_name}
 
+            display_columns.append(relational_params)
             final_columns.append(display_columns)
 
         table_display(final_columns)
         final_selection = self.get_selection('online_channels')
 
-        return_dict = collections.OrderedDict()
+        # Generate the final selection dictionary
+        # Its keys are the names of the channels
+        # Corresponding values are channel params
+        # Channel quality is inserted as a value on the basis
+        # of its selection from the relevant function
+        selected_channels = {}
         for i in final_selection:
-            # We'll be getting the relevant channel name from the
-            # OrderedDict itself. This requires conversion of
-            # the keys iterable into a list
-            current = list(self.display_dict.items())[i[0]]
+            channel_name = self.display_list[i[0]][3]['name']
+            selected_channels[channel_name] = self.table_data_incoming[channel_name]
+            selected_channels[channel_name]['quality'] = i[1]
 
-            # Furthermore, additional relevant data can be inserted
-            # into the dictionary at index 1
-            # Currently, this includes: quality selection
-            current[1]['quality'] = i[1]
-
-            # Populate the dictionary that will be returned to
-            # tha parent function
-            return_dict[current[0]] = current[1]
-
-        # pprint(self.display_dict)
-        return return_dict
+        return selected_channels
 
     def database(self):
         # Applies to functions that deal with the database
@@ -327,6 +280,10 @@ class GenerateTable():
             # Accepts a list containg the first, second, and third
             # columns. These are shown according to formatting guidance
             # from the other functions in this class
+
+            # Sort by Time watched and then by channel name
+            display_list.sort(key=lambda x: (-x[1], x[0]))
+
             for count, i in enumerate(display_list):
 
                 # Display colors in case of specific value ranges only

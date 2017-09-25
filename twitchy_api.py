@@ -11,6 +11,8 @@ except ImportError:
     print(Colors.RED + ' requests not installed. Exiting.' + Colors.ENDC)
     exit(1)
 
+import twitchy_database
+
 
 def api_call(url, params=None):
     try:
@@ -139,6 +141,22 @@ class GetOnlineStatus:
 
         return stream_uptime_seconds
 
+    def get_altname(self, table, default_name):
+        # It makes more sense to have this here instead of the
+        # display module because it would require duplication
+        # during headless operation otherwise
+
+        database_search = {
+            'Name': default_name}
+
+        sql_reply = twitchy_database.DatabaseFunctions().fetch_data(
+            ('AltName',),
+            table,
+            database_search,
+            'EQUALS')
+
+        return sql_reply
+
 
     def check_channels(self):
         # The API imposes an upper limit of 100 channels
@@ -160,12 +178,26 @@ class GetOnlineStatus:
             # Time watched is a database function - See if it
             # needs to be integrated here
             for i in stream_data['streams']:
-                self.online_channels[i['channel']['name']] = {
-                    'game': i['game'],
+                channel_name = i['channel']['name']
+
+                uptime = self.parse_uptime(i['created_at'])
+
+                channel_display_name = self.get_altname(
+                    'channels', channel_name)
+                if not channel_display_name:
+                    channel_display_name = i['channel']['display_name']
+
+                game_name = i['game']
+                game_display_name = self.get_altname(
+                    'games', game_name)
+
+                self.online_channels[channel_name] = {
+                    'game': game_name,
+                    'game_display_name': game_display_name,
                     'status': i['channel']['status'],
                     'viewers': i['viewers'],
-                    'display_name': i['channel']['display_name'],
-                    'uptime': self.parse_uptime(i['created_at'])}
+                    'display_name': channel_display_name,
+                    'uptime': uptime}
 
         return self.online_channels
 

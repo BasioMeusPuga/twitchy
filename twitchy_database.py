@@ -103,6 +103,15 @@ class DatabaseFunctions:
             channel_data = self.database.execute(sql_command_fetch).fetchall()
 
             if channel_data:
+                # Because this is the result of a fetchall(), we need an
+                # ugly hack (tm) to get correct results for anything that
+                # isn't a database id search
+                # This will cause issues in case someone wants to refer to
+                # streamers and games as digits. We don't need that shit here.
+                if len(channel_data) == 1:
+                    if not str(channel_data[0][0]).isdigit():
+                        return channel_data[0][0]
+
                 return channel_data
             else:
                 return None

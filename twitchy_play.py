@@ -61,19 +61,20 @@ class Playtime:
         end_time = time.time()
         time_watched = end_time - self.start_time
 
+        database_instance = twitchy_database.DatabaseFunctions()
         # Even for a non watched channel, the database always has a 0 value associated
         # Therefore, there will be no None returns
-        time_watched_channel = twitchy_database.DatabaseFunctions().fetch_data(
+        time_watched_channel = database_instance.fetch_data(
             ('TimeWatched',),
             'channels',
             {'Name': self.channel_name},
-            'EQUALS')[0][0]
+            'EQUALS')
 
-        time_watched_game = twitchy_database.DatabaseFunctions().fetch_data(
+        time_watched_game = database_instance.fetch_data(
             ('TimeWatched',),
             'games',
             {'Name': self.channel_params['game']},
-            'EQUALS')[0][0]
+            'EQUALS')
 
         print(time_watched_channel, time_watched_game)
 
