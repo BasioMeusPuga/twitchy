@@ -48,8 +48,6 @@ def channel_addition(option, channels):
     # -a expects a list
     # OR 'sync' for -s
     # -s accepts only a string
-
-    # TODO Respond to the datatype of channels after writing main()
     # Everything is converted to lowercase in the relevant function
 
     print(' ' + Colors.YELLOW + 'Additions to database:' + Colors.ENDC)
@@ -264,6 +262,7 @@ def main():
 
     else:
         watch_channel()
+
 
 if __name__ == '__main__':
     try:

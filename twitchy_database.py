@@ -46,7 +46,6 @@ class DatabaseFunctions:
         # Used for -a and -s
         # That's addition and syncing
         # data is a list containing tuples
-
         added_channels = []
         for channel_data in data:
             channel_name = channel_data[0]
@@ -65,6 +64,18 @@ class DatabaseFunctions:
         self.database.commit()
         return added_channels
 
+    def add_games(self, game_name):
+        # Used for addition of a game that is started in the play module
+        # Does not need to return anything
+        sql_command_exist = f"SELECT Name FROM games WHERE Name = '{game_name}'"
+        does_it_exist = self.database.execute(
+            sql_command_exist).fetchone()
+        if not does_it_exist:
+            sql_command_add = (
+                f"INSERT INTO games (Name,Timewatched) VALUES ('{game_name}',0)")
+            self.database.execute(sql_command_add)
+            self.database.commit()
+
     def fetch_data(self, columns, table, selection_criteria, equivalence, fetch_one=False):
         # columns is a tuple that will be passed as a comma separated list
         # table is a string that will be used as is
@@ -78,7 +89,6 @@ class DatabaseFunctions:
         #     'AltName': 'sav'
         # }
         # data = DatabaseFunctions().fetch_data(('Name',), 'channels', sel_dict)
-
         try:
             column_list = ','.join(columns)
             sql_command_fetch = f"SELECT {column_list} FROM {table}"
@@ -141,4 +151,27 @@ class DatabaseFunctions:
             # In this case, criteria is a single string
             sql_command = f"DELETE FROM {table} WHERE Name = '{criteria}'"
             self.database.execute(sql_command)
+            self.database.commit()
+
+        if mode == 'update_time':
+            # In this case, criteria is expected to be a dictionary containing
+            # the new time_watched values for both the channel and the game
+            # Therefore, table is None
+            channel_name = criteria['channel_name']
+            channel_time = criteria['new_time_channel']
+            game_name = criteria['game_name']
+            game_time = criteria['new_time_game']
+
+            try:
+                sql_command_channel = (
+                    f"UPDATE channels SET TimeWatched = {channel_time} WHERE Name = '{channel_name}'")
+                self.database.execute(sql_command_channel)
+            except sqlite3.OperationalError:
+                print('Slight error')
+                # This accounts for -w coming across a channel not in the database
+                pass
+
+            sql_command_game = (
+                f"UPDATE games SET TimeWatched = {game_time} WHERE Name = '{game_name}'")
+            self.database.execute(sql_command_game)
             self.database.commit()

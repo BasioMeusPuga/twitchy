@@ -11,6 +11,7 @@ import webbrowser
 import twitchy_database
 import twitchy_config
 from twitchy_config import Colors
+from twitchy_display import time_convert
 
 Options = twitchy_config.Options()
 Options.parse_options()
@@ -35,19 +36,27 @@ class Playtime:
             except webbrowser.Error:
                 webbrowser.open_new(chat_url)
 
-        # TODO Insert into the database the name of the game here
+        # Insert the name of only started games into the database
+        # This keeps the database from getting too cluttered
+        twitchy_database.DatabaseFunctions().add_games(
+            self.channel_params['game'])
 
         display_name = self.channel_params['display_name']
         player = Options.video.player_final + f' --title {display_name}'
         quality = Options.quality_map[self.channel_params['quality']]
 
+        # The following prints to the console
+        # If ever there is going to be a curses version
+        # it will need to be suppressed
         print(' ' + Colors.WHITE +
               self.channel_params['display_name'] + Colors.ENDC +
               ' | ' + Colors.WHITE +
               self.channel_params['quality'].title() + Colors.ENDC)
 
-        args_to_subprocess = f"streamlink twitch.tv/{self.channel_name} {quality} --player '{player}' --hls-segment-threads 3 --player-passthrough=hls"
-        args_to_subprocess = shlex.split(args_to_subprocess)
+        args_to_subprocess = (
+            f"streamlink twitch.tv/{self.channel_name} {quality} --player '{player}'")
+        hls_settings = ' --hls-segment-threads 3 --player-passthrough=hls'
+        args_to_subprocess = shlex.split(args_to_subprocess + hls_settings)
 
         # Get the time when the stream starts
         self.start_time = time.time()
@@ -60,25 +69,64 @@ class Playtime:
     def time_tracking(self):
         end_time = time.time()
         time_watched = end_time - self.start_time
-
         database_instance = twitchy_database.DatabaseFunctions()
-        # Even for a non watched channel, the database always has a 0 value associated
-        # Therefore, there will be no None returns
-        time_watched_channel = database_instance.fetch_data(
-            ('TimeWatched',),
-            'channels',
-            {'Name': self.channel_name},
-            'EQUALS',
-            True)
 
-        time_watched_game = database_instance.fetch_data(
-            ('TimeWatched',),
-            'games',
-            {'Name': self.channel_params['game']},
-            'EQUALS',
-            True)
+        def fetch_time_data():
+            # Even for a non watched channel, the database always has a 0 value associated
+            # Therefore, there will be no None returns
+            time_watched_channel = database_instance.fetch_data(
+                ('TimeWatched',),
+                'channels',
+                {'Name': self.channel_name},
+                'EQUALS',
+                True)
 
-        print(time_watched_channel, time_watched_game)
+            time_watched_game = database_instance.fetch_data(
+                ('TimeWatched',),
+                'games',
+                {'Name': self.channel_params['game']},
+                'EQUALS',
+                True)
+
+            return time_watched_channel, time_watched_game
+
+        time_data = fetch_time_data()
+
+        time_values = {
+            'channel_name': self.channel_name,
+            'new_time_channel': time_data[0] + time_watched,
+            'game_name': self.channel_params['game'],
+            'new_time_game': time_data[1] + time_watched}
+
+        database_instance.modify_data(
+            'update_time',
+            None,
+            time_values)
+
+        time_data_new = fetch_time_data()
+        # The following prints to the console
+        # If ever there is going to be a curses version
+        # it will need to be suppressed
+        game_display_name = self.channel_params['game_display_name']
+        if not game_display_name:
+            game_display_name = self.channel_params['game']
+
+        channel_rank = get_rank_data('channels', self.channel_name)
+        if channel_rank:
+            channel_rank = ' (' + channel_rank + ')'
+
+        game_rank = get_rank_data('games', self.channel_params['game'])
+        if game_rank:
+            game_rank = ' (' + game_rank + ')'
+
+        print(
+            ' ' + Colors.WHITE +
+            self.channel_params['display_name'] + ': ' + Colors.ENDC +
+            time_convert(time_data_new[0]) + channel_rank +
+            ' | ' + Colors.WHITE +
+            game_display_name + ': ' + Colors.ENDC +
+            time_convert(time_data_new[1]) + game_rank)
+
 
 def play_instance_generator(incoming_dict):
     playtime_instance = {}
@@ -99,31 +147,26 @@ def play_instance_generator(incoming_dict):
             playtime_instance[i].player_process.poll()
             process_returncode = playtime_instance[i].player_process.returncode
 
-            if process_returncode:
+            if process_returncode is not None:
                 if process_returncode == 1:
-                    stream_stdout = playtime_instance[i].player_process.stdout.read(
-                        ).decode('utf-8').split('\n')
-                    stream_stderr = playtime_instance[i].player_process.stderr.read(
-                        ).decode('utf-8').split('\n')
+                    stream_stdout = playtime_instance[i].player_process.stdout.read().decode(
+                        'utf-8').split('\n')
+                    stream_stderr = playtime_instance[i].player_process.stderr.read().decode(
+                        'utf-8').split('\n')
 
                     all_error = stream_stdout + stream_stderr
                     error_message = [er for er in all_error if 'error:' in er]
                     print(' ' +
-                          Colors.RED + playtime_instance[i].channel_params['display_name']
-                          + Colors.ENDC +
-                          ' (' + error_message[0] + ')')
-                else:
+                          Colors.RED + playtime_instance[i].channel_params['display_name'] +
+                          Colors.ENDC +
+                          ' (' + error_message + ')')
+                elif process_returncode == 0:
+                    playtime_instance[i].time_tracking()
                     playing_streams.remove(i)
-
-            # For when the player process is terminated outside the script
-            # TODO Why is this being executed?
-            # elif not process_returncode:
-            #     print(process_returncode)
-            #     playtime_instance[i].time_tracking()
-            #     playing_streams.remove(i)
 
         try:
             # The 0.8 is the polling interval for the streamlink process
+            # The o, e is needed for reasons I don't completely understand
             keypress, o, e = select.select([sys.stdin], [], [], 0.8)
             if keypress:
                 keypress_made = sys.stdin.readline().strip()
@@ -134,3 +177,26 @@ def play_instance_generator(incoming_dict):
                 playtime_instance[i].time_tracking()
                 playtime_instance[i].player_process.terminate()
             playing_streams.clear()
+
+
+def get_rank_data(table, name):
+    # Returns the rank of the requisite channel or game
+    # as a string
+    database_instance = twitchy_database.DatabaseFunctions()
+
+    time_and_name = database_instance.fetch_data(
+        ('TimeWatched', 'Name'),
+        table,
+        None,
+        'EQUALS')
+
+    time_and_name.sort(reverse=True)
+    names_only = [i[1] for i in time_and_name]
+
+    try:
+        rank = str(names_only.index(name) + 1)
+    except ValueError:
+        # In case the provided name is not in the database
+        return
+
+    return rank

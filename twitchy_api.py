@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
+# Twitch API interaction module
 
 import datetime
 
+import twitchy_database
 from twitchy_config import Colors
 
 try:
     import requests
 except ImportError:
-    print(Colors.RED + ' requests not installed. Exiting.' + Colors.ENDC)
+    print(Colors.RED + ' requests not installed.' + Colors.ENDC)
     exit(1)
-
-import twitchy_database
 
 
 def api_call(url, params=None):
@@ -160,7 +160,6 @@ class GetOnlineStatus:
             True)
 
         return sql_reply
-
 
     def check_channels(self):
         # The API imposes an upper limit of 100 channels

@@ -33,7 +33,6 @@ class ConfigInit:
         if not os.path.exists(self.config_path):
             self.configure_options()
 
-
     def configure_options(self):
         try:
             # Turns out, we don't actually need a no_default
@@ -101,7 +100,6 @@ class ConfigInit:
             except KeyboardInterrupt:
                 exit(1)
 
-
     def write_to_config_file(self):
         config_string = (
             '# Twitchy configuration file\n'
@@ -166,7 +164,6 @@ class Options:
         # The class attributes are mostly dictionaries as declared below
         self.video = self.columns = self.display = None
         self.colors = self.chat = self.conky_run = self.quality_map = None
-
 
     def parse_options(self):
         config = configparser.ConfigParser()

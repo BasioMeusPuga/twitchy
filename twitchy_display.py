@@ -78,9 +78,9 @@ def emote():
         ' ░░▀░░░░░░▒▄▄▒▄▄▄▒▒█░\n'
         ' ░░░▀▄▄▒▒░░░░▀▀▒▒▄▀░░\n'
         ' ░░░░░▀█▄▒▒░░░░▒▄▀░░░\n'
-        ' ░░░░░░░░▀▀█▄▄▄▄▀░░░░\n')
+        ' ░░░░░░░░▀▀█▄▄▄▄▀░░░░')
 
-    print('\n' + kappa)
+    print(kappa)
 
 
 def get_selection(mode, table_max_val):
@@ -104,10 +104,11 @@ def get_selection(mode, table_max_val):
             if mode == 'database':
                 raise ValueError
             elif mode == 'online_channels':
-                # TODO There's a bug in the randomization process
                 final_selection = [[
                     random.randrange(0, table_max_val),
                     Options.video.default_quality]]
+                emote()
+                return final_selection
         else:
             quality_dict = {
                 'l': 'low',
@@ -176,6 +177,9 @@ class GenerateWatchTable():
             self.display_list.sort(
                 key=lambda x: x[sorting_column_index].lower())
 
+        template = template_mapping('watch')
+        list_digits = len(str(len(display_list)))
+
         for count, i in enumerate(self.display_list):
 
             # If sorting is by GameName, print only the
@@ -189,8 +193,6 @@ class GenerateWatchTable():
                         Options.colors.game_name +
                         current_game)
 
-            template = template_mapping('watch')
-            list_digits = len(str(len(display_list)))
             print(
                 ' ' +
                 Options.colors.numbers + str(count + 1).rjust(list_digits) +
