@@ -4,15 +4,9 @@
 import locale
 import random
 
-from pprint import pprint
-
-import twitchy_database
 import twitchy_config
 from twitchy_config import Colors
-# For the love of God, a direct reference to class.method()
-# is a direct reference to class.method()
-# It will not populate the class attributes for you
-# Even if you ask nicely
+
 Options = twitchy_config.Options()
 Options.parse_options()
 
@@ -29,7 +23,7 @@ def template_mapping(called_from):
     # we'll get the unenviable free line breaks. That's just silly.
 
     if called_from == 'list':
-        first_column = 25
+        first_column = 30
         second_column = 40
     elif called_from == 'listnocolor':
         first_column = 25
@@ -47,7 +41,8 @@ def template_mapping(called_from):
         first_column = 40
         second_column = 60
 
-    template = '{0:%s}{1:%s}{2:%s}' % (first_column, second_column, third_column)
+    template = '{0:%s}{1:%s}{2:%s}' % (
+        first_column, second_column, third_column)
     return template
 
 
@@ -94,118 +89,121 @@ def emote():
     print('\n' + kappa)
 
 
-class GenerateTable():
+def get_selection(mode, table_max_val):
+    # Returns whatever the user selects at the relevant prompt
+    # Modes are 'online_channels' and 'database'
+
+    try:
+        channel_selection = input(' Number? ')
+
+        # Whatever is selected is passed to this list
+        # This is then iterated upon to get the list of parameters
+        # that will be passed back to the parent function
+        final_selection = []
+
+        entered_numbers = channel_selection.split()
+        if not entered_numbers:
+            # Everything should error out in case a null selection is
+            # made when we're operating purely with database values
+            # Otherwise, we're going for a random selection
+            # with default quality video
+            if mode == 'database':
+                raise ValueError
+            elif mode == 'online_channels':
+                # TODO There's a bug in the randomization process
+                final_selection = [[
+                    random.randrange(0, table_max_val),
+                    Options.video.default_quality]]
+        else:
+            quality_dict = {
+                'l': 'low',
+                'm': 'medium',
+                'h': 'high',
+                's': 'source'}
+
+            entered_numbers = [i.split('-') for i in entered_numbers]
+            for i in entered_numbers:
+                try:
+                    selected_quality = quality_dict[i[1]]
+                except (KeyError, IndexError):
+                    # Anything that has a valid digit that prefixes it
+                    # is started at the default_quality
+                    selected_quality = Options.video.default_quality
+
+                final_selection.append([
+                    int(i[0]) - 1,
+                    selected_quality])
+
+            return final_selection
+
+    except (IndexError, ValueError, KeyboardInterrupt):
+        print(Colors.RED + ' Invalid input.' + Colors.ENDC)
+        exit(1)
+
+
+class GenerateWatchTable():
+    # Applies to the watch functions
+    # Will wait for an input and return it to the function
+    # that called it
+
     def __init__(self, table_data_incoming):
         self.table_data_incoming = table_data_incoming
         self.item_count = None
         self.display_list = None
 
-    def get_selection(self, mode):
-        # Returns whatever the user selects at the relevant prompt
-        # Modes are 'online_channels' and 'database'
+    def table_display(self, display_list):
+        # Accepts a list containg the first, second, and third
+        # columns. These are shown according to formatting guidance
+        # from the other functions in this class
+        # The self.display_list also has a [3] that corresponds to relational
+        # parameters that will be used at the time of selection
 
-        try:
-            channel_selection = input(' Number? ')
+        # It's worth remembering that sorting is case sensitive
+        # Goodbye, one little bit of my sanity
 
-            # Whatever is selected is passed to this list
-            # This is then iterated upon to get the list of parameters
-            # that will be passed back to the parent function
-            final_selection = []
+        self.display_list = display_list
+        if Options.display.sort_by == 'GameName':
+            # The lambda function is of critical importance since
+            # it decides how the display will actually go
+            # The - in the lambda implies sorting is by reverse
+            # A negative value is only applicable to integers
+            self.display_list.sort(
+                key=lambda x: (x[3]['game_display_name'].lower(), -x[3]['viewers']))
+            previous_game = None
 
-            entered_numbers = channel_selection.split()
-            if not entered_numbers:
-                # Everything should error out in case a null selection is
-                # made when we're operating purely with database values
-                # Otherwise, we're going for a random selection
-                # with default quality video
-                if mode == 'database':
-                    raise ValueError
-                elif mode == 'online_channels':
-                    # TODO There's a bug in the randomization process
-                    final_selection = [[
-                        random.randrange(0, self.item_count),
-                        Options.video.default_quality]]
-            else:
-                quality_dict = {
-                    'l': 'low',
-                    'm': 'medium',
-                    'h': 'high',
-                    's': 'source'}
+        else:
+            sorting_column_index = int(Options.display.sort_by) - 1
+            self.display_list.sort(
+                key=lambda x: x[sorting_column_index].lower())
 
-                entered_numbers = [i.split('-') for i in entered_numbers]
-                for i in entered_numbers:
-                    try:
-                        selected_quality = quality_dict[i[1]]
-                    except (KeyError, IndexError):
-                        # Anything that has a valid digit that prefixes it
-                        # is started at the default_quality
-                        selected_quality = Options.video.default_quality
+        for count, i in enumerate(self.display_list):
 
-                    final_selection.append([
-                        int(i[0]) - 1,
-                        selected_quality])
-
-                return final_selection
-
-        except (IndexError, ValueError, KeyboardInterrupt):
-            print(Colors.RED + ' Invalid input.' + Colors.ENDC)
-            exit(1)
-
-    def online_channels(self):
-        # Applies to the watch functions
-        # Will wait for an input and return it to the function
-        # that called it
-
-        def table_display(display_list):
-            # Accepts a list containg the first, second, and third
-            # columns. These are shown according to formatting guidance
-            # from the other functions in this class
-            # The self.display_list also has a [3] that corresponds to relational
-            # parameters that will be used at the time of selection
-
-            # It's worth remembering that sorting is case sensitive
-            # Goodbye, one little bit of my sanity
-
-            self.display_list = display_list
+            # If sorting is by GameName, print only the
+            # name of every game that's mentioned for the first time
             if Options.display.sort_by == 'GameName':
-                # The lambda function is of critical importance since
-                # it decides how the display will actually go
-                # The - in the lambda implies sorting is by reverse
-                # A negative value is only applicable to integers
-                self.display_list.sort(
-                    key=lambda x: (x[3]['game_display_name'].lower(), -x[3]['viewers']))
-                previous_game = None
+                current_game = i[3]['game_display_name']
+                if previous_game != current_game:
+                    previous_game = current_game
+                    print(
+                        ' ' +
+                        Options.colors.game_name +
+                        current_game)
 
-            else:
-                sorting_column_index = int(Options.display.sort_by) - 1
-                self.display_list.sort(
-                    key=lambda x: x[sorting_column_index].lower())
+            template = template_mapping('watch')
+            list_digits = len(str(len(display_list)))
+            print(
+                ' ' +
+                Options.colors.numbers + str(count + 1).rjust(list_digits) +
+                ' ' +
+                template.format(
+                    Options.colors.column1 + i[0],
+                    Options.colors.column2 + i[1].rjust(8),
+                    Options.colors.column3 + i[2]) +
+                Colors.ENDC)
 
-            for count, i in enumerate(self.display_list):
-
-                # If sorting is by GameName, print only the
-                # name of every game that's mentioned for the first time
-                if Options.display.sort_by == 'GameName':
-                    current_game = i[3]['game_display_name']
-                    if previous_game != current_game:
-                        previous_game = current_game
-                        print(Options.colors.game_name + current_game)
-
-                # Output the table to console
-                # TODO Take formatting instructions from other functions
-                print(
-                    Options.colors.numbers + str(count + 1) + ' ' +
-                    Options.colors.column1 + i[0] + ' ' +
-                    Options.colors.column2 + i[1] + ' ' +
-                    Options.colors.column3 + i[2] + Colors.ENDC)
-
-
+    def begin(self):
         # self.table_data_incoming is the bog standard dictionary that
         # will be iterated upon
-        # self.item_count is the number of values in said dictionary
-        # This is needed for selection of a random entry
-        self.item_count = len(self.table_data_incoming.keys())
-
         # Since columns are selectable, the table will have to be built
         # for each channel here
         # Valid options are: ChannelName, Viewers, Uptime, StreamStatus, GameName
@@ -219,7 +217,7 @@ class GenerateTable():
                 if j == 'ChannelName':
                     add_this = i[1]['display_name']
 
-                if j == 'Viewers':
+                elif j == 'Viewers':
                     # Convert the number of viewers into a string
                     # formatted by an appropriately placed comma
                     add_this = str(format(i[1]['viewers'], 'n'))
@@ -251,8 +249,9 @@ class GenerateTable():
             display_columns.append(relational_params)
             final_columns.append(display_columns)
 
-        table_display(final_columns)
-        final_selection = self.get_selection('online_channels')
+        self.table_display(final_columns)
+        final_selection = get_selection(
+            'online_channels', len(self.table_data_incoming))
 
         # Generate the final selection dictionary
         # Its keys are the names of the channels
@@ -267,45 +266,59 @@ class GenerateTable():
 
         return selected_channels
 
-    def database(self):
-        # Applies to functions that deal with the database
 
+class GenerateDatabaseTable:
+    # Applies to functions that deal with the database
+    def __init__(self, table_data_incoming, table):
+        self.table_data_incoming = table_data_incoming
+        self.table = table
+
+    def table_display(self, display_list):
         # self.table_data_incoming is a list of tuples
         # Indices
         # 0: Channel name
         # 1: Time Watched
         # 2: Alt Name
 
-        def table_display(display_list):
-            # Accepts a list containg the first, second, and third
-            # columns. These are shown according to formatting guidance
-            # from the other functions in this class
+        if self.table == 'channels':
+            template = template_mapping('list')
+        elif self.table == 'games':
+            template = template_mapping('gameslist')
 
-            # Sort by Time watched and then by channel name
-            display_list.sort(key=lambda x: (-x[1], x[0]))
+        # Sort by Time watched and then by channel name
+        display_list.sort(key=lambda x: x[0])
 
-            for count, i in enumerate(display_list):
+        list_digits = len(str(len(display_list)))
+        for count, i in enumerate(display_list):
 
-                # Display colors in case of specific value ranges only
-                row_color1 = row_color2 = Colors.ENDC
+            # Display colors in case of specific value ranges only
+            row_color2 = Colors.ENDC
 
-                if i[1] == 0:
-                    row_color1 = Colors.RED
+            if i[1] == 0:
+                time_watched = Colors.RED + 'Unwatched'
+            else:
+                time_watched = time_convert(i[1]).rjust(9)
 
-                time_watched = time_convert(i[1])
-                alt_name = i[2]
-                if alt_name:
-                    row_color2 = Colors.CYAN
+            alt_name = i[2]
+            if alt_name:
+                row_color2 = Colors.CYAN
+                time_watched = ' ' + time_watched
 
-                print(
-                    Options.colors.numbers + str(count + 1) + ' ' +
-                    row_color1 + i[0] + ' ' +
-                    row_color2 + str(alt_name) + ' ' +
-                    Colors.ENDC + time_watched +
-                    Colors.ENDC)
+            print(
+                ' ' +
+                Options.colors.numbers + str(count + 1).rjust(list_digits) +
+                Colors.ENDC +
+                ' ' +
+                template.format(
+                    i[0],
+                    row_color2 + str(alt_name),
+                    Colors.ENDC + time_watched) +
+                Colors.ENDC)
 
-        table_display(self.table_data_incoming)
-        final_selection = self.get_selection('database')
+    def begin(self):
+
+        self.table_display(self.table_data_incoming)
+        final_selection = get_selection('database', None)
 
         # A double 0 index is required because we're reusing the
         # get selection function that also returns the default quality

@@ -187,7 +187,7 @@ class GetOnlineStatus:
                 if not channel_display_name:
                     channel_display_name = i['channel']['display_name']
 
-                game_name = i['game']
+                game_name = i['game'].replace('\'', '')
                 game_display_name = self.get_altname(
                     'games', game_name)
 

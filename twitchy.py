@@ -91,7 +91,8 @@ def database_modification(option, database_search=None):
         database_search,
         'LIKE')
 
-    final_selection = twitchy_display.GenerateTable(channel_data).database()
+    final_selection = twitchy_display.GenerateDatabaseTable(
+        channel_data, table_wanted).begin()
 
     if option == 'delete':
         yes_default = ['y', 'Y', 'yes', 'YES']
@@ -118,7 +119,7 @@ def database_modification(option, database_search=None):
                 table_wanted,
                 criteria_dict)
 
-# database_modification('delete')
+database_modification('delete')
 # database_modification('delete', 'fa')
 
 def watch_channel(option=None, database_search=None):
@@ -147,11 +148,12 @@ def watch_channel(option=None, database_search=None):
             Colors.RED + ' All channels offline' + Colors.ENDC)
         exit()
 
-    final_selection = twitchy_display.GenerateTable(channels_online).online_channels()
+    final_selection = twitchy_display.GenerateWatchTable(
+        channels_online).begin()
     twitchy_play.play_instance_generator(final_selection)
 
 # watch_channel(None, 'dog')
-watch_channel()
+# watch_channel()
 
 def non_interactive(mode=None):
     # mode is None in case data is required about the currently playing channel
