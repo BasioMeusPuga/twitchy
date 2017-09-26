@@ -2,7 +2,6 @@
 
 import datetime
 
-from pprint import pprint
 from twitchy_config import Colors
 
 try:
@@ -57,6 +56,7 @@ def get_id(channels):
 
 def add_to_database(channels):
     # channels is expected to be a list in lowercase
+    # Example: add_to_database(['thisdude', 'thisotherdude'])
     channels = [i.lower() for i in channels]
     api_response = get_id(channels)
 
@@ -78,6 +78,7 @@ def add_to_database(channels):
 def sync_from_id(username):
     # username is expected to be a string in lowecase
     # Make sure this is set in the initiating function
+    # Example: sync_from_id('<username>')
 
     username_id = get_id([username.lower()])
     if username_id:
@@ -116,16 +117,18 @@ def sync_from_id(username):
     # add_to_database function
     return valid_channels
 
-# pprint(sync_from_id('kingspawntofour'))
 
 class GetOnlineStatus:
     def __init__(self, channels):
         # Again, channels is expected to be a tuple
         # containing the _id as a string
         # More than 100 channels will be paginated
+        # Example:
+        # channels = GetOnlineStatus(['22588033', '26610234'])
+        # channels.check_channels()
+        # pprint(channels.online_channels)
         self.channels = channels
         self.online_channels = {}
-
 
     def parse_uptime(self, start_time):
         # Uptime is returned in seconds
@@ -153,7 +156,8 @@ class GetOnlineStatus:
             ('AltName',),
             table,
             database_search,
-            'EQUALS')
+            'EQUALS',
+            True)
 
         return sql_reply
 
@@ -200,7 +204,3 @@ class GetOnlineStatus:
                     'uptime': uptime}
 
         return self.online_channels
-
-# channels = GetOnlineStatus(['22588033', '26610234'])
-# channels.check_channels()
-# pprint(channels.online_channels)

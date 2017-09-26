@@ -68,13 +68,15 @@ class Playtime:
             ('TimeWatched',),
             'channels',
             {'Name': self.channel_name},
-            'EQUALS')
+            'EQUALS',
+            True)
 
         time_watched_game = database_instance.fetch_data(
             ('TimeWatched',),
             'games',
             {'Name': self.channel_params['game']},
-            'EQUALS')
+            'EQUALS',
+            True)
 
         print(time_watched_channel, time_watched_game)
 
@@ -107,7 +109,7 @@ def play_instance_generator(incoming_dict):
                     all_error = stream_stdout + stream_stderr
                     error_message = [er for er in all_error if 'error:' in er]
                     print(' ' +
-                          Colors.RED + playtime_instance[i].display_name
+                          Colors.RED + playtime_instance[i].channel_params['display_name']
                           + Colors.ENDC +
                           ' (' + error_message[0] + ')')
                 else:

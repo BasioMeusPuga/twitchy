@@ -4,9 +4,7 @@
 import os
 import sqlite3
 
-import twitchy_api
 from twitchy_config import Colors
-
 
 location_prefix = os.path.expanduser('~') + '/.config/twitchy3/'
 
@@ -67,7 +65,7 @@ class DatabaseFunctions:
         self.database.commit()
         return added_channels
 
-    def fetch_data(self, columns, table, selection_criteria, equivalence):
+    def fetch_data(self, columns, table, selection_criteria, equivalence, fetch_one=False):
         # columns is a tuple that will be passed as a comma separated list
         # table is a string that will be used as is
         # selection_criteria is a dictionary which contains the name of a column linked
@@ -108,9 +106,11 @@ class DatabaseFunctions:
                 # isn't a database id search
                 # This will cause issues in case someone wants to refer to
                 # streamers and games as digits. We don't need that shit here.
-                if len(channel_data) == 1:
-                    if not str(channel_data[0][0]).isdigit():
-                        return channel_data[0][0]
+
+                # Another consideration is returns for time watched
+                # In that case, just go 0 of 0
+                if fetch_one:
+                    return channel_data[0][0]
 
                 return channel_data
             else:

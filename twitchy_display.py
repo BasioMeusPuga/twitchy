@@ -25,15 +25,9 @@ def template_mapping(called_from):
     if called_from == 'list':
         first_column = 30
         second_column = 40
-    elif called_from == 'listnocolor':
-        first_column = 25
-        second_column = 31
     elif called_from == 'gameslist':
         first_column = 50
         second_column = 55
-    elif called_from == 'gameslistnocolor':
-        first_column = 50
-        second_column = 46
     elif called_from == 'watch':
         first_column = 25
         second_column = 20
@@ -123,6 +117,9 @@ def get_selection(mode, table_max_val):
 
             entered_numbers = [i.split('-') for i in entered_numbers]
             for i in entered_numbers:
+                if int(i[0]) > table_max_val:
+                    raise IndexError
+
                 try:
                     selected_quality = quality_dict[i[1]]
                 except (KeyError, IndexError):
@@ -136,8 +133,11 @@ def get_selection(mode, table_max_val):
 
             return final_selection
 
-    except (IndexError, ValueError, KeyboardInterrupt):
+    except (IndexError, ValueError):
         print(Colors.RED + ' Invalid input.' + Colors.ENDC)
+        exit(1)
+    except KeyboardInterrupt:
+        print()
         exit(1)
 
 
@@ -318,7 +318,8 @@ class GenerateDatabaseTable:
     def begin(self):
 
         self.table_display(self.table_data_incoming)
-        final_selection = get_selection('database', None)
+        final_selection = get_selection(
+            'database', len(self.table_data_incoming))
 
         # A double 0 index is required because we're reusing the
         # get selection function that also returns the default quality

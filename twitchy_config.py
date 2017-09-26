@@ -142,7 +142,7 @@ class ConfigInit:
             'Numbers = yellow\n'
             'GameName = cyan\n'
             'Column1 = green\n'
-            'Column2 = green\n'
+            'Column2 = white\n'
             'Column3 = green\n'
             '\n'
             '\n'

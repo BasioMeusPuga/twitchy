@@ -18,6 +18,7 @@
 
 # Standard imports
 import sys
+import argparse
 
 # Custom imports
 import twitchy_api
@@ -44,8 +45,10 @@ if sys.version_info < (3, 6):
 
 def channel_addition(option, channels):
     # option is either 'add' for -a
+    # -a expects a list
     # OR 'sync' for -s
     # -s accepts only a string
+
     # TODO Respond to the datatype of channels after writing main()
     # Everything is converted to lowercase in the relevant function
 
@@ -63,11 +66,9 @@ def channel_addition(option, channels):
 
     # Actual addition to the database takes place here
     added_channels = twitchy_database.DatabaseFunctions().add_channels(valid_channels)
-    for i in added_channels:
-        print(' ' + i)
-
-# channel_addition('add', ['hsdogdog', 'reynad27', 'AMAzHs', 'ajdk342m'])
-# channel_addition('sync', 'cohhcarnage')
+    if not added_channels:
+        print(Colors.RED + ' No valid channels found' + Colors.ENDC)
+        exit(1)
 
 
 def database_modification(option, database_search=None):
@@ -91,20 +92,33 @@ def database_modification(option, database_search=None):
         database_search,
         'LIKE')
 
+    if not channel_data:
+        print(
+            Colors.RED + ' No matching records.' + Colors.ENDC)
+        exit(1)
+
     final_selection = twitchy_display.GenerateDatabaseTable(
         channel_data, table_wanted).begin()
 
     if option == 'delete':
         yes_default = ['y', 'Y', 'yes', 'YES']
+        confirmed_deletions = []
         for i in final_selection:
             confirm_delete = input(
-                f' Delete {Colors.YELLOW + i + Colors.ENDC} ')
+                f' Delete {Colors.YELLOW + i + Colors.ENDC} (y/N) ')
 
             if confirm_delete in yes_default:
+                confirmed_deletions.append(i)
                 database_instance.modify_data(
                     'delete',
                     table_wanted,
                     i)
+
+        if confirmed_deletions:
+            print(
+                ' Deleted: ' +
+                Colors.RED + ', '.join(confirmed_deletions) +
+                Colors.ENDC)
 
     elif option == 'alternate_name':
         for i in final_selection:
@@ -119,10 +133,9 @@ def database_modification(option, database_search=None):
                 table_wanted,
                 criteria_dict)
 
-database_modification('delete')
-# database_modification('delete', 'fa')
 
 def watch_channel(option=None, database_search=None):
+    # TODO
     # Option is either 'watch' for -w
     # 'favorites' for -f
     # OR None for no special case
@@ -152,8 +165,6 @@ def watch_channel(option=None, database_search=None):
         channels_online).begin()
     twitchy_play.play_instance_generator(final_selection)
 
-# watch_channel(None, 'dog')
-# watch_channel()
 
 def non_interactive(mode=None):
     # mode is None in case data is required about the currently playing channel
@@ -185,3 +196,77 @@ def non_interactive(mode=None):
 
 
 # non_interactive('get_online')
+def main():
+    parser = argparse.ArgumentParser(
+        description='Watch twitch.tv from your terminal. IT\'S THE FUTURE.', add_help=False)
+
+    parser.add_argument(
+        'searchfor', type=str, nargs='?',
+        help='Search for channel name in database', metavar='*searchstring*')
+
+    parser.add_argument(
+        '-h', '--help',
+        help='This helpful message', action='help')
+
+    parser.add_argument(
+        '-a', type=str, nargs='+', help='Add channel name(s) to database', metavar='')
+
+    parser.add_argument(
+        '-an', type=str, nargs='?', const='Null',
+        help='Set/Unset alternate names', metavar='*searchstring*')
+
+    parser.add_argument(
+        '--configure', action='store_true', help='Configure options')
+
+    parser.add_argument(
+        '-d', type=str, nargs='?', const='Null',
+        help='Delete channel(s) from database', metavar='*searchstring*')
+
+    parser.add_argument(
+        '--reset', action='store_true', help='Start over')
+
+    parser.add_argument(
+        '-s', type=str,
+        help='Sync username\'s followed accounts to local database', metavar='username')
+
+    args = parser.parse_args()
+
+    if args.s and args.searchfor:
+        parser.error('Only one argument allowed with -s and -v')
+        exit(1)
+
+    if args.a:
+        channel_addition('add', args.a)
+
+    elif args.an:
+        arg = args.an
+        if args.an == 'Null':
+            arg = None
+        database_modification('alternate_name', arg)
+
+    elif args.configure:
+        twitchy_config.ConfigInit().configure_options()
+
+    elif args.d:
+        arg = args.d
+        if args.d == 'Null':
+            arg = None
+        database_modification('delete', arg)
+
+    elif args.reset:
+        pass
+
+    elif args.s:
+        channel_addition('sync', args.s)
+
+    elif args.searchfor:
+        watch_channel(None, args.searchfor)
+
+    else:
+        watch_channel()
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        exit()
