@@ -66,9 +66,6 @@ def add_to_database(channels):
     for i in channels:
         if i in api_response.keys():
             valid_channels.append((i, api_response[i]))
-        else:
-            # TODO - issue a proper error
-            print(i + ' Not found')
 
     # valid_channels is a list
     # It contains tuples which contain the name of

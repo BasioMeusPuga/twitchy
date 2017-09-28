@@ -104,9 +104,6 @@ class Playtime:
             time_values)
 
         time_data_new = fetch_time_data()
-        # The following prints to the console
-        # If ever there is going to be a curses version
-        # it will need to be suppressed
         game_display_name = self.channel_params['game_display_name']
         if not game_display_name:
             game_display_name = self.channel_params['game']

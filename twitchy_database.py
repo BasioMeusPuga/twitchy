@@ -33,10 +33,6 @@ class DatabaseInit:
             "CREATE TABLE miscellaneous \
             (id INTEGER PRIMARY KEY, Name TEXT, Value TEXT)")
 
-        # Create entries for entries in 'miscellaneous'
-        database.execute(
-            "INSERT INTO miscellaneous (Name,Value) VALUES ('time_tracking', 'True')")
-
     def remove_database(self):
         os.remove(self.database_path)
 

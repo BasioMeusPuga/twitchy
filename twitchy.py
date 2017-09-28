@@ -232,11 +232,13 @@ def non_interactive(mode=None):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Watch twitch.tv from your terminal. IT\'S THE FUTURE.', add_help=False)
+        description='Watch twitch.tv from your terminal. IT\'S THE FUTURE.',
+        add_help=False)
 
     parser.add_argument(
         'searchfor', type=str, nargs='?',
-        help='Search for channel name in database', metavar='*searchstring*')
+        help='Search for channel name in database',
+        metavar='*searchstring*')
 
     parser.add_argument(
         '-h', '--help',
@@ -244,29 +246,34 @@ def main():
 
     parser.add_argument(
         '-a', type=str, nargs='+',
-        help='Add channel name(s) to database', metavar='')
+        help='Add channel name(s) to database',
+        metavar='')
 
     parser.add_argument(
         '-an', type=str, nargs='?', const='Null',
-        help='Set/Unset alternate names', metavar='*searchstring*')
+        help='Set/Unset alternate names',
+        metavar='*searchstring*')
 
     parser.add_argument(
         '--configure', action='store_true', help='Configure options')
 
     parser.add_argument(
         '-d', type=str, nargs='?', const='Null',
-        help='Delete channel(s) from database', metavar='*searchstring*')
+        help='Delete channel(s) from database',
+        metavar='*searchstring*')
 
     parser.add_argument(
         '--reset', action='store_true', help='Start over')
 
     parser.add_argument(
         '-s', type=str,
-        help='Sync username\'s followed accounts to local database', metavar='username')
+        help='Sync username\'s followed accounts to local database',
+        metavar='username')
 
     parser.add_argument(
         '-w', type=str, nargs='+',
-        help='Watch specified channel(s)', metavar='<channel>')
+        help='Watch specified channel(s)',
+        metavar='<channel>')
 
     args = parser.parse_args()
 
