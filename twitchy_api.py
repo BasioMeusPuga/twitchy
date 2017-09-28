@@ -125,7 +125,7 @@ class GetOnlineStatus:
         # Example:
         # channels = GetOnlineStatus(['22588033', '26610234'])
         # channels.check_channels()
-        # pprint(channels.online_channels)
+        # print(channels.online_channels)
         self.channels = channels
         self.online_channels = {}
 

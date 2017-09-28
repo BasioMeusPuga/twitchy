@@ -48,10 +48,11 @@ class Playtime:
         # The following prints to the console
         # If ever there is going to be a curses version
         # it will need to be suppressed
-        print(' ' + Colors.WHITE +
-              self.channel_params['display_name'] + Colors.ENDC +
-              ' | ' + Colors.WHITE +
-              self.channel_params['quality'].title() + Colors.ENDC)
+        if twitchy_config.print_to_stdout:
+            print(' ' + Colors.WHITE +
+                  self.channel_params['display_name'] + Colors.ENDC +
+                  ' | ' + Colors.WHITE +
+                  self.channel_params['quality'].title() + Colors.ENDC)
 
         args_to_subprocess = (
             f"streamlink twitch.tv/{self.channel_name} {quality} --player '{player}'")
@@ -117,20 +118,19 @@ class Playtime:
             game_rank = ' (' + game_rank + ')'
 
         # Consider shfting this to the main module
-        print(
-            ' ' + Colors.WHITE +
-            self.channel_params['display_name'] + ': ' + Colors.ENDC +
-            time_convert(time_data_new[0]) + channel_rank +
-            ' | ' + Colors.WHITE +
-            game_display_name + ': ' + Colors.ENDC +
-            time_convert(time_data_new[1]) + game_rank)
+        if twitchy_config.print_to_stdout:
+            print(
+                ' ' + Colors.WHITE +
+                self.channel_params['display_name'] + ': ' + Colors.ENDC +
+                time_convert(time_data_new[0]) + channel_rank +
+                ' | ' + Colors.WHITE +
+                game_display_name + ': ' + Colors.ENDC +
+                time_convert(time_data_new[1]) + game_rank)
 
 
 def play_instance_generator(incoming_dict):
     playtime_instance = {}
     total_streams = len(incoming_dict)
-
-    print(' q / Ctrl + C to quit \n Now watching:')
 
     # Create instances of the Playtime class
     for count, i in enumerate(incoming_dict.items()):

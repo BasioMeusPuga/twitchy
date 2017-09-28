@@ -4,7 +4,7 @@
 import os
 import sqlite3
 
-from twitchy_config import Colors
+from twitchy_config import Colors, YouAndTheHorseYouRodeInOn
 
 location_prefix = os.path.expanduser('~') + '/.config/twitchy3/'
 
@@ -16,7 +16,6 @@ class DatabaseInit:
             print(Colors.CYAN +
                   ' Creating database: Add channels with -a or -s' +
                   Colors.ENDC)
-            print()
             self.create_database()
 
     def create_database(self):
@@ -29,9 +28,6 @@ class DatabaseInit:
         database.execute(
             "CREATE TABLE games \
             (id INTEGER PRIMARY KEY, Name TEXT, TimeWatched INTEGER, AltName TEXT)")
-        database.execute(
-            "CREATE TABLE miscellaneous \
-            (id INTEGER PRIMARY KEY, Name TEXT, Value TEXT)")
 
     def remove_database(self):
         os.remove(self.database_path)
@@ -127,8 +123,7 @@ class DatabaseFunctions:
                 return None
 
         except sqlite3.OperationalError:
-            print(Colors.RED + ' Database Error' + Colors.ENDC)
-            exit()
+            raise YouAndTheHorseYouRodeInOn(' Database error.')
 
     def modify_data(self, mode, table, criteria):
         if mode == 'alternate_name':

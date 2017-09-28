@@ -8,10 +8,10 @@
     ✓ Explicit exception naming
     ✓ Shift to string literals: Python 3.6 and above
     ✓ Shift to the new quality settings as the default
+    ✓ Implement a proper non interactive mode
+    ✓ Start channel without confirmation when in non interactive mode
     Alternate color coding
     Look up packaging
-    Implement a proper non interactive mode
-    Start channel without confirmation when in non interactive mode
     x Debug logging - Make this a switch
     x Use the streamlink module instead of subprocess
 """
@@ -20,27 +20,30 @@
 import sys
 import argparse
 
-# Custom imports
-import twitchy_api
-import twitchy_config  # This import also creates the path
-from twitchy_config import Colors
-import twitchy_display
-import twitchy_database
-import twitchy_play
+# Exit if version requirements are not met
+if sys.version_info < (3, 6):
+    print(' Python 3.6 or greater required.')
+    exit(1)
 
+# Custom imports
+import twitchy_config  # This import also creates the path
+from twitchy_config import Colors, YouAndTheHorseYouRodeInOn
+import twitchy_database
+
+# This is against convention, but everything will error out unless
+# both the config and the database files exist
 twitchy_database.DatabaseInit()
 twitchy_config.ConfigInit()
 
-# All database functions are an attribute of database_instance
+import twitchy_api
+import twitchy_display
+import twitchy_play
+
+# All database functions are methods in database_instance
 database_instance = twitchy_database.DatabaseFunctions()
 
 Options = twitchy_config.Options()
 Options.parse_options()
-
-# Exit if version requirements are not met
-if sys.version_info < (3, 6):
-    print(Colors.RED + ' Python 3.6 or greater required.' + Colors.ENDC)
-    exit()
 
 
 def channel_addition(option, channels):
@@ -59,14 +62,14 @@ def channel_addition(option, channels):
         valid_channels = twitchy_api.sync_from_id(channels)
 
     if not valid_channels:
-        print(Colors.RED + ' No valid channels found' + Colors.ENDC)
-        exit(1)
+        raise YouAndTheHorseYouRodeInOn(' No valid channels.')
 
     # Actual addition to the database takes place here
-    added_channels = twitchy_database.DatabaseFunctions().add_channels(valid_channels)
+    added_channels = twitchy_database.DatabaseFunctions().add_channels(
+        valid_channels)
+
     if not added_channels:
-        print(Colors.RED + ' No valid channels found' + Colors.ENDC)
-        exit(1)
+        raise YouAndTheHorseYouRodeInOn(' No valid channels.')
     else:
         for i in added_channels:
             print(' ' + i)
@@ -94,9 +97,7 @@ def database_modification(option, database_search=None):
         'LIKE')
 
     if not channel_data:
-        print(
-            Colors.RED + ' No matching records.' + Colors.ENDC)
-        exit(1)
+        raise YouAndTheHorseYouRodeInOn(' No matching records.')
 
     final_selection = twitchy_display.GenerateDatabaseTable(
         channel_data, table_wanted).begin()
@@ -170,6 +171,9 @@ def watch_channel(mode, database_search=None):
             ids_only = [i[1] for i in get_ids_from_api.items()]
             id_string_list.extend(ids_only)
 
+        if not id_string_list:
+            raise YouAndTheHorseYouRodeInOn(' No valid channels.')
+
     else:
         # This is the standard watch() function
         # It expects only one argument
@@ -184,7 +188,10 @@ def watch_channel(mode, database_search=None):
             database_search,
             'LIKE')
 
-        id_string_list = [str(i[0]) for i in channel_data]
+        if channel_data:
+            id_string_list = [str(i[0]) for i in channel_data]
+        else:
+            raise YouAndTheHorseYouRodeInOn(' Database query returned nothing.')
 
     print(' ' + Options.colors.numbers +
           f'Checking {len(id_string_list)} channel(s)...' +
@@ -192,24 +199,19 @@ def watch_channel(mode, database_search=None):
     channels_online = twitchy_api.GetOnlineStatus(
         id_string_list).check_channels()
     if not channels_online:
-        print(
-            Colors.RED + ' All channels offline' + Colors.ENDC)
-        exit()
+        raise YouAndTheHorseYouRodeInOn(' All channels offline.')
 
     final_selection = twitchy_display.GenerateWatchTable(
         channels_online).begin()
+    print(' q / Ctrl + C to quit \n Now watching:')
     twitchy_play.play_instance_generator(final_selection)
 
 
-def non_interactive(mode=None):
-    # mode is None in case data is required about the currently playing channel
-    # or 'get_online' to get a list of online channels
-    # or 'kick_start' to skip selection and just pass the channel name to the
-    # play module
-
+def non_interactive(mode, channel_name=None):
     if mode == 'get_online':
-        # Prints game name, channel_name for all channels found online in the
-        # database
+        # Output format:
+        # Game name, Game display name (if present)...
+        # Channel name, Channel display name (always present)
         channel_data = database_instance.fetch_data(
             ('ChannelID',),
             'channels',
@@ -217,17 +219,50 @@ def non_interactive(mode=None):
             'LIKE')
 
         id_string_list = [str(i[0]) for i in channel_data]
-        channels_online = twitchy_api.GetOnlineStatus(id_string_list).check_channels()
+        channels_online = twitchy_api.GetOnlineStatus(
+            id_string_list).check_channels()
 
         # All standard channel parameters are available
         return_list = []
         for i in channels_online.items():
             return_list.append([
-                i[1]['game'], i[0], i[1]['display_name']])
+                i[1]['game'], str(i[1]['game_display_name']),
+                i[0], i[1]['display_name']])
 
         return_list.sort()
         for i in return_list:
             print(','.join(i))
+
+    if mode == 'kickstart':
+        # Skip selection and just pass the channel name to the play module
+        # All output is disabled except for error messages
+        # Time tracking is disabled
+        twitchy_config.print_to_stdout = False
+        twitchy_config.time_tracking = False
+
+        if not channel_name:
+            exit(1)
+
+        try:
+            api_reply = twitchy_api.get_id([channel_name])
+            channel_id = api_reply[channel_name]
+
+            channel_status = twitchy_api.GetOnlineStatus(
+                [channel_id]).check_channels()
+            channel_status[channel_name]['quality'] = Options.video.default_quality
+            twitchy_play.play_instance_generator(channel_status)
+        except KeyboardInterrupt:
+            exit()
+
+
+def nuke_it_from_orbit():
+    print('Are you sure you want to remove the database and start over?')
+    confirmation = Colors.RED + 'KappaKeepoPogChamp' + Colors.ENDC
+    confirm = input(f'Please type {confirmation} to continue: ')
+    if confirm == 'KappaKeepoPogChamp':
+        twitchy_database.DatabaseInit().remove_database()
+        twitchy_config.ConfigInit().remove_config()
+        print(' Done.')
 
 
 def main():
@@ -263,6 +298,12 @@ def main():
         metavar='*searchstring*')
 
     parser.add_argument(
+        '--non-interactive', type=str, nargs='?',
+        help='Generate parsable data for integration elsewhere',
+        const='go',
+        metavar='go / kickstart')
+
+    parser.add_argument(
         '--reset', action='store_true', help='Start over')
 
     parser.add_argument(
@@ -278,7 +319,7 @@ def main():
     args = parser.parse_args()
 
     if args.s and args.searchfor:
-        parser.error('Only one argument allowed with -s and -v')
+        parser.error('Only one argument allowed with -s')
         exit(1)
 
     if args.a:
@@ -299,8 +340,14 @@ def main():
             arg = None
         database_modification('delete', arg)
 
+    elif args.non_interactive:
+        if args.non_interactive == 'go':
+            non_interactive('get_online')
+        elif args.non_interactive == 'kickstart':
+            non_interactive('kickstart', args.searchfor)
+
     elif args.reset:
-        pass
+        nuke_it_from_orbit()
 
     elif args.s:
         channel_addition('sync', args.s)

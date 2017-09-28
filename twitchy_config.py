@@ -15,7 +15,19 @@ except FileExistsError:
 # Runtime Options
 # Putting these inside a class makes them not work
 # So control the OCPD
+print_to_stdout = True
 time_tracking = True
+
+
+class YouAndTheHorseYouRodeInOn(Exception):
+    def __init__(self, message):
+        self.message = message
+        self.print_error()
+
+    def print_error(self):
+        # This could be extended to include logging
+        print(Colors.RED + self.message + Colors.ENDC)
+        exit(1)
 
 
 class Colors:
@@ -160,6 +172,9 @@ class ConfigInit:
                   Colors.ENDC)
 
         exit()
+
+    def remove_config(self):
+        os.remove(self.config_path)
 
 
 class Options:
