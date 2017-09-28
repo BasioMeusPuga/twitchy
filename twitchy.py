@@ -67,6 +67,9 @@ def channel_addition(option, channels):
     if not added_channels:
         print(Colors.RED + ' No valid channels found' + Colors.ENDC)
         exit(1)
+    else:
+        for i in added_channels:
+            print(' ' + i)
 
 
 def database_modification(option, database_search=None):
@@ -132,28 +135,62 @@ def database_modification(option, database_search=None):
                 criteria_dict)
 
 
-def watch_channel(option=None, database_search=None):
-    # TODO
-    # Option is either 'watch' for -w
-    # 'favorites' for -f
-    # OR None for no special case
+def watch_channel(mode, database_search=None):
+    if mode == 'watch':
+        # database_search is expected to be a list
+        # exact names of the channels the user wants to watch
 
-    if database_search:
-        database_search = {
-            'Name': database_search,
-            'AltName': database_search}
+        # Watch times are NOT tracked with -w
+        # This greatly decreases the number of special conditions
+        # that need to be accounted for
+        twitchy_config.time_tracking = False
 
-    channel_data = database_instance.fetch_data(
-        ('ChannelID',),
-        'channels',
-        database_search,
-        'LIKE')
+        id_string_list = []
+        not_in_database = []
 
-    id_string_list = [str(i[0]) for i in channel_data]
+        for i in database_search:
+            search_criteria = {
+                'Name': i}
+
+            channel_data = database_instance.fetch_data(
+                ('ChannelID',),
+                'channels',
+                search_criteria,
+                'EQUALS',
+                True)
+
+            if channel_data:
+                # Channel data is expected as a string
+                id_string_list.append(str(channel_data))
+            else:
+                not_in_database.append(i)
+
+        if not_in_database:
+            get_ids_from_api = twitchy_api.get_id(not_in_database)
+            ids_only = [i[1] for i in get_ids_from_api.items()]
+            id_string_list.extend(ids_only)
+
+    else:
+        # This is the standard watch() function
+        # It expects only one argument
+        if database_search:
+            database_search = {
+                'Name': database_search,
+                'AltName': database_search}
+
+        channel_data = database_instance.fetch_data(
+            ('ChannelID',),
+            'channels',
+            database_search,
+            'LIKE')
+
+        id_string_list = [str(i[0]) for i in channel_data]
+
     print(' ' + Options.colors.numbers +
           f'Checking {len(id_string_list)} channel(s)...' +
           Colors.ENDC)
-    channels_online = twitchy_api.GetOnlineStatus(id_string_list).check_channels()
+    channels_online = twitchy_api.GetOnlineStatus(
+        id_string_list).check_channels()
     if not channels_online:
         print(
             Colors.RED + ' All channels offline' + Colors.ENDC)
@@ -193,7 +230,6 @@ def non_interactive(mode=None):
             print(','.join(i))
 
 
-# non_interactive('get_online')
 def main():
     parser = argparse.ArgumentParser(
         description='Watch twitch.tv from your terminal. IT\'S THE FUTURE.', add_help=False)
@@ -207,7 +243,8 @@ def main():
         help='This helpful message', action='help')
 
     parser.add_argument(
-        '-a', type=str, nargs='+', help='Add channel name(s) to database', metavar='')
+        '-a', type=str, nargs='+',
+        help='Add channel name(s) to database', metavar='')
 
     parser.add_argument(
         '-an', type=str, nargs='?', const='Null',
@@ -226,6 +263,10 @@ def main():
     parser.add_argument(
         '-s', type=str,
         help='Sync username\'s followed accounts to local database', metavar='username')
+
+    parser.add_argument(
+        '-w', type=str, nargs='+',
+        help='Watch specified channel(s)', metavar='<channel>')
 
     args = parser.parse_args()
 
@@ -260,8 +301,11 @@ def main():
     elif args.searchfor:
         watch_channel(None, args.searchfor)
 
+    elif args.w:
+        watch_channel('watch', args.w)
+
     else:
-        watch_channel()
+        watch_channel(None)
 
 
 if __name__ == '__main__':

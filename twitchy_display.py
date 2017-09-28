@@ -109,6 +109,7 @@ def get_selection(mode, table_max_val):
                     Options.video.default_quality]]
                 emote()
                 return final_selection
+        
         else:
             quality_dict = {
                 'l': 'low',

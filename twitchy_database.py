@@ -33,6 +33,10 @@ class DatabaseInit:
             "CREATE TABLE miscellaneous \
             (id INTEGER PRIMARY KEY, Name TEXT, Value TEXT)")
 
+        # Create entries for entries in 'miscellaneous'
+        database.execute(
+            "INSERT INTO miscellaneous (Name,Value) VALUES ('time_tracking', 'True')")
+
     def remove_database(self):
         os.remove(self.database_path)
 
@@ -162,14 +166,9 @@ class DatabaseFunctions:
             game_name = criteria['game_name']
             game_time = criteria['new_time_game']
 
-            try:
-                sql_command_channel = (
-                    f"UPDATE channels SET TimeWatched = {channel_time} WHERE Name = '{channel_name}'")
-                self.database.execute(sql_command_channel)
-            except sqlite3.OperationalError:
-                print('Slight error')
-                # This accounts for -w coming across a channel not in the database
-                pass
+            sql_command_channel = (
+                f"UPDATE channels SET TimeWatched = {channel_time} WHERE Name = '{channel_name}'")
+            self.database.execute(sql_command_channel)
 
             sql_command_game = (
                 f"UPDATE games SET TimeWatched = {game_time} WHERE Name = '{game_name}'")

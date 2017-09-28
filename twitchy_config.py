@@ -12,6 +12,11 @@ try:
 except FileExistsError:
     pass
 
+# Runtime Options
+# Putting these inside a class makes them not work
+# So control the OCPD
+time_tracking = True
+
 
 class Colors:
     CYAN = '\033[96m'

@@ -119,6 +119,7 @@ class Playtime:
         if game_rank:
             game_rank = ' (' + game_rank + ')'
 
+        # Consider shfting this to the main module
         print(
             ' ' + Colors.WHITE +
             self.channel_params['display_name'] + ': ' + Colors.ENDC +
@@ -138,6 +139,9 @@ def play_instance_generator(incoming_dict):
     for count, i in enumerate(incoming_dict.items()):
         playtime_instance[count] = Playtime(i[0], i[1])
         playtime_instance[count].play()
+
+    # Time tracking switch
+    time_tracking = twitchy_config.time_tracking
 
     playing_streams = [i for i in range(total_streams)]
     while playing_streams:
@@ -161,7 +165,8 @@ def play_instance_generator(incoming_dict):
                           Colors.ENDC +
                           ' (' + error_message + ')')
                 elif process_returncode == 0:
-                    playtime_instance[i].time_tracking()
+                    if time_tracking:
+                        playtime_instance[i].time_tracking()
                     playing_streams.remove(i)
 
         try:
@@ -174,7 +179,8 @@ def play_instance_generator(incoming_dict):
                     raise KeyboardInterrupt
         except KeyboardInterrupt:
             for i in playing_streams:
-                playtime_instance[i].time_tracking()
+                if time_tracking:
+                    playtime_instance[i].time_tracking()
                 playtime_instance[i].player_process.terminate()
             playing_streams.clear()
 

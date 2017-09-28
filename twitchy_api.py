@@ -37,6 +37,8 @@ def get_id(channels):
     # All API calls are now based on the presence of
     # an _id field. This needs to be derived first
     # if only the username is present
+
+    # Returns a dictionary corresponding to a name: id schema
     id_dict = {}
 
     api_endpoint = 'https://api.twitch.tv/kraken/users'
