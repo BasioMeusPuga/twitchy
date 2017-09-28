@@ -196,8 +196,12 @@ class Options:
         # Treating this as a string so as to
         # not need another line for the kind of hw. decoding
         hw_accel = video_section.get('MPVHardwareAcceleration', 'false').lower()
+        hw_accel_valid = ['false', 'vaapi', 'vdpau']
+        if hw_accel not in hw_accel_valid:
+            hw_accel = 'false'
+
         if player == 'mpv' and hw_accel != 'false':
-            player_final = 'mpv --hwdec={0} --vo={0} --cache 8192'.format(hw_accel)
+            player_final = 'mpv --hwdec={0} --cache 8192'.format(hw_accel)
         else:
             player_final = 'mpv --cache 8192'
 

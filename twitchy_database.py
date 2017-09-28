@@ -29,6 +29,8 @@ class DatabaseInit:
             "CREATE TABLE games \
             (id INTEGER PRIMARY KEY, Name TEXT, TimeWatched INTEGER, AltName TEXT)")
 
+        exit()
+
     def remove_database(self):
         os.remove(self.database_path)
 
