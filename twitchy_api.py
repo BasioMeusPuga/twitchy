@@ -4,7 +4,7 @@
 import datetime
 
 import twitchy_database
-from twitchy_config import Colors
+from twitchy_config import Colors, YouAndTheHorseYouRodeInOn
 
 try:
     import requests
@@ -27,8 +27,7 @@ def api_call(url, params=None):
         return r.json()
 
     except requests.exceptions.ConnectionError:
-        print(Colors.RED + ' Unable to connect to Twitch.' + Colors.ENDC)
-        exit(1)
+        raise YouAndTheHorseYouRodeInOn(' Unable to connect to Twitch.')
 
 
 def get_id(channels):

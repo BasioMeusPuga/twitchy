@@ -4,6 +4,7 @@
 import os
 import sqlite3
 
+import twitchy_api
 from twitchy_config import Colors, YouAndTheHorseYouRodeInOn
 
 location_prefix = os.path.expanduser('~') + '/.config/twitchy3/'
@@ -12,11 +13,25 @@ location_prefix = os.path.expanduser('~') + '/.config/twitchy3/'
 class DatabaseInit:
     def __init__(self):
         self.database_path = location_prefix + 'twitchy.db'
+        self.database_path_old = os.path.expanduser('~') + '/.config/twitchy/twitchy.db'
+
         if not os.path.exists(self.database_path):
-            print(Colors.CYAN +
-                  ' Creating database: Add channels with -a or -s' +
-                  Colors.ENDC)
-            self.create_database()
+            if not os.path.exists(self.database_path_old):
+                print(
+                    Colors.CYAN +
+                    ' Creating database: Add channels with -a or -s' +
+                    Colors.ENDC)
+                self.create_database()
+                exit()
+            else:
+                print(
+                    Colors.CYAN +
+                    ' Found old database. Rebuilding from existing values.' +
+                    Colors.ENDC)
+                self.create_database()
+                self.rebuild_database()
+                exit()
+
 
     def create_database(self):
         database = sqlite3.connect(self.database_path)
@@ -29,7 +44,41 @@ class DatabaseInit:
             "CREATE TABLE games \
             (id INTEGER PRIMARY KEY, Name TEXT, TimeWatched INTEGER, AltName TEXT)")
 
-        exit()
+
+    def rebuild_database(self):
+        database_new = sqlite3.connect(self.database_path)
+        database_old = sqlite3.connect(self.database_path_old)
+
+        # First, get all channel names from the old database
+        channel_names = database_old.execute("SELECT Name FROM channels").fetchall()
+        channel_names = [i[0] for i in channel_names]
+        # Add them to the new database
+        valid_channels = twitchy_api.add_to_database(channel_names)
+        DatabaseFunctions().add_channels(valid_channels)
+
+        # Copy the rest of the columns over
+        remaining_data = database_old.execute(
+            "SELECT Name,TimeWatched,AltName FROM channels").fetchall()
+        for i in remaining_data:
+            channel_name = i[0]
+            time_watched = i[1]
+            alt_name = i[2]
+            if not alt_name:
+                alt_name = 'NULL'
+            else:
+                alt_name = alt_name.__repr__()
+
+            # Requisite tables are assumed to already exist
+            sql_command = f"UPDATE channels SET TimeWatched = {time_watched}, AltName = {alt_name} WHERE Name = '{channel_name}'"
+            database_new.execute(sql_command)
+
+        database_new.commit()
+
+        # Copy the entire games table over
+        database_new.execute(f"ATTACH '{self.database_path_old}' as DBOLD")
+        database_new.execute(f"INSERT INTO main.games SELECT * FROM DBOLD.games")
+        database_new.commit()
+
 
     def remove_database(self):
         os.remove(self.database_path)
@@ -128,6 +177,8 @@ class DatabaseFunctions:
             raise YouAndTheHorseYouRodeInOn(' Database error.')
 
     def modify_data(self, mode, table, criteria):
+        sql_commands = []
+
         if mode == 'alternate_name':
             # criteria in this case is expected to be a dictionary containing
             # new_name and old_name keys corresponding to their values
@@ -140,15 +191,13 @@ class DatabaseFunctions:
                 # Encapsulate in single quotes to form valid SQL
                 new_name = f"'{new_name}'"
 
-            sql_command = f"UPDATE {table} SET AltName = {new_name} WHERE Name = '{old_name}'"
-            self.database.execute(sql_command)
-            self.database.commit()
+            sql_commands.append(
+                f"UPDATE {table} SET AltName = {new_name} WHERE Name = '{old_name}'")
 
         if mode == 'delete':
             # In this case, criteria is a single string
-            sql_command = f"DELETE FROM {table} WHERE Name = '{criteria}'"
-            self.database.execute(sql_command)
-            self.database.commit()
+            sql_commands.append(
+                f"DELETE FROM {table} WHERE Name = '{criteria}'")
 
         if mode == 'update_time':
             # In this case, criteria is expected to be a dictionary containing
@@ -159,11 +208,11 @@ class DatabaseFunctions:
             game_name = criteria['game_name']
             game_time = criteria['new_time_game']
 
-            sql_command_channel = (
+            sql_commands.append(
                 f"UPDATE channels SET TimeWatched = {channel_time} WHERE Name = '{channel_name}'")
-            self.database.execute(sql_command_channel)
-
-            sql_command_game = (
+            sql_commands.append(
                 f"UPDATE games SET TimeWatched = {game_time} WHERE Name = '{game_name}'")
-            self.database.execute(sql_command_game)
-            self.database.commit()
+
+        for i in sql_commands:
+            self.database.execute(i)
+        self.database.commit()

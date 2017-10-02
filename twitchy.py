@@ -249,6 +249,7 @@ def non_interactive(mode, channel_name=None):
 
             channel_status = twitchy_api.GetOnlineStatus(
                 [channel_id]).check_channels()
+            # The video is started in default quality
             channel_status[channel_name]['quality'] = Options.video.default_quality
             twitchy_play.play_instance_generator(channel_status)
         except KeyboardInterrupt:
