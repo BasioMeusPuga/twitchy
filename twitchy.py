@@ -1,21 +1,6 @@
 #!/bin/env python
 # Requirements: streamlink, requests
 
-""" TODO:
-    ✓ Switch to v5 of the API
-    ✓ Try not to have anything here except code that displays shit
-    ✓ Switch to explicit imports instead of from * import *
-    ✓ Explicit exception naming
-    ✓ Shift to string literals: Python 3.6 and above
-    ✓ Shift to the new quality settings as the default
-    ✓ Implement a proper non interactive mode
-    ✓ Start channel without confirmation when in non interactive mode
-    Alternate color coding
-    Look up packaging
-    x Debug logging - Make this a switch
-    x Use the streamlink module instead of subprocess
-"""
-
 # Standard imports
 import sys
 import argparse

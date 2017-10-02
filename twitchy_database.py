@@ -69,7 +69,10 @@ class DatabaseInit:
                 alt_name = alt_name.__repr__()
 
             # Requisite tables are assumed to already exist
-            sql_command = f"UPDATE channels SET TimeWatched = {time_watched}, AltName = {alt_name} WHERE Name = '{channel_name}'"
+            sql_command = (
+                f"UPDATE channels SET "
+                f"TimeWatched = {time_watched}, AltName = {alt_name} "
+                f"WHERE Name = '{channel_name}'")
             database_new.execute(sql_command)
 
         database_new.commit()

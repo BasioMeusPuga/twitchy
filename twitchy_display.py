@@ -298,9 +298,9 @@ class GenerateDatabaseTable:
             row_color2 = Colors.ENDC
 
             if i[1] == 0:
-                time_watched = Colors.RED + 'Unwatched'
+                time_watched = Colors.RED + ' Unwatched'
             else:
-                time_watched = time_convert(i[1]).rjust(9)
+                time_watched = time_convert(i[1]).rjust(10)
 
             alt_name = i[2]
             if alt_name:
