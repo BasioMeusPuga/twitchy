@@ -4,13 +4,12 @@
 import datetime
 
 import twitchy_database
-from twitchy_config import Colors, YouAndTheHorseYouRodeInOn
+from twitchy_config import YouAndTheHorseYouRodeInOn
 
 try:
     import requests
 except ImportError:
-    print(Colors.RED + ' requests not installed.' + Colors.ENDC)
-    exit(1)
+    raise YouAndTheHorseYouRodeInOn(' requests not installed.')
 
 
 def api_call(url, params=None):
@@ -101,8 +100,7 @@ def sync_from_id(username):
             'offset': offset}
         stream_data = api_call(
             api_endpoint,
-            params
-        )
+            params)
         total_followed -= 100
         offset += 100
 

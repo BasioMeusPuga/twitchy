@@ -56,7 +56,7 @@ class Playtime:
 
         args_to_subprocess = (
             f"streamlink twitch.tv/{self.channel_name} {quality} --player '{player}'")
-        hls_settings = ' --hls-segment-threads 3 --player-passthrough=hls'
+        hls_settings = ' --hls-segment-threads 3'
         args_to_subprocess = shlex.split(args_to_subprocess + hls_settings)
 
         # Get the time when the stream starts
@@ -73,7 +73,8 @@ class Playtime:
         database_instance = twitchy_database.DatabaseFunctions()
 
         def fetch_time_data():
-            # Even for a non watched channel, the database always has a 0 value associated
+            # Even for a non watched channel, the database
+            # always has a 0 value associated
             # Therefore, there will be no None returns
             time_watched_channel = database_instance.fetch_data(
                 ('TimeWatched',),
