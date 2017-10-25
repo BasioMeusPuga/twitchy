@@ -1,7 +1,7 @@
 # twitchy
-livestreamer / streamlink wrapper for twitch.tv
+CLI streamlink wrapper for twitch.tv
 
-**Requires streamlink (or livestreamer), python3, python-requests**
+**Requires streamlink, python3, python-requests**
 
 This script hopefully fulfills the needs of the discerning git cloner who wants to watch Twitch, hates the CPU utilization of having a browser/flash running, and has only a terminal handy.
 
@@ -9,21 +9,22 @@ Features:
 * Tracking of most watched channels.
 * Custom layouts: User adjustable colors and columns
 * VOD support
-* Get notified when a channel you watch comes online
 * Sync your followed accounts to a local sqlite database that does not judge you.
 * Stream multiple... streams at once.
-* Integration with your conky instance.
+* Integration with your conky / dmenu / rofi
 * The ability to display alternate names for games / streamers. If your happiness is somehow contingent upon displaying "Hearthstone: Heroes of Warcraft" as "Wizard Poker", well, you've come to the right place.
 
 ## Installation
 1. Clone the repository
-2. Move twitchy.py to $PATH
-3. alarm.mp3 should be in the same directory as twitchy.py
+2. In the root directory, type:
+2a. `$ python setup.py build`
+2b. `# python setup.py install'
+3. Launch with `twitchy`
 
 Alternatively, use the AUR package:
 https://aur.archlinux.org/packages/twitchy-git
 
-Please delete `~/.config/twitchy/*` and restart twitchy before reporting any issues.
+Please delete `~/.config/twitchy3/*` and restart twitchy before reporting any issues.
 
 ## Usage
 
@@ -36,13 +37,11 @@ Please delete `~/.config/twitchy/*` and restart twitchy before reporting any iss
     -a <channel name>               Add channel(s)
     -an [*searchstring*]            Set/unset alternate names
     --configure                     Configure options
-    --conky [ go / csvnames ]       Generate data for conky
     -d [*searchstring*]             Delete channel(s) from database
-    -f                              Check which of your favorite channels are online
-    -n [*searchstring*]             Notify if a channel comes online
+    --non-interactive [go / kickstart]
+                                    Generate parsable data for integration elsewhere
     --reset                         Delete everything and start over
     -s <username>                   Sync followed channels from specified account
-    --update                        Update to the latest git revision
     -v <channel name>               Watch channel's recorded videos
     -w <channel name>               Watch specified channel(s)
     
@@ -52,15 +51,9 @@ Please delete `~/.config/twitchy/*` and restart twitchy before reporting any iss
     While playing:
     <q / Ctrl + C> to quit
     
-    Notification settings:
-    When a channel comes online, the script will play alarm.mp3 (in the same directory as itself).
-    While the path of the file is hardcoded, feel free to replace it with whatever you find appropriate.
-    
-    Conky options. Execute script with:
-    --conky                         Now playing
-    --conky go                      Get comma separated list of alternate and formatted channel names
-    --conky csvnames                Get comma separated list of channel names from database
-    The script will exit with exit code 1 in case either np or tw is used while nothing is playing.
+    Run in non-interactive mode. This is useful for integration with dmenu / rofi / conky.
+    --non-interactive go            Get customizable comma separated list of channel / game data
+    --conky kickstart <channel>     Start channel directly without asking for confirmation
     
 ## Examples
 
