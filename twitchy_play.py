@@ -126,7 +126,7 @@ class Playtime:
                 time_convert(time_data_new[1]) + game_rank)
 
 
-def play_instance_generator(incoming_dict):
+def play_instance_generator(incoming_dict, vod_mode=False):
     playtime_instance = {}
     total_streams = len(incoming_dict)
 

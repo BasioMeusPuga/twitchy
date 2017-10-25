@@ -39,7 +39,6 @@ def api_call(url, params=None):
 
         return make_request()
 
-
     except requests.exceptions.ConnectionError:
         raise YouAndTheHorseYouRodeInOn(' Unable to connect to Twitch.')
 
@@ -151,6 +150,41 @@ def sync_from_id(username):
                 ('after', stream_data['pagination']['cursor']))
 
     return followed_channels
+
+
+def get_vods(channel_id):
+    # Returns a list of VODS
+    # Only the first 100 will ever be queried
+    # so no need for pagination here
+
+    params = (
+        ('user_id', channel_id),
+        ('first', 100))
+    api_endpoint = 'https://api.twitch.tv/helix/videos'
+
+    vod_data = api_call(
+        api_endpoint,
+        params)
+
+    return_list = []
+    # Since the API returns a list of videos that are sorted
+    # by date, additional sorting isn't required
+    # All that is needed is conversion of the TZ string into
+    # its corresponding date
+    for i in vod_data['data']:
+        creation_time = datetime.datetime.strptime(
+            i['created_at'],
+            '%Y-%m-%dT%H:%M:%SZ')
+
+        creation_date = creation_time.strftime('%d %B %Y')
+
+        return_list.append([
+            creation_date,
+            i['title'],
+            i['url']
+        ])
+
+    return return_list[::-1]
 
 
 class GetOnlineStatus:

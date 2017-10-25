@@ -2,10 +2,7 @@
 # Requirements: streamlink, requests
 
 # TODO
-# Import atexit and register a function that closes database connections
-# It goes in main() and takes from twitchy_database.py
 # setup.py
-# VODs
 
 # Standard imports
 import sys
@@ -190,6 +187,7 @@ def watch_channel(mode, database_search=None):
     print(' ' + Options.colors.numbers +
           f'Checking {len(id_string_list)} channel(s)...' +
           Colors.ENDC)
+
     channels_online = twitchy_api.GetOnlineStatus(
         id_string_list).check_channels()
     if not channels_online:
@@ -199,6 +197,32 @@ def watch_channel(mode, database_search=None):
         channels_online).begin()
     print(' q / Ctrl + C to quit \n Now watching:')
     twitchy_play.play_instance_generator(final_selection)
+
+
+def watch_vods(channel_name):
+    channel_data = twitchy_api.name_id_translate(
+        'channels', 'id_from_name', [channel_name])
+
+    try:
+        channel_id = channel_data[channel_name[0]]['id']
+        display_name = channel_data[channel_name[0]]['display_name']
+    except KeyError:
+        raise YouAndTheHorseYouRodeInOn(' Invalid name.')
+
+    vod_list = twitchy_api.get_vods(channel_id)
+    print(' ' + Options.colors.numbers +
+          f'VODs for {display_name}:' +
+          Colors.ENDC)
+
+    if not vod_list:
+        raise YouAndTheHorseYouRodeInOn(' No VODs found.')
+
+    final_selection = {
+        display_name: twitchy_display.GenerateVODTable(vod_list).begin()}
+    twitchy_config.time_tracking = False
+
+    print(' q / Ctrl + C to quit \n Now watching:')
+    twitchy_play.play_instance_generator(final_selection, vod_mode=True)
 
 
 def non_interactive(mode, channel_name=None):
@@ -314,13 +338,18 @@ def main():
         metavar='username')
 
     parser.add_argument(
-        '-w', type=str, nargs='+',
+        '-v', type=str, nargs='+',
+        help='Watch VODs',
+        metavar='<channel>')
+
+    parser.add_argument(
+        '-w', type=str,
         help='Watch specified channel(s)',
         metavar='<channel>')
 
     args = parser.parse_args()
 
-    if args.s and args.searchfor:
+    if (args.s or args.v) and args.searchfor:
         parser.error('Only one argument allowed with -s')
         exit(1)
 
@@ -356,6 +385,9 @@ def main():
 
     elif args.searchfor:
         watch_channel(None, args.searchfor)
+
+    elif args.v:
+        watch_vods(args.v)
 
     elif args.w:
         watch_channel('watch', args.w)

@@ -325,9 +325,35 @@ class GenerateDatabaseTable:
             'database', len(self.table_data_incoming))
 
         # A double 0 index is required because we're reusing the
-        # get selection function that also returns the default quality
+        # get_selection function. This also returns the default quality
         # setting in case of selection of a list of numbers
         return_list = [
             self.table_data_incoming[i[0]][0] for i in final_selection]
+
+        return return_list
+
+class GenerateVODTable:
+    def __init__(self, vod_data):
+        self.vod_data = vod_data
+
+    def table_display(self, display_list):
+        template = template_mapping('list')
+        list_digits = len(str(len(display_list)))
+        for count, i in enumerate(display_list):
+
+            print(
+                ' ' +
+                Options.colors.numbers + str(count + 1).rjust(list_digits) +
+                Colors.ENDC +
+                ' ' +
+                template.format(i[0], i[1], ''))
+
+    def begin(self):
+        self.table_display(self.vod_data)
+        final_selection = get_selection(
+            'database', len(self.vod_data))
+
+        return_list = [
+            [self.vod_data[i[0]][1], self.vod_data[i[0]][2]] for i in final_selection]
 
         return return_list

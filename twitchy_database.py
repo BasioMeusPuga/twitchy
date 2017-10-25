@@ -14,6 +14,7 @@ location_prefix = os.path.expanduser('~') + '/.config/twitchy3/'
 # when run for the first time
 # Close database connections
 
+
 class DatabaseInit:
     def __init__(self):
         self.database_path = location_prefix + 'twitchy.db'
