@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 # Requirements: streamlink, requests
 
-# TODO
-# setup.py
-
 # Standard imports
 import sys
 import argparse

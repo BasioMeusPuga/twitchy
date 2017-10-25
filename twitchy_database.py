@@ -9,11 +9,6 @@ from twitchy_config import Colors, YouAndTheHorseYouRodeInOn
 
 location_prefix = os.path.expanduser('~') + '/.config/twitchy3/'
 
-# TODO
-# Continue with building a config file instead of exiting
-# when run for the first time
-# Close database connections
-
 
 class DatabaseInit:
     def __init__(self):
@@ -27,7 +22,6 @@ class DatabaseInit:
                     ' Creating database: Add channels with -a or -s' +
                     Colors.ENDC)
                 self.create_database()
-                # TODO above
                 exit()
             else:
                 print(
@@ -250,3 +244,4 @@ class DatabaseFunctions:
         for i in sql_commands:
             self.database.execute(i)
         self.database.commit()
+        self.database.execute('VACUUM')

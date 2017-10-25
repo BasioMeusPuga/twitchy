@@ -181,8 +181,7 @@ def get_vods(channel_id):
         return_list.append([
             creation_date,
             i['title'],
-            i['url']
-        ])
+            i['url']])
 
     return return_list[::-1]
 
