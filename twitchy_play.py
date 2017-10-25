@@ -126,18 +126,51 @@ class Playtime:
                 time_convert(time_data_new[1]) + game_rank)
 
 
+class VOD:
+    def __init__(self, display_name, vod_title, vod_url):
+        self.display_name = display_name
+        self.vod_title = vod_title
+        self.vod_url = vod_url
+        self.player_process = None
+
+    def play(self):
+        player = Options.video.player_final + f' --title {self.display_name}'
+        args_to_subprocess = (
+            f"streamlink {self.vod_url} best --player '{player}'")
+        args_to_subprocess = shlex.split(args_to_subprocess)
+
+        if twitchy_config.print_to_stdout:
+            print(' ' + Colors.WHITE +
+                  self.display_name + Colors.ENDC +
+                  ' | ' + Colors.WHITE +
+                  self.vod_title + Colors.ENDC)
+
+        self.player_process = subprocess.Popen(
+            args_to_subprocess,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE)
+
+
 def play_instance_generator(incoming_dict, vod_mode=False):
     playtime_instance = {}
-    total_streams = len(incoming_dict)
 
-    # Create instances of the Playtime class
-    for count, i in enumerate(incoming_dict.items()):
-        playtime_instance[count] = Playtime(i[0], i[1])
-        playtime_instance[count].play()
+    if not vod_mode:
+        # Create instances of the Playtime class
+        for count, i in enumerate(incoming_dict.items()):
+            playtime_instance[count] = Playtime(i[0], i[1])
+            playtime_instance[count].play()
+
+    elif vod_mode:
+        for i in incoming_dict.items():
+            display_name = i[0]
+            for count, j in enumerate(i[1]):
+                playtime_instance[count] = VOD(display_name, j[0], j[1])
+                playtime_instance[count].play()
 
     # Time tracking switch
     time_tracking = twitchy_config.time_tracking
 
+    total_streams = count + 1
     playing_streams = [i for i in range(total_streams)]
     while playing_streams:
         for i in playing_streams:
