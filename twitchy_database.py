@@ -7,8 +7,14 @@ import sqlite3
 import twitchy_api
 from twitchy_config import Colors, YouAndTheHorseYouRodeInOn
 
+from pprint import pprint
+
 location_prefix = os.path.expanduser('~') + '/.config/twitchy3/'
 
+# TODO
+# Continue with building a config file instead of exiting
+# when run for the first time
+# Close database connections
 
 class DatabaseInit:
     def __init__(self):
@@ -22,6 +28,7 @@ class DatabaseInit:
                     ' Creating database: Add channels with -a or -s' +
                     Colors.ENDC)
                 self.create_database()
+                # TODO above
                 exit()
             else:
                 print(
@@ -32,56 +39,75 @@ class DatabaseInit:
                 self.rebuild_database()
                 exit()
 
-
     def create_database(self):
         database = sqlite3.connect(self.database_path)
 
         database.execute(
             "CREATE TABLE channels \
             (id INTEGER PRIMARY KEY, Name TEXT, ChannelID INTEGER, TimeWatched INTEGER,\
-            AltName TEXT)")
+            DisplayName TEXT, AltName TEXT, IsPartner TEXT)")
         database.execute(
             "CREATE TABLE games \
-            (id INTEGER PRIMARY KEY, Name TEXT, TimeWatched INTEGER, AltName TEXT)")
-
+            (id INTEGER PRIMARY KEY, Name TEXT, GameID INTEGER, TimeWatched INTEGER,\
+            AltName TEXT)")
 
     def rebuild_database(self):
         database_new = sqlite3.connect(self.database_path)
-        database_old = sqlite3.connect(self.database_path_old)
-
-        # First, get all channel names from the old database
-        channel_names = database_old.execute("SELECT Name FROM channels").fetchall()
-        channel_names = [i[0] for i in channel_names]
-        # Add them to the new database
-        valid_channels = twitchy_api.add_to_database(channel_names)
-        DatabaseFunctions().add_channels(valid_channels)
-
-        # Copy the rest of the columns over
-        remaining_data = database_old.execute(
-            "SELECT Name,TimeWatched,AltName FROM channels").fetchall()
-        for i in remaining_data:
-            channel_name = i[0]
-            time_watched = i[1]
-            alt_name = i[2]
-            if not alt_name:
-                alt_name = 'NULL'
-            else:
-                alt_name = alt_name.__repr__()
-
-            # Requisite tables are assumed to already exist
-            sql_command = (
-                f"UPDATE channels SET "
-                f"TimeWatched = {time_watched}, AltName = {alt_name} "
-                f"WHERE Name = '{channel_name}'")
-            database_new.execute(sql_command)
-
-        database_new.commit()
-
-        # Copy the entire games table over
         database_new.execute(f"ATTACH '{self.database_path_old}' as DBOLD")
-        database_new.execute(f"INSERT INTO main.games SELECT * FROM DBOLD.games")
+
+        # Copy the channels and games tables
+        for i in ['games', 'channels']:
+            database_new.execute(
+                f"INSERT INTO main.{i} (Name,TimeWatched,AltName) "
+                f"SELECT Name,TimeWatched,AltName FROM DBOLD.{i}")
         database_new.commit()
 
+        # Iterate over the new tables and fill in missing values
+        def fill_in_the_blanks(table):
+            name_data = database_new.execute(f"SELECT Name FROM {table}").fetchall()
+            valid_entries = twitchy_api.name_id_translate(table, 'id_from_name', name_data)
+
+            if table == 'games':
+                # In this case, valid_entries is a list
+                # that contains 2 entires
+                # 0 is the id number
+                # 1 is the game name
+                for i in valid_entries:
+                    game_id = i[0]
+                    game_name = i[1]
+                    sql_command = (
+                        f"UPDATE games SET GameID = '{game_id}' WHERE Name = '{game_name}'")
+                    database_new.execute(sql_command)
+
+                database_new.execute(
+                    f"DELETE FROM games WHERE GameID is NULL")
+
+            elif table == 'channels':
+                # In this case, valid_entires is a dictionary
+                # That contains broadcaster_type, display_name, and id
+                # couples to each channel name
+                for i in valid_entries.items():
+                    channel_name = i[0]
+                    display_name = i[1]['display_name']
+                    channel_id = i[1]['id']
+                    is_partner = False
+                    if i[1]['broadcaster_type'] == 'partner':
+                        is_partner = True
+
+                    sql_command = (
+                        f"UPDATE channels SET "
+                        f"ChannelID = '{channel_id}', DisplayName = '{display_name}', "
+                        f"IsPartner = '{is_partner}' "
+                        f"WHERE Name = '{channel_name}'")
+                    database_new.execute(sql_command)
+
+                database_new.execute(
+                    f"DELETE FROM channels WHERE ChannelID is NULL")
+
+            database_new.commit()
+
+        fill_in_the_blanks('channels')
+        fill_in_the_blanks('games')
 
     def remove_database(self):
         os.remove(self.database_path)
@@ -95,19 +121,27 @@ class DatabaseFunctions:
     def add_channels(self, data):
         # Used for -a and -s
         # That's addition and syncing
-        # data is a list containing tuples
+        # data is a dictionary that will be iterated upon
         added_channels = []
-        for channel_data in data:
+        for channel_data in data.items():
+
             channel_name = channel_data[0]
-            channel_id = channel_data[1]
+            channel_id = channel_data[1]['id']
+            display_name = channel_data[1]['display_name']
+            is_partner = True
+            if channel_data[1]['broadcaster_type'] != 'partner':
+                is_partner = False
 
             sql_command_exist = f"SELECT Name FROM channels WHERE Name = '{channel_name}'"
             does_it_exist = self.database.execute(
                 sql_command_exist).fetchone()
+
             if not does_it_exist:
                 sql_command_add = (
                     f"INSERT INTO channels "
-                    f"(Name,ChannelID,TimeWatched) VALUES ('{channel_name}',{channel_id},0)")
+                    f"(Name,ChannelID,TimeWatched,DisplayName,IsPartner) VALUES "
+                    f"('{channel_name}',{channel_id},0,'{display_name}','{is_partner}')")
+
                 self.database.execute(sql_command_add)
                 added_channels.append(channel_name)
 

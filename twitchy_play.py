@@ -161,7 +161,7 @@ def play_instance_generator(incoming_dict):
                     print(' ' +
                           Colors.RED + playtime_instance[i].channel_params['display_name'] +
                           Colors.ENDC +
-                          ' (' + error_message + ')')
+                          ' (' + error_message[0] + ')')
                 elif process_returncode == 0:
                     if time_tracking:
                         playtime_instance[i].time_tracking()

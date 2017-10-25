@@ -138,7 +138,7 @@ def get_selection(mode, table_max_val):
     except (IndexError, ValueError):
         print(Colors.RED + ' Invalid input.' + Colors.ENDC)
         exit(1)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, EOFError):
         print()
         exit(1)
 

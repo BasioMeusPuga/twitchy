@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # Twitch API interaction module
 
+import ast
 import datetime
 
 import twitchy_database
@@ -11,11 +12,12 @@ try:
 except ImportError:
     raise YouAndTheHorseYouRodeInOn(' requests not installed.')
 
+from pprint import pprint
+
 
 def api_call(url, params=None):
     try:
         headers = {
-            'Accept': 'application/vnd.twitchtv.v5+json',
             'Client-ID': 'guulhcvqo9djhuyhb2vi56wqnglc351'}
 
         r = requests.get(
@@ -29,47 +31,64 @@ def api_call(url, params=None):
         raise YouAndTheHorseYouRodeInOn(' Unable to connect to Twitch.')
 
 
-def get_id(channels):
-    # channels is expected to be a list
+def name_id_translate(data_type, mode, data):
+    # data is expected to be a list
+    # data_type is either 'games' or 'channels'
 
     # All API calls are now based on the presence of
-    # an _id field. This needs to be derived first
-    # if only the username is present
+    # an id field. This needs to be derived first
 
-    # Returns a dictionary corresponding to a name: id schema
-    id_dict = {}
+    # The new API also returns the display_name value here
+    # in case of channel names
+    # This will have to be cached in the database
 
-    api_endpoint = 'https://api.twitch.tv/kraken/users'
-    params = (('login', ','.join(channels)),)
+    # Returns a dictionary
+
+    # Set the default value for params
+    # This is for 'name_from_id'
+    # for either data_type
+    params = (('id', data),)
+
+    if data_type == 'games':
+        api_endpoint = 'https://api.twitch.tv/helix/games'
+        if mode == 'id_from_name':
+            params = (('name', data),)
+
+    elif data_type == 'channels':
+        api_endpoint = 'https://api.twitch.tv/helix/users'
+        if mode == 'id_from_name':
+            channels = [i[0].lower() for i in data]
+            params = (('login', channels),)
+
     stream_data = api_call(
         api_endpoint,
         params)
 
-    for i in stream_data['users']:
-        id_dict[i['name']] = i['_id']
+    if data_type == 'channels':
+        return_dict = {}
 
-    return id_dict
+        for i in stream_data['data']:
+            channel_params = {
+                'id': i['id'],
+                'broadcaster_type': i['broadcaster_type'],
+                'display_name': i['display_name']}
 
-# ___ Everything above this is called by everything below this ___
-# Don't touch anything above this
+            return_dict[i['login']] = channel_params
 
+        return return_dict
 
-def add_to_database(channels):
-    # channels is expected to be a list in lowercase
-    # Example: add_to_database(['thisdude', 'thisotherdude'])
-    channels = [i.lower() for i in channels]
-    api_response = get_id(channels)
+    if data_type == 'games':
+        return_list = []
 
-    valid_channels = []
-    for i in channels:
-        if i in api_response.keys():
-            valid_channels.append((i, api_response[i]))
+        for i in stream_data['data']:
+            game_params = {
+                'id': i['id'],
+                'name': i['name']}
 
-    # valid_channels is a list
-    # It contains tuples which contain the name of
-    # the requisite channel, as well as the
-    # corresponding channel_id
-    return valid_channels
+            return_list.append(
+                [game_params['id'], game_params['name']])
+
+        return return_list
 
 
 def sync_from_id(username):
@@ -77,41 +96,45 @@ def sync_from_id(username):
     # Make sure this is set in the initiating function
     # Example: sync_from_id('<username>')
 
-    username_id = get_id([username.lower()])
+    username_id = get_users('id_from_name', [username.lower()])
     if username_id:
-        username_id = username_id[username]
+        print(username_id)
+        username_id = username_id[username]['id']
     else:
-        # In case no id is returned by get_id
+        # In case no id is returned by get_idget_users
         return
 
-    # Get total number of followed channels
-    api_endpoint = f'https://api.twitch.tv/kraken/users/{username_id}/follows/channels'
-    stream_data = api_call(
-        api_endpoint)
-    total_followed = stream_data['_total']
+    # TODO
+    # The results_expected has to pushed up to 100
+    # This will involve passing a 'first' param
+    followed_channels_ids = []
+    params = (('from_id', username_id),)
+    while True:
+        results_expected = 20
+        api_endpoint = 'https://api.twitch.tv/helix/users/follows'
 
-    # Do sync with pagination
-    offset = 0
-    valid_channels = []
-    while total_followed > 0:
-        api_endpoint = f'https://api.twitch.tv/kraken/users/{username_id}/follows/channels'
-        params = {
-            'limit': 100,
-            'offset': offset}
         stream_data = api_call(
             api_endpoint,
             params)
-        total_followed -= 100
-        offset += 100
 
-        for i in stream_data['follows']:
-            valid_channels.append((
-                i['channel']['name'],
-                i['channel']['_id']))
+        for i in stream_data['data']:
+            followed_channels_ids.append(
+                int(i['to_id']))
 
-    # Same as the valid_channels list in case of the
-    # add_to_database function
-    return valid_channels
+        results_acquired = len(stream_data['data'])
+        if results_acquired < results_expected:
+            break
+        else:
+            params = (
+                ('from_id', username_id),
+                ('after', stream_data['pagination']['cursor']))
+
+    # At this point, followed_channels_ids is a list containing the
+    # user ids of the channels the user follows
+    # This will have to be converted into a more detailed dictionary
+
+    followed_channels = get_users('name_from_id', followed_channels_ids)
+    return followed_channels
 
 
 class GetOnlineStatus:
@@ -140,35 +163,47 @@ class GetOnlineStatus:
 
         return stream_uptime_seconds
 
-    def get_altname(self, table, default_name):
-        # It makes more sense to have this here instead of the
-        # display module because it would require duplication
-        # during headless operation otherwise
-
-        database_search = {
-            'Name': default_name}
-
-        sql_reply = twitchy_database.DatabaseFunctions().fetch_data(
-            ('AltName',),
-            table,
-            database_search,
-            'EQUALS',
-            True)
-
-        return sql_reply
+    def get_game(self, game_id):
+        # The game_id is expected to be an integer
+        # The idea is to check the database for said integer
+        # and return data accordingly
+        # If nothing is found, create a new entry within the database
+        # and put them newly discovered details here
+        # Whoever thought of 2 endpoints for this
+        # can walk on broken glass
+        try:
+            game_name = twitchy_database.DatabaseFunctions().fetch_data(
+                ('Name', 'AltName'),
+                'games',
+                {'GameID': game_id},
+                'EQUALS')[0]
+            return game_name
+        except TypeError:
+            # Implies the game is not in the database
+            # Its name will have to be fetched from the API
+            # Fuck whoever thought of this
+            game_details = name_id_translate('games', 'name_from_id', (game_id,))
+            return (game_details[0][1], None)
 
     def check_channels(self):
         # The API imposes an upper limit of 100 channels
         # checked at once. Pagination is required, as usual.
         while self.channels:
-            api_endpoint = 'https://api.twitch.tv/kraken/streams'
-            params = {
-                'limit': 100,
-                'channel': ','.join(self.channels[:100])}
+            api_endpoint = 'https://api.twitch.tv/helix/streams'
+
+            params = (
+                ('first', 100),
+                ('user_id', self.channels[:100]))
+
             del self.channels[:100]
             stream_data = api_call(
                 api_endpoint,
                 params)
+
+            # The API currently does NOT return the game_name
+            # It does return a game_id. In case you intend to go
+            # forward with that at this time, the game_id will have
+            # to be cached in the database along with its name
 
             # The stream data dictionary is
             # Key: name
@@ -176,26 +211,48 @@ class GetOnlineStatus:
             # Partner status will have to come from another endpoint
             # Time watched is a database function - See if it
             # needs to be integrated here
-            for i in stream_data['streams']:
-                channel_name = i['channel']['name']
 
-                uptime = self.parse_uptime(i['created_at'])
+            for i in stream_data['data']:
 
-                channel_display_name = self.get_altname(
-                    'channels', channel_name)
+                user_id = i['user_id']
+                channel_details = twitchy_database.DatabaseFunctions().fetch_data(
+                    ('Name', 'DisplayName', 'AltName', 'IsPartner'),
+                    'channels',
+                    {'ChannelID': user_id},
+                    'EQUALS')[0]
+
+                channel_name = channel_details[0]
+
+                # Set the display name to a preset AltName if possible
+                # Or go back to the display name set by the channel
+                channel_display_name = channel_details[2]
                 if not channel_display_name:
-                    channel_display_name = i['channel']['display_name']
+                    channel_display_name = channel_details[1]
 
-                game_name = i['game'].replace('\'', '')
-                game_display_name = self.get_altname(
-                    'games', game_name)
+                # Partner status is returned as string True
+                # This is clearly unacceptable for anyone who
+                # doesn't sleep in a dumpster
+                is_partner = ast.literal_eval(channel_details[3])
+
+                uptime = self.parse_uptime(i['started_at'])
+
+                # Game name and any alternate names will have to be correlated
+                # to the game_id that's returned by the API
+                # Whoever thought this was a good idea can sit on it and rotate
+
+                game_id = i['game_id']
+                game_names = self.get_game(game_id)
+                game_display_name = game_names[0]
+                if game_names[1]:
+                    game_display_name = game_names[1]
 
                 self.online_channels[channel_name] = {
-                    'game': game_name,
+                    'game_id': game_id,
                     'game_display_name': game_display_name,
-                    'status': i['channel']['status'],
-                    'viewers': i['viewers'],
+                    'status': i['title'],
+                    'viewers': i['viewer_count'],
                     'display_name': channel_display_name,
-                    'uptime': uptime}
+                    'uptime': uptime,
+                    'is_partner': is_partner}
 
         return self.online_channels

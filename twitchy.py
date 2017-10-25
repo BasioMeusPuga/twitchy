@@ -1,5 +1,9 @@
-#!/bin/env python
+#!/usr/bin/env python3
 # Requirements: streamlink, requests
+
+# TODO
+# Import atexit and register a function that closes database connections
+# It goes in main() and takes from twitchy_database.py
 
 # Standard imports
 import sys
@@ -42,7 +46,7 @@ def channel_addition(option, channels):
 
     # Get the numeric id of each channel that is to be added to the database
     if option == 'add':
-        valid_channels = twitchy_api.add_to_database(channels)
+        valid_channels = twitchy_api.get_users('id_from_name', channels)
     elif option == 'sync':
         valid_channels = twitchy_api.sync_from_id(channels)
 
@@ -237,7 +241,7 @@ def non_interactive(mode, channel_name=None):
             # The video is started in default quality
             channel_status[channel_name]['quality'] = Options.video.default_quality
             twitchy_play.play_instance_generator(channel_status)
-        except KeyboardInterrupt:
+        except KeyError:
             exit()
 
 
