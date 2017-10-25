@@ -17,8 +17,10 @@ Features:
 ## Installation
 1. Clone the repository
 2. In the root directory, type:
-2a. `$ python setup.py build`
-2b. `# python setup.py install'
+    
+        $ python setup.py build
+        # python setup.py install
+
 3. Launch with `twitchy`
 
 Alternatively, use the AUR package:
@@ -46,7 +48,7 @@ Please delete `~/.config/twitchy3/*` and restart twitchy before reporting any is
     -w <channel name>               Watch specified channel(s)
     
     First run:
-    Will create both the database and an editable config file in ~/.config/twitchy
+    Will create both the database and an editable config file in ~/.config/twitchy3/
     
     While playing:
     <q / Ctrl + C> to quit
@@ -70,20 +72,21 @@ Display all strings matching *obr*:
     $ twitchy obr
     Checking channels...
     Creative
-    1 bobross                   80085                The Joy of Painting Monday Season 7 Marathon #painting...
+    1 bobross                   80085           The Joy of Painting Monday Season 7 Marathon #painting...
     Sonic: Generations
-    2 mariobro                  123                  #WhereMuhPrincessAt?
+    2 mariobro                  123             #WhereMuhPrincessAt?
     Wizard Poker                               
-    3 flatulentcobra            6969                 Playing secret Paladin. Killing a puppy later.
+    3 flatulentcobra            6969            Playing secret Paladin. Killing a puppy later.
     Channel number(s): 1-h 2-s 3-l
 
     Custom quality settings: Specify with hyphen next to channel number.
-    E.g. <1-h 2-s 3-l> will simultaneously play channel 1 in high quality, 2 in source quality, and 3 in low quality.
+    E.g. <1-h 2-s 3-l> will simultaneously play 
+    channel 1 in high quality, 2 in source quality, and 3 in low quality.
     
 Watch specified channel(s) - Do not have to be in local database:
 
     $ twitchy -w northernlion cobaltstreak
     Checking channels...
     The Binding of Isaac: Afterbirth
-    1 northernlion                5757               Egg
+    1 northernlion                5757          Egg
     Channel number(s): 1
