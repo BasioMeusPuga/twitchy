@@ -3,6 +3,7 @@
 
 import ast
 import datetime
+import time
 
 import twitchy_database
 from twitchy_config import YouAndTheHorseYouRodeInOn
@@ -20,12 +21,26 @@ def api_call(url, params=None):
         headers = {
             'Client-ID': 'guulhcvqo9djhuyhb2vi56wqnglc351'}
 
-        r = requests.get(
-            url,
-            headers=headers,
-            params=params)
+        def make_request():
+            r = requests.get(
+                url,
+                headers=headers,
+                params=params)
 
-        return r.json()
+            my_json = r.json()
+
+            try:
+                status = my_json['status']
+                if status == 429:
+                    # Wait for 2 seconds in case of an API overload
+                    # Hopefully the recursion doesn't end the universe
+                    time.sleep(2)
+                    make_request()
+            except KeyError:
+                return my_json
+
+        return make_request()
+
 
     except requests.exceptions.ConnectionError:
         raise YouAndTheHorseYouRodeInOn(' Unable to connect to Twitch.')
@@ -57,8 +72,9 @@ def name_id_translate(data_type, mode, data):
     elif data_type == 'channels':
         api_endpoint = 'https://api.twitch.tv/helix/users'
         if mode == 'id_from_name':
-            channels = [i[0].lower() for i in data]
-            params = (('login', channels),)
+            if len(data) > 1:
+                data = [i[0].lower() for i in data]
+            params = (('login', data),)
 
     stream_data = api_call(
         api_endpoint,
@@ -95,31 +111,36 @@ def sync_from_id(username):
     # username is expected to be a string in lowecase
     # Make sure this is set in the initiating function
     # Example: sync_from_id('<username>')
+    followed_channels = {}
 
-    username_id = get_users('id_from_name', [username.lower()])
+    username_id = name_id_translate('channels', 'id_from_name', [username.lower()])
     if username_id:
-        print(username_id)
         username_id = username_id[username]['id']
     else:
-        # In case no id is returned by get_idget_users
+        # In case no id is returned by name_id_translate
         return
 
-    # TODO
-    # The results_expected has to pushed up to 100
-    # This will involve passing a 'first' param
     followed_channels_ids = []
-    params = (('from_id', username_id),)
+    params = (
+        ('from_id', username_id),
+        ('first', 100))
     while True:
-        results_expected = 20
+        results_expected = 100
         api_endpoint = 'https://api.twitch.tv/helix/users/follows'
 
         stream_data = api_call(
             api_endpoint,
             params)
 
-        for i in stream_data['data']:
-            followed_channels_ids.append(
-                int(i['to_id']))
+        followed_channels_ids = [i['to_id'] for i in stream_data['data']]
+        if not followed_channels_ids:
+            return
+
+        followed_channels_returned_dict = name_id_translate(
+            'channels', 'name_from_id', followed_channels_ids)
+
+        for i in followed_channels_returned_dict.items():
+            followed_channels[i[0]] = i[1]
 
         results_acquired = len(stream_data['data'])
         if results_acquired < results_expected:
@@ -127,13 +148,9 @@ def sync_from_id(username):
         else:
             params = (
                 ('from_id', username_id),
+                ('first', 100),
                 ('after', stream_data['pagination']['cursor']))
 
-    # At this point, followed_channels_ids is a list containing the
-    # user ids of the channels the user follows
-    # This will have to be converted into a more detailed dictionary
-
-    followed_channels = get_users('name_from_id', followed_channels_ids)
     return followed_channels
 
 
@@ -181,9 +198,14 @@ class GetOnlineStatus:
         except TypeError:
             # Implies the game is not in the database
             # Its name will have to be fetched from the API
+            # It will then be added to the database to prevent
+            # repeated API calls
+            # This means that all games EVER seen will be in the database now
             # Fuck whoever thought of this
             game_details = name_id_translate('games', 'name_from_id', (game_id,))
-            return (game_details[0][1], None)
+            game_name = game_details[0][1].replace("'", "")
+            twitchy_database.DatabaseFunctions().add_games(game_name, game_id)
+            return (game_name, None)
 
     def check_channels(self):
         # The API imposes an upper limit of 100 channels

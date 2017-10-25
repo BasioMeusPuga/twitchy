@@ -148,17 +148,15 @@ class DatabaseFunctions:
         self.database.commit()
         return added_channels
 
-    def add_games(self, game_name):
-        # Used for addition of a game that is started in the play module
+    def add_games(self, game_name, game_id):
+        # Used for addition of a game that is seen at initial listing
         # Does not need to return anything
-        sql_command_exist = f"SELECT Name FROM games WHERE Name = '{game_name}'"
-        does_it_exist = self.database.execute(
-            sql_command_exist).fetchone()
-        if not does_it_exist:
-            sql_command_add = (
-                f"INSERT INTO games (Name,Timewatched) VALUES ('{game_name}',0)")
-            self.database.execute(sql_command_add)
-            self.database.commit()
+        # Checking is no longer required either because it is now
+        # taken care of in the twitchy_api module
+        sql_command_add = (
+            f"INSERT INTO games (Name,GameID,Timewatched) VALUES ('{game_name}',{game_id},0)")
+        self.database.execute(sql_command_add)
+        self.database.commit()
 
     def fetch_data(self, columns, table, selection_criteria, equivalence, fetch_one=False):
         # columns is a tuple that will be passed as a comma separated list

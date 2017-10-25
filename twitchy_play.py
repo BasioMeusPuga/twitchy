@@ -38,9 +38,6 @@ class Playtime:
 
         # Insert the name of only started games into the database
         # This keeps the database from getting too cluttered
-        twitchy_database.DatabaseFunctions().add_games(
-            self.channel_params['game'])
-
         display_name = self.channel_params['display_name']
         player = Options.video.player_final + f' --title {display_name}'
         quality = Options.quality_map[self.channel_params['quality']]
