@@ -45,7 +45,7 @@ class ConfigInit:
         self.config_path = location_prefix + 'twitchy.cfg'
 
         self.player = self.default_quality = self.truncate_status_at = None
-        self.number_of_faves = self.mt_chat = self.check_interval = None
+        self.mt_chat = self.check_interval = None
 
         if not os.path.exists(self.config_path):
             self.configure_options()
@@ -77,11 +77,6 @@ class ConfigInit:
                 self.truncate_status_at = 0
 
             try:
-                self.number_of_faves = int(input(' Number of favorites to display [5]: '))
-            except ValueError:
-                self.number_of_faves = 5
-
-            try:
                 self.check_interval = int(
                     input(' Interval (seconds) in between channel status checks [60]: '))
             except ValueError:
@@ -92,7 +87,6 @@ class ConfigInit:
                 f' Media player: {Colors.YELLOW + self.player + Colors.ENDC}\n'
                 f' Default Quality: {Colors.YELLOW + self.default_quality + Colors.ENDC}\n'
                 f' Truncate status at: {Colors.YELLOW + str(self.truncate_status_at) + Colors.ENDC}\n'
-                f' Number of faves: {Colors.YELLOW + str(self.number_of_faves) + Colors.ENDC}\n'
                 f' Check interval: {Colors.YELLOW + str(self.check_interval) + Colors.ENDC}')
             print(penultimate_check)
 
@@ -147,7 +141,6 @@ class ConfigInit:
             'ColumnNames = True\n'
             '# Set to 0 for auto truncation. Any other positive integer for manual control\n'
             f'TruncateStatus = {self.truncate_status_at}\n'
-            f'NumberOfFaves = {self.number_of_faves}\n'
             f'CheckInterval = {self.check_interval}\n'
             '\n'
             '\n'
@@ -162,7 +155,13 @@ class ConfigInit:
             '\n'
             '\n'
             '[CHAT]\n'
-            'Enable = True\n')
+            'Enable = True\n'
+            '\n'
+            '\n'
+            '[NON-INTERACTIVE]\n'
+            '# Valid options are:\n'
+            '# GameName, GameAltName, ChannelName, ChannelAltName, Status, Viewers, Uptime\n'
+            'DisplayScheme = GameName, GameAltName, ChannelName, ChannelAltName\n')
 
         with open(self.config_path, 'w') as config_file:
             config_file.write(config_string)
@@ -184,6 +183,7 @@ class Options:
         # The class attributes are mostly dictionaries as declared below
         self.video = self.columns = self.display = None
         self.colors = self.chat = self.conky_run = self.quality_map = None
+        self.non_int_display_scheme = None
 
     def parse_options(self):
         config = configparser.ConfigParser()
@@ -253,6 +253,12 @@ class Options:
         # When to display chat
         chat_section = config['CHAT']
 
+        # How to display data in non-interactive operation
+        non_interactive = config['NON-INTERACTIVE']
+        display_scheme = non_interactive.get(
+            'DisplayScheme', ('GameName', 'GameAltName', 'ChannelName', 'ChannelAltName'))
+        display_scheme = display_scheme.replace(' ', '').split(',')
+
         try:
             Columns = collections.namedtuple(
                 'Columns',
@@ -271,12 +277,11 @@ class Options:
 
             Display = collections.namedtuple(
                 'Display',
-                ['sort_by', 'column_names', 'truncate_status', 'faves_displayed', 'check_interval'])
+                ['sort_by', 'column_names', 'truncate_status', 'check_interval'])
             self.display = Display(
                 sort_by,
                 display_section.getboolean('ColumnNames', False),
                 truncate_status_at,
-                display_section.getint('NumberOfFaves', 10),
                 display_section.getint('CheckInterval', 60))
 
             Colors = collections.namedtuple(
@@ -303,6 +308,8 @@ class Options:
                 'medium': '480p',
                 'high': '720p',
                 'source': 'best'}
+
+            self.non_int_display_scheme = display_scheme
 
         except KeyError:
             print(Colors.RED +

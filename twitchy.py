@@ -4,8 +4,8 @@
 # TODO
 # Import atexit and register a function that closes database connections
 # It goes in main() and takes from twitchy_database.py
-# Customize non interactive
 # setup.py
+# VODs
 
 # Standard imports
 import sys
@@ -217,15 +217,21 @@ def non_interactive(mode, channel_name=None):
             id_string_list).check_channels()
 
         # All standard channel parameters are available
-        return_list = []
         for i in channels_online.items():
-            return_list.append([
-                i[1]['game'], str(i[1]['game_display_name']),
-                i[0], i[1]['display_name']])
+            return_list = []
+            config_correlate = {
+                'GameName': i[1]['game'],
+                'GameAltName': str(i[1]['game_display_name']),
+                'ChannelName': i[0],
+                'ChannelAltName': i[1]['display_name'],
+                'Status': i[1]['status'],
+                'Viewers': str(i[1]['viewers']),
+                'Uptime': twitchy_display.time_convert(i[1]['uptime'])}
 
-        return_list.sort()
-        for i in return_list:
-            print(','.join(i))
+            for j in Options.non_int_display_scheme:
+                return_list.append(config_correlate[j])
+
+            print(','.join(return_list))
 
     if mode == 'kickstart':
         # Skip selection and just pass the channel name to the play module
