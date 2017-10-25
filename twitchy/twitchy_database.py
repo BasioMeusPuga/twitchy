@@ -4,8 +4,8 @@
 import os
 import sqlite3
 
-import twitchy_api
-from twitchy_config import Colors, YouAndTheHorseYouRodeInOn
+from twitchy import twitchy_api
+from twitchy.twitchy_config import Colors, YouAndTheHorseYouRodeInOn
 
 location_prefix = os.path.expanduser('~') + '/.config/twitchy3/'
 

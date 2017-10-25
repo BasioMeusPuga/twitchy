@@ -11,18 +11,18 @@ if sys.version_info < (3, 6):
     exit(1)
 
 # Custom imports
-import twitchy_config  # This import also creates the path
-from twitchy_config import Colors, YouAndTheHorseYouRodeInOn
-import twitchy_database
+from twitchy import twitchy_config  # This import also creates the path
+from twitchy.twitchy_config import Colors, YouAndTheHorseYouRodeInOn
+from twitchy import twitchy_database
 
 # This is against convention, but everything will error out unless
 # both the config and the database files exist
 twitchy_database.DatabaseInit()
 twitchy_config.ConfigInit()
 
-import twitchy_api
-import twitchy_display
-import twitchy_play
+from twitchy import twitchy_api
+from twitchy import twitchy_display
+from twitchy import twitchy_play
 
 # All database functions are methods in database_instance
 database_instance = twitchy_database.DatabaseFunctions()

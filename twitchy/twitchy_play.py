@@ -8,10 +8,10 @@ import select
 import subprocess
 import webbrowser
 
-import twitchy_database
-import twitchy_config
-from twitchy_config import Colors
-from twitchy_display import time_convert
+from twitchy import twitchy_database
+from twitchy import twitchy_config
+from twitchy.twitchy_config import Colors
+from twitchy.twitchy_display import time_convert
 
 Options = twitchy_config.Options()
 Options.parse_options()

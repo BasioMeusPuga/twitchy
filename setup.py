@@ -28,4 +28,5 @@ setup(name='twitchy',
           'Topic :: Multimedia :: Video :: Display'
       ],
       zip_safe=False,
+      entry_points={'console_scripts': ['twitchy = twitchy.__main__:main']},
       platforms='any')

@@ -4,8 +4,8 @@
 import locale
 import random
 
-import twitchy_config
-from twitchy_config import Colors
+from twitchy import twitchy_config
+from twitchy.twitchy_config import Colors
 
 Options = twitchy_config.Options()
 Options.parse_options()

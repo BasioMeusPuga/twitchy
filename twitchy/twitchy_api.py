@@ -5,8 +5,8 @@ import ast
 import datetime
 import time
 
-import twitchy_database
-from twitchy_config import YouAndTheHorseYouRodeInOn
+from twitchy import twitchy_database
+from twitchy.twitchy_config import YouAndTheHorseYouRodeInOn
 
 try:
     import requests
