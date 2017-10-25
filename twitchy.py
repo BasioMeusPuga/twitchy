@@ -4,6 +4,8 @@
 # TODO
 # Import atexit and register a function that closes database connections
 # It goes in main() and takes from twitchy_database.py
+# Customize non interactive
+# setup.py
 
 # Standard imports
 import sys
@@ -46,7 +48,8 @@ def channel_addition(option, channels):
 
     # Get the numeric id of each channel that is to be added to the database
     if option == 'add':
-        valid_channels = twitchy_api.get_users('id_from_name', channels)
+        valid_channels = twitchy_api.name_id_translate(
+            'channels', 'id_from_name', channels)
     elif option == 'sync':
         valid_channels = twitchy_api.sync_from_id(channels)
 
@@ -156,8 +159,10 @@ def watch_channel(mode, database_search=None):
                 not_in_database.append(i)
 
         if not_in_database:
-            get_ids_from_api = twitchy_api.get_id(not_in_database)
-            ids_only = [i[1] for i in get_ids_from_api.items()]
+            get_ids_from_api = twitchy_api.name_id_translate(
+                'channels', 'id_from_name', [not_in_database])
+
+            ids_only = [i[1]['id'] for i in get_ids_from_api.items()]
             id_string_list.extend(ids_only)
 
         if not id_string_list:
@@ -233,8 +238,9 @@ def non_interactive(mode, channel_name=None):
             exit(1)
 
         try:
-            api_reply = twitchy_api.get_id([channel_name])
-            channel_id = api_reply[channel_name]
+            api_reply = twitchy_api.name_id_translate(
+                'channels', 'id_from_name', [channel_name])
+            channel_id = api_reply[channel_name]['id']
 
             channel_status = twitchy_api.GetOnlineStatus(
                 [channel_id]).check_channels()

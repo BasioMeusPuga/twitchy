@@ -7,8 +7,6 @@ import sqlite3
 import twitchy_api
 from twitchy_config import Colors, YouAndTheHorseYouRodeInOn
 
-from pprint import pprint
-
 location_prefix = os.path.expanduser('~') + '/.config/twitchy3/'
 
 # TODO

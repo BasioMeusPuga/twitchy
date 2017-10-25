@@ -13,8 +13,6 @@ try:
 except ImportError:
     raise YouAndTheHorseYouRodeInOn(' requests not installed.')
 
-from pprint import pprint
-
 
 def api_call(url, params=None):
     try:
@@ -113,7 +111,8 @@ def sync_from_id(username):
     # Example: sync_from_id('<username>')
     followed_channels = {}
 
-    username_id = name_id_translate('channels', 'id_from_name', [username.lower()])
+    username_id = name_id_translate(
+        'channels', 'id_from_name', [username.lower()])
     if username_id:
         username_id = username_id[username]['id']
     else:
@@ -237,24 +236,40 @@ class GetOnlineStatus:
             for i in stream_data['data']:
 
                 user_id = i['user_id']
-                channel_details = twitchy_database.DatabaseFunctions().fetch_data(
-                    ('Name', 'DisplayName', 'AltName', 'IsPartner'),
-                    'channels',
-                    {'ChannelID': user_id},
-                    'EQUALS')[0]
+                try:
+                    channel_details = twitchy_database.DatabaseFunctions().fetch_data(
+                        ('Name', 'DisplayName', 'AltName', 'IsPartner'),
+                        'channels',
+                        {'ChannelID': user_id},
+                        'EQUALS')[0]
 
-                channel_name = channel_details[0]
+                    channel_name = channel_details[0]
+                    # Set the display name to a preset AltName if possible
+                    # Or go back to the display name set by the channel
+                    channel_display_name = channel_details[2]
+                    if not channel_display_name:
+                        channel_display_name = channel_details[1]
 
-                # Set the display name to a preset AltName if possible
-                # Or go back to the display name set by the channel
-                channel_display_name = channel_details[2]
-                if not channel_display_name:
-                    channel_display_name = channel_details[1]
+                    # Partner status is returned as string True
+                    # This is clearly unacceptable for anyone who
+                    # doesn't sleep in a dumpster
+                    is_partner = ast.literal_eval(channel_details[3])
 
-                # Partner status is returned as string True
-                # This is clearly unacceptable for anyone who
-                # doesn't sleep in a dumpster
-                is_partner = ast.literal_eval(channel_details[3])
+                except TypeError:
+                    # Implies that the channel is not present in the database
+                    # and its details will have to be queried from the API
+                    # This will *really* slow down if multiple non database channels
+                    # are put into -w since all of them are checked individually
+                    # A pox upon thee, Twitch API developers
+                    channel_details = name_id_translate(
+                        'channels', 'name_from_id', [user_id])
+
+                    for j in channel_details.items():
+                        channel_name = j[0]
+                        channel_display_name = j[1]['display_name']
+                        is_partner = False
+                        if j[1]['broadcaster_type'] == 'partner':
+                            is_partner = True
 
                 uptime = self.parse_uptime(i['started_at'])
 
@@ -263,12 +278,13 @@ class GetOnlineStatus:
                 # Whoever thought this was a good idea can sit on it and rotate
 
                 game_id = i['game_id']
-                game_names = self.get_game(game_id)
-                game_display_name = game_names[0]
-                if game_names[1]:
-                    game_display_name = game_names[1]
+                game_data = self.get_game(game_id)
+                game_name = game_display_name = game_data[0]
+                if game_data[1]:
+                    game_display_name = game_data[1]
 
                 self.online_channels[channel_name] = {
+                    'game': game_name,
                     'game_id': game_id,
                     'game_display_name': game_display_name,
                     'status': i['title'],
