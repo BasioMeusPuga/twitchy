@@ -90,3 +90,12 @@ Watch specified channel(s) - Do not have to be in local database:
     The Binding of Isaac: Afterbirth
     1 northernlion                5757          Egg
     Channel number(s): 1
+
+## Albert
+
+Supports the excellent [Albert launcher](https://github.com/albertlauncher/albert)
+<p align="center">
+  <img width="500" height="320" src="https://i.imgur.com/JRp00ie.png">
+</p>
+
+Move `twitchy_albert.py` in the `plugins` directory to `/usr/share/albert/org.albert.extension.python/modules`
