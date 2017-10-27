@@ -73,7 +73,7 @@ def handleQuery(query):
             for k in matching.items():
 
                 my_text = k[1]['text']
-                my_subtext = '(' + k[1]['subtext1'] + ") " + k[1]['subtext2']
+                my_subtext = k[1]['subtext1'] + " | " + k[1]['subtext2']
                 my_action = [ProcAction(
                     text="ProcAction",
                     commandline=["twitchy", "--non-interactive", "kickstart", k[0]],

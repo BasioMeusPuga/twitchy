@@ -17,7 +17,7 @@ locale.setlocale(locale.LC_ALL, '')
 # Display template mapping for extra spicy output
 def template_mapping(called_from):
 
-    third_column = 20
+    third_column = 1
     # Preceding specification is pointless as long as it's non zero
     # If however, it exceeds the column number of the terminal,
     # we'll get the unenviable free line breaks. That's just silly.
@@ -32,8 +32,8 @@ def template_mapping(called_from):
         first_column = 25
         second_column = 20
     elif called_from == 'vods':
-        first_column = 40
-        second_column = 60
+        first_column = 25
+        second_column = 80
 
     template = '{0:%s}{1:%s}{2:%s}' % (
         first_column, second_column, third_column)
@@ -337,7 +337,7 @@ class GenerateVODTable:
         self.vod_data = vod_data
 
     def table_display(self, display_list):
-        template = template_mapping('list')
+        template = template_mapping('vods')
         list_digits = len(str(len(display_list)))
         for count, i in enumerate(display_list):
 

@@ -137,7 +137,8 @@ class VOD:
         player = Options.video.player_final + f' --title {self.display_name}'
         args_to_subprocess = (
             f"streamlink {self.vod_url} best --player '{player}'")
-        args_to_subprocess = shlex.split(args_to_subprocess)
+        hls_settings = ' --hls-segment-threads 3 --player-passthrough=hls'
+        args_to_subprocess = shlex.split(args_to_subprocess + hls_settings)
 
         if twitchy_config.print_to_stdout:
             print(' ' + Colors.WHITE +
