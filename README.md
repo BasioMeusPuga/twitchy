@@ -1,7 +1,7 @@
 # twitchy
 CLI streamlink wrapper for twitch.tv
 
-**Requires streamlink, python3, python-requests**
+**Requires streamlink, python >= 3.6, python-requests**
 
 This script hopefully fulfills the needs of the discerning git cloner who wants to watch Twitch, hates the CPU utilization of having a browser/flash running, and has only a terminal handy.
 

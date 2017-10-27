@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
 """twitchy plugin for albert
-    Works only in the default
-    config for now.
-    Goes into:
-    /usr/share/albert/org.albert.extension.python/modules"""
+Works only in the default
+config for --non-interactive.
+Goes into:
+/usr/share/albert/org.albert.extension.python/modules"""
 
 import subprocess
 from albertv0 import *
@@ -66,11 +66,10 @@ def handleQuery(query):
 
                 my_text = k[1]['channel_display_name']
                 my_subtext = k[1]['game_display_name']
-                # Is ProcAction not working?
-                # This works with TermAction
-                my_action = [TermAction(
-                    'Play selected channel',
-                    ['twitchy --non-interactive kickstart ', k[0]])]
+                my_action = [ProcAction(
+                    text="ProcAction",
+                    commandline=["twitchy", "--non-interactive", "kickstart", k[0]],
+                    cwd="~")]
                 item = Item(
                     id=__prettyname__,
                     icon=icon,
