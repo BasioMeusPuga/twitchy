@@ -1,8 +1,15 @@
 # -*- coding: utf-8 -*-
 
 """twitchy plugin for albert
-Works only in the default
-config for --non-interactive.
+Rules:
+1. Configure --non-interactive to include at least
+three values. The first one forms the text, the 2nd and 3rd
+form the subtext.
+2. The last value will have to be the channel name that is
+passed back to twitchy
+3. Any other values will still be searched, but will be ignored
+for the display
+
 Goes into:
 /usr/share/albert/org.albert.extension.python/modules"""
 
@@ -21,23 +28,23 @@ if not icon:
     icon = ":python_module"
 
 
-def get_channel_list():
-    channels = subprocess.Popen(
-        'twitchy --non-interactive go',
-        shell=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE)
-    channels_stdout = channels.stdout.readlines()
-    channels_list = [
-        i.decode('utf-8').replace('\n', '').split(',') for i in channels_stdout]
-
-    return channels_list
-
-
-online_channels = get_channel_list()
-
-
 def handleQuery(query):
+
+    def get_channel_list():
+        # Gets triggered every time there is a change in the query
+        # This will exhaust API calls fast
+        channels = subprocess.Popen(
+            'twitchy --non-interactive go',
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE)
+        channels_stdout = channels.stdout.readlines()
+        channels_list = [
+            i.decode('utf-8').replace('\n', '').split(',') for i in channels_stdout]
+        return channels_list
+
+    online_channels = get_channel_list()
+
     results = []
     if query.isTriggered:
         args = query.string.split()
@@ -58,14 +65,15 @@ def handleQuery(query):
             for i in online_channels:
                 for j in i:
                     if search_term.lower() in j.lower():
-                        matching[i[2]] = {
-                            'game_display_name': i[1],
-                            'channel_display_name': i[3]}
+                        matching[i[-1]] = {
+                            'text': i[0],
+                            'subtext1': i[1],
+                            'subtext2': i[2]}
 
             for k in matching.items():
 
-                my_text = k[1]['channel_display_name']
-                my_subtext = k[1]['game_display_name']
+                my_text = k[1]['text']
+                my_subtext = '(' + k[1]['subtext1'] + ") " + k[1]['subtext2']
                 my_action = [ProcAction(
                     text="ProcAction",
                     commandline=["twitchy", "--non-interactive", "kickstart", k[0]],
