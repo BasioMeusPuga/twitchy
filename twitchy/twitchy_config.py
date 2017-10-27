@@ -7,10 +7,8 @@ import configparser
 import collections
 
 location_prefix = os.path.expanduser('~') + '/.config/twitchy3/'
-try:
-    os.makedirs(location_prefix)
-except FileExistsError:
-    pass
+os.makedirs(location_prefix, exist_ok=True)
+os.makedirs(location_prefix + 'images', exist_ok=True)
 
 # Runtime Options
 # Putting these inside a class makes them not work

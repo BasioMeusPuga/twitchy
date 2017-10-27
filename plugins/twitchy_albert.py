@@ -13,6 +13,7 @@ for the display
 Goes into:
 /usr/share/albert/org.albert.extension.python/modules"""
 
+import os
 import subprocess
 from albertv0 import *
 
@@ -27,6 +28,7 @@ icon = iconLookup('gnome-twitch')
 if not icon:
     icon = ":python_module"
 
+image_location = os.path.expanduser('~') + '/.config/twitchy3/images/'
 
 def handleQuery(query):
 
@@ -80,7 +82,7 @@ def handleQuery(query):
                     cwd="~")]
                 item = Item(
                     id=__prettyname__,
-                    icon=icon,
+                    icon=image_location + k[0],
                     completion=query.rawString,
                     text=my_text,
                     subtext=my_subtext,

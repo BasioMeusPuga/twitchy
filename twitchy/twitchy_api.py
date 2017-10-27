@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 # Twitch API interaction module
 
+import os
 import ast
 import datetime
 import time
 
 from twitchy import twitchy_database
-from twitchy.twitchy_config import YouAndTheHorseYouRodeInOn
+from twitchy.twitchy_config import YouAndTheHorseYouRodeInOn, location_prefix
 
 try:
     import requests
@@ -84,7 +85,8 @@ def name_id_translate(data_type, mode, data):
             channel_params = {
                 'id': i['id'],
                 'broadcaster_type': i['broadcaster_type'],
-                'display_name': i['display_name']}
+                'display_name': i['display_name'],
+                'profile_image_url': i['profile_image_url']}
 
             return_dict[i['login']] = channel_params
 
@@ -134,6 +136,8 @@ def sync_from_id(username):
         if not followed_channels_ids:
             return
 
+        # Since we're nesting these API calls, no separate pagination is
+        # required
         followed_channels_returned_dict = name_id_translate(
             'channels', 'name_from_id', followed_channels_ids)
 
@@ -186,6 +190,33 @@ def get_vods(channel_id):
     return return_list[::-1]
 
 
+def get_profile_image(channel_names):
+    # channel_names is a list
+
+    # Download the profile image (logo) of the channel
+    # This is currently only for the albert plugin
+    # If this function is being called, assume the
+    # requisite image does not exist and query for it
+    # from the API
+
+    link_dict = {}
+    while channel_names:
+        followed_channels_returned_dict = name_id_translate(
+            'channels', 'id_from_name', [channel_names[:100]])
+
+        for i in followed_channels_returned_dict.items():
+            link_dict[i[0]] = i[1]['profile_image_url']
+
+        del channel_names[:100]
+
+    for i in link_dict.items():
+        image_path = location_prefix + 'images/' + i[0]
+        r = requests.get(i[1], stream=True)
+        with open(image_path, 'wb') as image_file:
+            for chunk in r.iter_content(1024):
+                image_file.write(chunk)
+
+
 class GetOnlineStatus:
     def __init__(self, channels):
         # Again, channels is expected to be a tuple
@@ -196,6 +227,7 @@ class GetOnlineStatus:
         # channels.check_channels()
         # print(channels.online_channels)
         self.channels = channels
+        self.no_profile_images = []
         self.online_channels = {}
 
     def parse_uptime(self, start_time):
@@ -288,9 +320,17 @@ class GetOnlineStatus:
                     # doesn't sleep in a dumpster
                     is_partner = ast.literal_eval(channel_details[3])
 
+                    # Download images in case they aren't found
+                    # No extension is needed
+                    # Will only really be slow the first time
+                    profile_image = location_prefix + 'images/' + channel_name
+                    if not os.path.exists(profile_image):
+                        self.no_profile_images.append(channel_name)
+
                 except TypeError:
                     # Implies that the channel is not present in the database
                     # and its details will have to be queried from the API
+                    # This should only get triggered in case of -w
                     # This will *really* slow down if multiple non database channels
                     # are put into -w since all of them are checked individually
                     # A pox upon thee, Twitch API developers
@@ -326,4 +366,5 @@ class GetOnlineStatus:
                     'uptime': uptime,
                     'is_partner': is_partner}
 
+        get_profile_image(self.no_profile_images)
         return self.online_channels
