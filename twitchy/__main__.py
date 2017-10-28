@@ -340,7 +340,7 @@ def main():
         metavar='<channel>')
 
     parser.add_argument(
-        '-w', type=str,
+        '-w', type=str, nargs='+',
         help='Watch specified channel(s)',
         metavar='<channel>')
 

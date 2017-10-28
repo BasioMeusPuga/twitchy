@@ -351,10 +351,13 @@ class GetOnlineStatus:
                 # Whoever thought this was a good idea can sit on it and rotate
 
                 game_id = i['game_id']
-                game_data = self.get_game(game_id)
-                game_name = game_display_name = game_data[0]
-                if game_data[1]:
-                    game_display_name = game_data[1]
+                if not game_id or game_id == '':
+                    game_name = game_display_name = 'IDK'
+                else:
+                    game_data = self.get_game(game_id)
+                    game_name = game_display_name = game_data[0]
+                    if game_data[1]:
+                        game_display_name = game_data[1]
 
                 self.online_channels[channel_name] = {
                     'game': game_name,
