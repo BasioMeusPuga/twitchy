@@ -43,7 +43,7 @@ def channel_addition(option, channels):
     # Get the numeric id of each channel that is to be added to the database
     if option == 'add':
         valid_channels = twitchy_api.name_id_translate(
-            'channels', 'id_from_name', channels)
+            'channels', 'id_from_name', [channels])
     elif option == 'sync':
         valid_channels = twitchy_api.sync_from_id(channels)
 

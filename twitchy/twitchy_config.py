@@ -159,7 +159,7 @@ class ConfigInit:
             '[NON-INTERACTIVE]\n'
             '# Valid options are:\n'
             '# GameName, GameAltName, ChannelName, ChannelAltName, Status, Viewers, Uptime\n'
-            'DisplayScheme = GameName, GameAltName, ChannelName, ChannelAltName\n')
+            'DisplayScheme = GameAltName, GameName, ChannelAltName, ChannelName\n')
 
         with open(self.config_path, 'w') as config_file:
             config_file.write(config_string)
