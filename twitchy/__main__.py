@@ -65,7 +65,11 @@ def database_modification(option, database_search=None):
     # option is either 'delete' for -d
     # OR 'alternate_name' for -an
 
-    table_wanted = input(' Modify (s)treamer or (g)ame name? ')
+    try:
+        table_wanted = input(' Modify (s)treamer or (g)ame name? ')
+    except (KeyboardInterrupt, EOFError):
+        exit(1)
+
     if table_wanted.lower() == 's':
         table_wanted = 'channels'
     elif table_wanted.lower() == 'g':
@@ -217,9 +221,10 @@ def watch_vods(channel_name):
     final_selection = {
         display_name: twitchy_display.GenerateVODTable(vod_list).begin()}
     twitchy_config.time_tracking = False
+    twitchy_config.vod_mode = True
 
     print(' q / Ctrl + C to quit \n Now watching:')
-    twitchy_play.play_instance_generator(final_selection, vod_mode=True)
+    twitchy_play.play_instance_generator(final_selection)
 
 
 def non_interactive(mode, channel_name=None):
@@ -260,6 +265,7 @@ def non_interactive(mode, channel_name=None):
         # Time tracking is disabled
         twitchy_config.print_to_stdout = False
         twitchy_config.time_tracking = False
+        twitchy_config.non_interactive_mode = True
 
         if not channel_name:
             exit(1)

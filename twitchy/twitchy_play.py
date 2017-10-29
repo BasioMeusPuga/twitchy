@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # Playtime class generator module
 
+import os
 import sys
 import time
 import shlex
@@ -59,10 +60,15 @@ class Playtime:
         # Get the time when the stream starts
         self.start_time = time.time()
 
-        self.player_process = subprocess.Popen(
-            args_to_subprocess,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE)
+        if twitchy_config.non_interactive_mode:
+            self.player_process = subprocess.Popen(
+                args_to_subprocess, preexec_fn=os.setpgrp)
+            exit(0)
+        else:
+            self.player_process = subprocess.Popen(
+                args_to_subprocess,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE)
 
     def time_tracking(self):
         end_time = time.time()
@@ -152,16 +158,16 @@ class VOD:
             stderr=subprocess.PIPE)
 
 
-def play_instance_generator(incoming_dict, vod_mode=False):
+def play_instance_generator(incoming_dict):
     playtime_instance = {}
 
-    if not vod_mode:
+    if not twitchy_config.vod_mode:
         # Create instances of the Playtime class
         for count, i in enumerate(incoming_dict.items()):
             playtime_instance[count] = Playtime(i[0], i[1])
             playtime_instance[count].play()
 
-    elif vod_mode:
+    else:
         for i in incoming_dict.items():
             display_name = i[0]
             for count, j in enumerate(i[1]):
