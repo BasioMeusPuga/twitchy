@@ -7,7 +7,10 @@ import datetime
 import time
 
 from twitchy import twitchy_database
-from twitchy.twitchy_config import YouAndTheHorseYouRodeInOn, location_prefix
+from twitchy.twitchy_config import YouAndTheHorseYouRodeInOn, location_prefix, Options
+
+Options = Options()
+Options.parse_options()
 
 try:
     import requests
@@ -182,12 +185,17 @@ def get_vods(channel_id):
 
         creation_date = creation_time.strftime('%d %B %Y')
 
+        vod_title = i['title'].replace('\n', '')
+        if len(vod_title) > Options.display.truncate_status:
+            vod_title = vod_title[:Options.display.truncate_status] + '...'
+
         return_list.append([
             creation_date,
-            i['title'],
+            vod_title,
             i['url']])
 
-    return return_list[::-1]
+    return_list = return_list[::-1]
+    return return_list
 
 
 def get_profile_image(channel_names):
@@ -363,7 +371,7 @@ class GetOnlineStatus:
                     'game': game_name,
                     'game_id': game_id,
                     'game_display_name': game_display_name,
-                    'status': i['title'],
+                    'status': i['title'].replace('\n', ''),
                     'viewers': i['viewer_count'],
                     'display_name': channel_display_name,
                     'uptime': uptime,
