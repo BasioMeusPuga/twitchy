@@ -13,12 +13,12 @@ if sys.version_info < (3, 6):
 # Custom imports
 from twitchy import twitchy_config  # This import also creates the path
 from twitchy.twitchy_config import Colors, YouAndTheHorseYouRodeInOn
-from twitchy import twitchy_database
-
-# This is against convention, but everything will error out unless
-# both the config and the database files exist
-twitchy_database.DatabaseInit()
 twitchy_config.ConfigInit()
+
+# Everything will error out unless
+# both the config and the database files exist
+from twitchy import twitchy_database
+twitchy_database.DatabaseInit()
 
 from twitchy import twitchy_api
 from twitchy import twitchy_display

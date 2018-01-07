@@ -197,12 +197,13 @@ def play_instance_generator(incoming_dict):
                     error_message = [er for er in all_error if 'error:' in er]
                     print(' ' +
                           Colors.RED + playtime_instance[i].channel_params['display_name'] +
-                          Colors.ENDC +
-                          ' (' + error_message[0] + ')')
+                          Colors.ENDC,
+                          ':',
+                          error_message)
                 elif process_returncode == 0:
                     if time_tracking:
                         playtime_instance[i].time_tracking()
-                    playing_streams.remove(i)
+                playing_streams.remove(i)
 
         try:
             # The 0.8 is the polling interval for the streamlink process
