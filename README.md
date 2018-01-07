@@ -3,7 +3,7 @@ CLI streamlink wrapper for twitch.tv
 
 **Requires streamlink, python >= 3.6, python-requests**
 
-This script hopefully fulfills the needs of the discerning git cloner who wants to watch Twitch, hates the CPU utilization of having a browser/flash running, and has only a terminal handy.
+This script hopefully fulfills the needs of the discerning git cloner who wants to watch Twitch, and hates the CPU utilization of having a browser/flash running, especially since the current status of hardware accelerated video on Linux browsers is somewhere between non existent and abysmal.
 
 Features:
 * Tracking of most watched channels.
@@ -55,7 +55,7 @@ Please delete `~/.config/twitchy3/*` and restart twitchy before reporting any is
     
     Run in non-interactive mode. This is useful for integration with dmenu / rofi / conky.
     --non-interactive go            Get customizable comma separated list of channel / game data
-    --conky kickstart <channel>     Start channel directly without asking for confirmation
+    --non-interactive kickstart <>  Start channel directly without asking for confirmation
     
 ## Examples
 
