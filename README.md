@@ -91,7 +91,12 @@ Watch specified channel(s) - Do not have to be in local database:
     1 northernlion                5757          Egg
     Channel number(s): 1
 
-## Albert
+## Plugins
+
+Thanks to twitchy's `--non-interactive` flag, it is easy to integrate it
+with various tools, like the ones below.
+
+### Albert
 
 Supports the excellent [Albert launcher](https://github.com/albertlauncher/albert)
 <p align="center">
@@ -99,3 +104,20 @@ Supports the excellent [Albert launcher](https://github.com/albertlauncher/alber
 </p>
 
 Move `twitchy_albert.py` in the `plugins` directory to `/usr/share/albert/org.albert.extension.python/modules`
+
+### Rofi
+
+Supports a custom [rofi](https://github.com/DaveDavenport/rofi) mode
+<p align="center">
+  <img width="500" src="http://apetresc-screenshot.s3.amazonaws.com/2018-01-04-23.21.42.png" />
+</p>
+
+Move `rofi-twitchy` in the `plugins` directory to somewhere on your
+`PATH`, and invoke it with:
+
+```
+$ rofi -modi twitchy:rofi-twitchy -show twitchy
+```
+
+Of course, you probably want to bind this command to a keyboard shortcut
+in your window manager.

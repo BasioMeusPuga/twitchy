@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+if [[ "$@" == "" ]]
+then
+  twitchy --non-interactive | cut -d"," -f2,3 | sort | awk -F"," '{ print $2 "," $1}' | column -s\, -t
+else
+  coproc ( echo 1 | twitchy -w $(echo "$@" | cut -f1) > /dev/null 2>&1)
+  exit;
+fi
