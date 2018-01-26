@@ -139,6 +139,7 @@ def watch_channel(mode, database_search=None):
         id_string_list = []
         not_in_database = []
 
+        database_search = [i.lower() for i in database_search]
         for i in database_search:
             search_criteria = {
                 'Name': i}

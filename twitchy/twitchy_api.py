@@ -3,8 +3,8 @@
 
 import os
 import ast
-import datetime
 import time
+import datetime
 
 from twitchy import twitchy_database
 from twitchy.twitchy_config import YouAndTheHorseYouRodeInOn, location_prefix, Options
