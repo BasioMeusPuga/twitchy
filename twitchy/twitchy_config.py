@@ -161,7 +161,8 @@ class ConfigInit:
             '[NON-INTERACTIVE]\n'
             '# Valid options are:\n'
             '# GameName, GameAltName, ChannelName, ChannelAltName, Status, Viewers, Uptime\n'
-            'DisplayScheme = GameAltName, GameName, ChannelAltName, ChannelName\n')
+            'DisplayScheme = GameAltName, GameName, ChannelAltName, ChannelName\n'
+            'Delimiter = ,\n')
 
         with open(self.config_path, 'w') as config_file:
             config_file.write(config_string)
@@ -258,6 +259,7 @@ class Options:
         display_scheme = non_interactive.get(
             'DisplayScheme', ('GameName', 'GameAltName', 'ChannelName', 'ChannelAltName'))
         display_scheme = display_scheme.replace(' ', '').split(',')
+        delimiter = non_interactive.get('Delimiter', ',')
 
         try:
             Columns = collections.namedtuple(
@@ -310,6 +312,7 @@ class Options:
                 'source': 'best'}
 
             self.non_int_display_scheme = display_scheme
+            self.non_int_delimiter = delimiter
 
         except KeyError:
             print(Colors.RED +

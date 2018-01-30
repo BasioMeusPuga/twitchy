@@ -258,7 +258,7 @@ def non_interactive(mode, channel_name=None):
             for j in Options.non_int_display_scheme:
                 return_list.append(config_correlate[j])
 
-            print(','.join(return_list))
+            print(Options.non_int_delimiter.join(return_list))
 
     if mode == 'kickstart':
         # Skip selection and just pass the channel name to the play module
