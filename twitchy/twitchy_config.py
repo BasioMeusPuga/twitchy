@@ -2,6 +2,7 @@
 # Configuration and settings module
 
 import os
+import sys
 import shutil
 import configparser
 import collections
@@ -40,15 +41,24 @@ class Colors:
 
 
 class ConfigInit:
-    def __init__(self):
+    def __init__(self, for_test=False):
         # Create database and config files
         self.config_path = location_prefix + 'twitchy.cfg'
 
         self.player = self.default_quality = self.truncate_status_at = None
         self.mt_chat = self.check_interval = None
 
+        if for_test:
+            self.write_to_config_file(True)
+
         if not os.path.exists(self.config_path):
             self.configure_options()
+        else:
+            with open(self.config_path, 'r') as current_config:
+                first_line = current_config.readlines()[0]
+            if first_line == '# TEST CONFIG FILE\n' and not sys.argv[0] == 'setup.py':
+                os.remove(self.config_path)
+                self.configure_options()
 
     def configure_options(self):
         try:
@@ -111,13 +121,21 @@ class ConfigInit:
             except KeyboardInterrupt:
                 exit(1)
 
-    def write_to_config_file(self):
+    def write_to_config_file(self, test_config=False):
+        if test_config:
+            self.player = 'test_player'
+            self.default_quality = 'source'
+            self.truncate_status_at = 60
+            self.check_interval = 0
+            config_header = '# TEST CONFIG FILE\n'
+        else:
+            config_header = '# Twitchy configuration file\n'
+
         config_string = (
-            '# Twitchy configuration file\n'
             '# OPTIONS ARE CASE SENSITIVE\n'
             '\n'
             '[VIDEO]\n'
-            f'self.player = {self.player}\n'
+            f'Player = {self.player}\n'
             '# This is only valid if using mpv.\n'
             '# Valid options are: False, <hw. acceleration method>\n'
             '# Valid methods are: vaapi (Intel), vdpau (Nvidia) etc.\n'
@@ -165,13 +183,14 @@ class ConfigInit:
             'Delimiter = ,\n')
 
         with open(self.config_path, 'w') as config_file:
-            config_file.write(config_string)
+            config_file.write(config_header + config_string)
+
+        if not test_config:
             print()
             print(Colors.CYAN +
                   f' Config written to {self.config_path}. Read for additional settings.' +
                   Colors.ENDC)
-
-        exit()
+            exit()
 
     def remove_config(self):
         os.remove(self.config_path)
@@ -184,7 +203,7 @@ class Options:
         # The class attributes are mostly dictionaries as declared below
         self.video = self.columns = self.display = None
         self.colors = self.chat = self.conky_run = self.quality_map = None
-        self.non_int_display_scheme = None
+        self.non_int_display_scheme = self.non_int_delimiter = None
 
     def parse_options(self):
         config = configparser.ConfigParser()

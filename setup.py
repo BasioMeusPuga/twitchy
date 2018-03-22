@@ -1,9 +1,14 @@
+import sys
 from setuptools import setup
 
 MAJOR_VERSION = '3'
 MINOR_VERSION = '2'
 MICRO_VERSION = '0'
 VERSION = "{}.{}.{}".format(MAJOR_VERSION, MINOR_VERSION, MICRO_VERSION)
+
+if sys.argv[-1] == 'test':
+    from twitchy import twitchy_config
+    twitchy_config.ConfigInit(True)
 
 setup(name='twitchy',
       version=VERSION,

@@ -15,6 +15,9 @@ class DatabaseInit:
         self.database_path = location_prefix + 'twitchy.db'
         self.database_path_old = os.path.expanduser('~') + '/.config/twitchy/twitchy.db'
 
+        if is_test():
+            return
+
         if not os.path.exists(self.database_path):
             if not os.path.exists(self.database_path_old):
                 print(
@@ -108,6 +111,9 @@ class DatabaseInit:
 
 class DatabaseFunctions:
     def __init__(self):
+        if is_test():
+            return
+
         self.database_path = location_prefix + 'twitchy.db'
         self.database = sqlite3.connect(self.database_path)
 
@@ -245,3 +251,13 @@ class DatabaseFunctions:
             self.database.execute(i)
         self.database.commit()
         self.database.execute('VACUUM')
+
+
+def is_test():
+    config_path = location_prefix + os.sep + 'twitchy.cfg'
+    with open(config_path) as current_config:
+        first_line = current_config.readlines()[0]
+
+    if first_line == '# TEST CONFIG FILE\n':
+        return True
+    return False
