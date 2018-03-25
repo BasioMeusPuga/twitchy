@@ -121,6 +121,14 @@ class ConfigInit:
             except KeyboardInterrupt:
                 exit(1)
 
+        except EOFError:
+            print('\n', Colors.RED + 'Writing default values' + Colors.ENDC)
+            self.player = 'mpv'
+            self.default_quality = 'source'
+            self.check_interval = 60
+            self.truncate_status_at = 0
+            self.write_to_config_file()
+
     def write_to_config_file(self, test_config=False):
         if test_config:
             self.player = 'test_player'
@@ -186,7 +194,6 @@ class ConfigInit:
             config_file.write(config_header + config_string)
 
         if not test_config:
-            print()
             print(Colors.CYAN +
                   f' Config written to {self.config_path}. Read for additional settings.' +
                   Colors.ENDC)
