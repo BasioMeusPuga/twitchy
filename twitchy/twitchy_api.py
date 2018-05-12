@@ -274,10 +274,14 @@ class GetOnlineStatus:
             # repeated API calls
             # This means that all games EVER seen will be in the database now
             # Fuck whoever thought of this
-            game_details = name_id_translate('games', 'name_from_id', (game_id,))
-            game_name = game_details[0][1].replace("'", "")
-            twitchy_database.DatabaseFunctions().add_games(game_name, game_id)
-            return (game_name, None)
+            try:
+                game_details = name_id_translate('games', 'name_from_id', (game_id,))
+                game_name = game_details[0][1].replace("'", "")
+                twitchy_database.DatabaseFunctions().add_games(game_name, game_id)
+                return (game_name, None)
+            except IndexError:
+                # In the event the streamer gets lazy and does not set a game
+                return ('No game set', None)
 
     def check_channels(self):
         # The API imposes an upper limit of 100 channels
