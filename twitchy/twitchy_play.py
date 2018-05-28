@@ -40,7 +40,9 @@ class Playtime:
         # Insert the name of only started games into the database
         # This keeps the database from getting too cluttered
         display_name = self.channel_params['display_name']
-        player = Options.video.player_final + f' --title {display_name}'
+        player = Options.video.player_final
+        if player[:3] == 'mpv':
+            player += f' --title {display_name}'
         quality = Options.quality_map[self.channel_params['quality']]
 
         # The following prints to the console

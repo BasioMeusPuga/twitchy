@@ -227,10 +227,12 @@ class Options:
         if hw_accel not in hw_accel_valid:
             hw_accel = 'false'
 
-        if player == 'mpv' and hw_accel != 'false':
-            player_final = 'mpv --hwdec={0} --cache 8192'.format(hw_accel)
-        else:
-            player_final = 'mpv --cache 8192'
+        player_final = player
+        if player == 'mpv':
+            if hw_accel != 'false':
+                player_final = 'mpv --hwdec={0} --cache 8192'.format(hw_accel)
+            else:
+                player_final = 'mpv --cache 8192'
 
         default_quality = video_section.get('DefaultQuality', 'high')
         if default_quality not in ['low', 'medium', 'high', 'source']:
