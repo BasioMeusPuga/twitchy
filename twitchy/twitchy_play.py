@@ -36,6 +36,8 @@ class Playtime:
                 webbrowser.get('chromium').open_new(f'--app={chat_url}')
             except webbrowser.Error:
                 webbrowser.open_new(chat_url)
+            except TypeError:
+                webbrowser.get('chromium').open_new(f'--app={chat_url}')  # WTF?
 
         # Insert the name of only started games into the database
         # This keeps the database from getting too cluttered
