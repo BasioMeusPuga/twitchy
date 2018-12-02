@@ -18,6 +18,7 @@ print_to_stdout = True
 time_tracking = True
 vod_mode = False
 non_interactive_mode = False
+disown = False
 
 
 class YouAndTheHorseYouRodeInOn(Exception):

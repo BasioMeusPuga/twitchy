@@ -72,7 +72,8 @@ class Playtime:
             self.player_process = subprocess.Popen(
                 args_to_subprocess,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE)
+                stderr=subprocess.PIPE,
+                preexec_fn=os.setpgrp)
 
     def time_tracking(self):
         end_time = time.time()
@@ -177,6 +178,9 @@ def play_instance_generator(incoming_dict):
             for count, j in enumerate(i[1]):
                 playtime_instance[count] = VOD(display_name, j[0], j[1])
                 playtime_instance[count].play()
+
+    if twitchy_config.disown:
+        exit(0)
 
     # Time tracking switch
     time_tracking = twitchy_config.time_tracking

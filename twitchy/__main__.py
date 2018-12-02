@@ -328,6 +328,9 @@ def main():
         metavar='*searchstring*')
 
     parser.add_argument(
+        '--hanselgretel', action='store_true', help='Exit script and keep playing')
+
+    parser.add_argument(
         '--non-interactive', type=str, nargs='?',
         help='Generate parsable data for integration elsewhere',
         const='go',
@@ -356,6 +359,9 @@ def main():
     if (args.s or args.v) and args.searchfor:
         parser.error('Only one argument allowed with -s')
         exit(1)
+
+    if args.hanselgretel:
+        twitchy_config.disown = True
 
     if args.a:
         channel_addition('add', args.a)
