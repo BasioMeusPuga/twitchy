@@ -228,7 +228,7 @@ def watch_vods(channel_name):
     twitchy_play.play_instance_generator(final_selection)
 
 
-def non_interactive(mode, channel_name=None):
+def non_interactive(mode, channel_name=None, delimiter=None):
     if mode == 'get_online':
         # Output format:
         # Game name, Game display name (if present)...
@@ -258,7 +258,10 @@ def non_interactive(mode, channel_name=None):
             for j in Options.non_int_display_scheme:
                 return_list.append(config_correlate[j])
 
-            print(Options.non_int_delimiter.join(return_list))
+            if delimiter is None:
+                delimiter = Options.non_int_delimiter
+
+            print(delimiter.join(return_list))
 
     if mode == 'kickstart':
         # Skip selection and just pass the channel name to the play module
@@ -337,6 +340,9 @@ def main():
         metavar='go / kickstart')
 
     parser.add_argument(
+        '--delimiter', type=str, nargs='?', help=argparse.SUPPRESS)
+
+    parser.add_argument(
         '--reset', action='store_true', help='Start over')
 
     parser.add_argument(
@@ -383,7 +389,7 @@ def main():
 
     elif args.non_interactive:
         if args.non_interactive == 'go':
-            non_interactive('get_online')
+            non_interactive('get_online', delimiter=args.delimiter)
         elif args.non_interactive == 'kickstart':
             non_interactive('kickstart', args.searchfor)
 
