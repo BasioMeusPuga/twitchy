@@ -228,7 +228,8 @@ def watch_vods(channel_name):
     twitchy_play.play_instance_generator(final_selection)
 
 
-def non_interactive(mode, channel_name=None, delimiter=None):
+def non_interactive(
+        mode, channel_name=None, parser=None, delimiter=None, query=None):
     if mode == 'get_online':
         # Output format:
         # Game name, Game display name (if present)...
@@ -243,6 +244,16 @@ def non_interactive(mode, channel_name=None, delimiter=None):
         channels_online = twitchy_api.GetOnlineStatus(
             id_string_list).check_channels()
 
+        # Delimiter
+        if delimiter is None:
+            delimiter = Options.non_int_delimiter
+
+        # DisplayScheme
+        if query is None:
+            display_scheme = Options.non_int_display_scheme
+        else:
+            display_scheme = query.split(',')
+
         # All standard channel parameters are available
         for i in channels_online.items():
             return_list = []
@@ -255,11 +266,11 @@ def non_interactive(mode, channel_name=None, delimiter=None):
                 'Viewers': str(i[1]['viewers']),
                 'Uptime': twitchy_display.time_convert(i[1]['uptime'])}
 
-            for j in Options.non_int_display_scheme:
-                return_list.append(config_correlate[j])
-
-            if delimiter is None:
-                delimiter = Options.non_int_delimiter
+            for j in display_scheme:
+                if j in config_correlate:
+                    return_list.append(config_correlate[j])
+                else:
+                    parser.error('invalid query field "{}"'.format(j))
 
             print(delimiter.join(return_list))
 
@@ -343,6 +354,9 @@ def main():
         '--delimiter', type=str, nargs='?', help=argparse.SUPPRESS)
 
     parser.add_argument(
+        '--query', type=str, nargs='?', help=argparse.SUPPRESS)
+
+    parser.add_argument(
         '--reset', action='store_true', help='Start over')
 
     parser.add_argument(
@@ -389,7 +403,12 @@ def main():
 
     elif args.non_interactive:
         if args.non_interactive == 'go':
-            non_interactive('get_online', delimiter=args.delimiter)
+            non_interactive(
+                'get_online',
+                parser=parser,
+                delimiter=args.delimiter,
+                query=args.query,
+            )
         elif args.non_interactive == 'kickstart':
             non_interactive('kickstart', args.searchfor)
 
