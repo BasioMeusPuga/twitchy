@@ -66,7 +66,10 @@ class Playtime:
 
         if twitchy_config.non_interactive_mode:
             self.player_process = subprocess.Popen(
-                args_to_subprocess, preexec_fn=os.setpgrp)
+                args_to_subprocess,
+                preexec_fn=os.setpgrp,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL)
             exit(0)
         else:
             self.player_process = subprocess.Popen(
@@ -159,8 +162,8 @@ class VOD:
 
         self.player_process = subprocess.Popen(
             args_to_subprocess,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE)
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL)
 
 
 def play_instance_generator(incoming_dict):

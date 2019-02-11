@@ -239,6 +239,10 @@ def non_interactive(mode, channel_name=None, delimiter=None):
             None,
             'LIKE')
 
+        # Database is empty and no output must be issued
+        if not channel_data:
+            return
+
         id_string_list = [str(i[0]) for i in channel_data]
         channels_online = twitchy_api.GetOnlineStatus(
             id_string_list).check_channels()
@@ -331,7 +335,7 @@ def main():
         metavar='*searchstring*')
 
     parser.add_argument(
-        '--hanselgretel', action='store_true', help='Exit script and keep playing')
+        '--hanselgretel', action='store_true', help='Abandon children')
 
     parser.add_argument(
         '--non-interactive', type=str, nargs='?',
