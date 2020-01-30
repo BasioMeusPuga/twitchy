@@ -44,7 +44,7 @@ class Playtime:
         display_name = self.channel_params['display_name']
         player = Options.video.player_final
         if player[:3] == 'mpv':
-            player += f' --title {display_name}'
+            player += f' --title={display_name}'
         quality = Options.quality_map[self.channel_params['quality']]
 
         # The following prints to the console
@@ -148,7 +148,7 @@ class VOD:
         self.player_process = None
 
     def play(self):
-        player = Options.video.player_final + f' --title {self.display_name}'
+        player = Options.video.player_final + f' --title={self.display_name}'
         args_to_subprocess = (
             f"streamlink {self.vod_url} best --player '{player}'")
         hls_settings = ' --hls-segment-threads 3 --player-passthrough=hls'

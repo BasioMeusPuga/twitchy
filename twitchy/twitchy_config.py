@@ -231,9 +231,9 @@ class Options:
         player_final = player
         if player == 'mpv':
             if hw_accel != 'false':
-                player_final = 'mpv --hwdec={0} --cache 8192'.format(hw_accel)
+                player_final = 'mpv --hwdec={0} --cache=auto'.format(hw_accel)
             else:
-                player_final = 'mpv --cache 8192'
+                player_final = 'mpv --cache=auto'
 
         default_quality = video_section.get('DefaultQuality', 'high')
         if default_quality not in ['low', 'medium', 'high', 'source']:
