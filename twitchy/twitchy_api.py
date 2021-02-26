@@ -21,7 +21,8 @@ except ImportError:
 def api_call(url, params=None):
     try:
         headers = {
-            'Client-ID': 'guulhcvqo9djhuyhb2vi56wqnglc351'}
+            'Client-ID': 'ikqljee10yj4aew72d0zr5qiihqlsn',
+        'Authorization': 'Bearer bhhy9gfnkhkyb1gagro1a42x2ofbhd'}
 
         def make_request():
             r = requests.get(

@@ -77,9 +77,9 @@ class ConfigInit:
                           ' is not in $PATH. Please check if this is what you want.')
                     raise KeyboardInterrupt
 
-            self.default_quality = input(' Default stream quality [low/medium/HIGH/source]: ')
+            self.default_quality = input(' Default stream quality [low/medium/HIGH/super/source]: ')
             if (self.default_quality == '' or
-                    self.default_quality not in ['low', 'medium', 'source']):
+                    self.default_quality not in ['low', 'medium','super' 'source']):
                 self.default_quality = 'high'
 
             try:
@@ -149,7 +149,7 @@ class ConfigInit:
             '# Valid options are: False, <hw. acceleration method>\n'
             '# Valid methods are: vaapi (Intel), vdpau (Nvidia) etc.\n'
             'MPVHardwareAcceleration = False\n'
-            '# Valid options are: low, mid, high, source\n'
+            '# Valid options are: low, mid, high, super ,source\n'
             f'DefaultQuality = {self.default_quality}\n'
             '\n'
             '\n'
@@ -236,7 +236,7 @@ class Options:
                 player_final = 'mpv --cache=auto'
 
         default_quality = video_section.get('DefaultQuality', 'high')
-        if default_quality not in ['low', 'medium', 'high', 'source']:
+        if default_quality not in ['low', 'medium', 'high', 'super','source']:
             default_quality = 'high'
 
         # Which columns to display
@@ -338,6 +338,7 @@ class Options:
                 'low': '360p',
                 'medium': '480p',
                 'high': '720p',
+                'super': '720p60',
                 'source': 'best'}
 
             self.non_int_display_scheme = display_scheme
