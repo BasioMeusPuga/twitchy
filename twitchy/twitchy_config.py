@@ -93,12 +93,19 @@ class ConfigInit:
             except ValueError:
                 self.check_interval = 60
 
+
+            self.add_chat = string(input(' Added chat feature [Default: No], If yes pick cli or browser'))
+            if (self.add_chat == '' or
+                    self.add_chat not in ['No', 'no','n', 'N', 'cli', 'browser']):
+                self.add_chat = 'no'
+
             print('\n' + Colors.CYAN + ' Current Settings:' + Colors.ENDC)
             penultimate_check = (
                 f' Media player: {Colors.YELLOW + self.player + Colors.ENDC}\n'
                 f' Default Quality: {Colors.YELLOW + self.default_quality + Colors.ENDC}\n'
                 f' Truncate status at: {Colors.YELLOW + str(self.truncate_status_at) + Colors.ENDC}\n'
-                f' Check interval: {Colors.YELLOW + str(self.check_interval) + Colors.ENDC}')
+                f' Check interval: {Colors.YELLOW + str(self.check_interval) + Colors.ENDC}\n'
+                f' Add Chat: {Colors.YELLOW + str(self.add_chat) + Colors.ENDC}')
             print(penultimate_check)
 
             do_we_like = input(' Does this look correct to you? [Y/n]: ')
@@ -128,6 +135,7 @@ class ConfigInit:
             self.default_quality = 'source'
             self.check_interval = 60
             self.truncate_status_at = 0
+            self.add_chat = 'no'
             self.write_to_config_file()
 
     def write_to_config_file(self, test_config=False):
@@ -136,6 +144,7 @@ class ConfigInit:
             self.default_quality = 'source'
             self.truncate_status_at = 60
             self.check_interval = 0
+            self.add_chat = 'no'
             config_header = '# TEST CONFIG FILE\n'
         else:
             config_header = '# Twitchy configuration file\n'
@@ -182,7 +191,7 @@ class ConfigInit:
             '\n'
             '\n'
             '[CHAT]\n'
-            'Enable = True\n'
+            f'Chat = {self.add_chat}\n'
             '\n'
             '\n'
             '[NON-INTERACTIVE]\n'
@@ -282,6 +291,9 @@ class Options:
 
         # When to display chat
         chat_section = config['CHAT']
+        chat = chat_section.get('chat','no')
+        if chat not in ['no', 'cli', 'browser']:
+            chat = 'no'
 
         # How to display data in non-interactive operation
         non_interactive = config['NON-INTERACTIVE']
@@ -327,9 +339,9 @@ class Options:
 
             Chat = collections.namedtuple(
                 'Chat',
-                ['enable'])
+                ['chat'])
             self.chat = Chat(
-                chat_section.getboolean('Enable', True))
+                chat_section.get('Chat', add_chat))
 
             # Required only at runtime in case values for a conky instance are needed
             self.conky_run = False
